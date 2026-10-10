@@ -51,11 +51,16 @@ class Repository:
 
     def upsert_equipment(self, serial: str, description: str, client_id: int,
                          cpu="", ram="", storage="", os_name="") -> int:
+        """Crea o actualiza un equipo. Los datos de hardware solo se
+        sobrescriben si se entregan valores nuevos (no vacíos)."""
         serial = serial.strip().upper()
         row = self.c.execute("SELECT id FROM equipment WHERE serial = ?", (serial,)).fetchone()
         if row:
             self.c.execute(
-                "UPDATE equipment SET description=?, client_id=?, cpu=?, ram=?, storage=?, os=? WHERE id=?",
+                "UPDATE equipment SET description=?, client_id=?, "
+                "cpu=COALESCE(NULLIF(?,''), cpu), ram=COALESCE(NULLIF(?,''), ram), "
+                "storage=COALESCE(NULLIF(?,''), storage), os=COALESCE(NULLIF(?,''), os) "
+                "WHERE id=?",
                 (description, client_id, cpu, ram, storage, os_name, row["id"]),
             )
             self.c.commit()
@@ -81,6 +86,13 @@ class Repository:
         self.c.commit()
         return code
 
+    def register_intake(self, cliente: str, telefono: str, serie: str,
+                        equipo: str, problema: str, prioridad: str = "Media") -> str:
+        """Recepción rápida: cliente + equipo + caso en una sola operación."""
+        cid = self.add_client(cliente.strip(), telefono.strip())
+        eid = self.upsert_equipment(serie, equipo.strip(), cid)
+        return self.create_case(eid, problema.strip(), prioridad)
+
     def update_case_status(self, code: str, status: str) -> None:
         self.c.execute("UPDATE cases SET status=? WHERE code=?", (status, code))
         self.c.commit()
@@ -93,6 +105,9 @@ class Repository:
         LEFT JOIN clients cl ON cl.id = e.client_id
     """
 
+    def get_case(self, code: str) -> sqlite3.Row | None:
+        return self.c.execute(self._SELECT_CASOS + " WHERE cs.code = ?", (code,)).fetchone()
+
     def list_cases(self, status: str | None = None) -> list[sqlite3.Row]:
         sql = self._SELECT_CASOS + (" WHERE cs.status = ?" if status else "") + " ORDER BY cs.id DESC"
         return self.c.execute(sql, (status,) if status else ()).fetchall()
@@ -103,6 +118,9 @@ class Repository:
             self._SELECT_CASOS + " WHERE e.serial = ? ORDER BY cs.id DESC",
             (serial.strip().upper(),),
         ).fetchall()
+
+    def other_cases(self, serial: str, exclude_code: str) -> list[sqlite3.Row]:
+        return [r for r in self.previous_cases(serial) if r["code"] != exclude_code]
 
     def search(self, text: str) -> list[sqlite3.Row]:
         """Búsqueda global por cliente, teléfono, serie, equipo o código."""

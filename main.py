@@ -20,7 +20,7 @@ def main() -> int:
         db.close()
         return 0
 
-    win = MainWindow(login.user_id)
+    win = MainWindow(repo, login.user_id)
     win.show()
     codigo = app.exec()
     db.close()
