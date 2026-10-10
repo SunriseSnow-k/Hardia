@@ -1,5 +1,8 @@
 import sys
 from PySide6.QtWidgets import QApplication
+from app.paths import db_path
+from app.db.database import Database
+from app.db.repo import Repository
 from app.ui.styles import QSS
 from app.ui.login import LoginDialog
 from app.ui.main_window import MainWindow
@@ -8,12 +11,20 @@ from app.ui.main_window import MainWindow
 def main() -> int:
     app = QApplication(sys.argv)
     app.setStyleSheet(QSS)
-    login = LoginDialog()
+
+    db = Database(db_path())
+    repo = Repository(db)
+
+    login = LoginDialog(repo)
     if login.exec() != LoginDialog.Accepted:
+        db.close()
         return 0
+
     win = MainWindow(login.user_id)
     win.show()
-    return app.exec()
+    codigo = app.exec()
+    db.close()
+    return codigo
 
 
 if __name__ == "__main__":

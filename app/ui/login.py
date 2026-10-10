@@ -1,14 +1,17 @@
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (QDialog, QHBoxLayout, QVBoxLayout, QLabel,
                                QLineEdit, QPushButton, QWidget)
+from app.db.repo import Repository
 
 
 class LoginDialog(QDialog):
-    def __init__(self):
+    def __init__(self, repo: Repository):
         super().__init__()
+        self.repo = repo
+        self.first_run = repo.count_users() == 0
+        self.user_id = ""
         self.setWindowTitle("Sistema Inteligente Offline — Iniciar sesión")
         self.setFixedSize(760, 460)
-        self.user_id = ""
 
         root = QHBoxLayout(self)
         root.setContentsMargins(0, 0, 0, 0)
@@ -38,10 +41,14 @@ class LoginDialog(QDialog):
         rv = QVBoxLayout(right)
         rv.setContentsMargins(48, 40, 48, 40)
         rv.setAlignment(Qt.AlignVCenter)
-        h = QLabel("Iniciar sesión")
+        h = QLabel("Crear cuenta inicial" if self.first_run else "Iniciar sesión")
         h.setObjectName("PageTitle")
-        sub = QLabel("Acceso para técnicos del taller.")
+        sub = QLabel(
+            "Primer uso: cree la cuenta del técnico responsable."
+            if self.first_run else "Acceso para técnicos del taller."
+        )
         sub.setObjectName("Muted")
+        sub.setWordWrap(True)
         self.id_input = QLineEdit()
         self.id_input.setPlaceholderText("ID de técnico (ej.: TEC-001)")
         self.pw_input = QLineEdit()
@@ -49,7 +56,8 @@ class LoginDialog(QDialog):
         self.pw_input.setEchoMode(QLineEdit.Password)
         self.error = QLabel("")
         self.error.setObjectName("Error")
-        btn = QPushButton("Ingresar")
+        self.error.setWordWrap(True)
+        btn = QPushButton("Crear cuenta" if self.first_run else "Ingresar")
         btn.setObjectName("Primary")
         btn.setDefault(True)
         btn.clicked.connect(self.try_login)
@@ -63,9 +71,20 @@ class LoginDialog(QDialog):
         root.addWidget(right, 1)
 
     def try_login(self):
-        # Fase 1: validación provisional. En la Fase 2 se valida contra SQLite.
-        if not self.id_input.text().strip() or not self.pw_input.text():
+        tech_id = self.id_input.text().strip()
+        password = self.pw_input.text()
+        if not tech_id or not password:
             self.error.setText("Ingrese su ID y su contraseña.")
             return
-        self.user_id = self.id_input.text().strip().upper()
+        if self.first_run:
+            try:
+                self.repo.create_user(tech_id, password)
+            except ValueError as e:
+                self.error.setText(str(e))
+                return
+        elif not self.repo.verify_user(tech_id, password):
+            self.error.setText("ID o contraseña incorrectos.")
+            self.pw_input.clear()
+            return
+        self.user_id = tech_id.upper()
         self.accept()
