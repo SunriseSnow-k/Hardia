@@ -9,6 +9,7 @@ from app.ui.pages.inicio import InicioPage
 from app.ui.pages.recepcion import RecepcionPage
 from app.ui.pages.escaneo import EscaneoPage
 from app.ui.pages.historial import HistorialPage
+from app.ui.pages.reportes import ReportesPage
 from app.ui.pages.conocimiento import ConocimientoPage
 from app.ui.pages.ia_local import IaLocalPage
 
@@ -18,7 +19,7 @@ SECCIONES = [
     "Acerca del sistema",
 ]
 IDX_INICIO, IDX_RECEPCION, IDX_ESCANEO, IDX_HISTORIAL = 0, 1, 2, 4
-IDX_CONOCIMIENTO, IDX_IA = 6, 7
+IDX_REPORTES, IDX_CONOCIMIENTO, IDX_IA = 5, 6, 7
 
 
 class MainWindow(QMainWindow):
@@ -40,12 +41,14 @@ class MainWindow(QMainWindow):
         self.recepcion = RecepcionPage(repo)
         self.escaneo = EscaneoPage()
         self.historial = HistorialPage(repo)
+        self.reportes = ReportesPage(repo, user_id)
         self.conocimiento = ConocimientoPage()
         self.ia = IaLocalPage(repo)
         reales = {
             IDX_INICIO: self.inicio, IDX_RECEPCION: self.recepcion,
             IDX_ESCANEO: self.escaneo, IDX_HISTORIAL: self.historial,
-            IDX_CONOCIMIENTO: self.conocimiento, IDX_IA: self.ia,
+            IDX_REPORTES: self.reportes, IDX_CONOCIMIENTO: self.conocimiento,
+            IDX_IA: self.ia,
         }
         self.pages = QStackedWidget()
         for i, nombre in enumerate(SECCIONES):
@@ -154,6 +157,7 @@ class MainWindow(QMainWindow):
     def _refrescar_todo(self):
         self.inicio.refresh()
         self.historial.refresh()
+        self.reportes.refresh()
 
     def _usar_escaneo(self, data: dict):
         self.recepcion.set_hardware(data)

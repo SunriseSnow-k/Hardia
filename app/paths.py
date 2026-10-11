@@ -14,3 +14,10 @@ def data_dir() -> Path:
 
 def db_path() -> Path:
     return data_dir() / "diagnostico.db"
+
+
+def reports_dir() -> Path:
+    """Carpeta donde se guardan los reportes PDF."""
+    path = data_dir() / "Reportes"
+    path.mkdir(parents=True, exist_ok=True)
+    return path
