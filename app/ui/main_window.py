@@ -6,6 +6,7 @@ from app.db.repo import Repository
 from app.ui.case_dialog import CaseDialog
 from app.ui.pages.inicio import InicioPage
 from app.ui.pages.recepcion import RecepcionPage
+from app.ui.pages.escaneo import EscaneoPage
 from app.ui.pages.historial import HistorialPage
 
 SECCIONES = [
@@ -13,7 +14,7 @@ SECCIONES = [
     "Reportes", "Base de conocimiento", "IA local", "Configuración",
     "Acerca del sistema",
 ]
-IDX_INICIO, IDX_RECEPCION, IDX_HISTORIAL = 0, 1, 4
+IDX_INICIO, IDX_RECEPCION, IDX_ESCANEO, IDX_HISTORIAL = 0, 1, 2, 4
 
 
 class MainWindow(QMainWindow):
@@ -33,17 +34,15 @@ class MainWindow(QMainWindow):
         # Páginas
         self.inicio = InicioPage(repo)
         self.recepcion = RecepcionPage(repo)
+        self.escaneo = EscaneoPage()
         self.historial = HistorialPage(repo)
+        reales = {
+            IDX_INICIO: self.inicio, IDX_RECEPCION: self.recepcion,
+            IDX_ESCANEO: self.escaneo, IDX_HISTORIAL: self.historial,
+        }
         self.pages = QStackedWidget()
         for i, nombre in enumerate(SECCIONES):
-            if i == IDX_INICIO:
-                self.pages.addWidget(self.inicio)
-            elif i == IDX_RECEPCION:
-                self.pages.addWidget(self.recepcion)
-            elif i == IDX_HISTORIAL:
-                self.pages.addWidget(self.historial)
-            else:
-                self.pages.addWidget(self._placeholder(nombre))
+            self.pages.addWidget(reales.get(i) or self._placeholder(nombre))
 
         # Barra lateral
         self.sidebar = QListWidget()
@@ -64,6 +63,8 @@ class MainWindow(QMainWindow):
         self.inicio.new_intake.connect(lambda: self.sidebar.setCurrentRow(IDX_RECEPCION))
         self.recepcion.open_case.connect(self.abrir_caso)
         self.recepcion.case_created.connect(lambda _c: self._refrescar_todo())
+        self.recepcion.go_scan.connect(lambda: self.sidebar.setCurrentRow(IDX_ESCANEO))
+        self.escaneo.use_data.connect(self._usar_escaneo)
         self.historial.open_case.connect(self.abrir_caso)
 
         self.sidebar.setCurrentRow(IDX_INICIO)
@@ -132,11 +133,21 @@ class MainWindow(QMainWindow):
         self.inicio.refresh()
         self.historial.refresh()
 
+    def _usar_escaneo(self, data: dict):
+        self.recepcion.set_hardware(data)
+        self.sidebar.setCurrentRow(IDX_RECEPCION)
+
     def abrir_caso(self, code: str):
         dlg = CaseDialog(self.repo, code, self)
         dlg.exec()
         if dlg.changed:
             self._refrescar_todo()
+
+    def closeEvent(self, event):
+        w = self.escaneo.worker
+        if w and w.isRunning():
+            w.wait(15000)  # deja terminar un escaneo en curso
+        super().closeEvent(event)
 
     def _placeholder(self, nombre: str) -> QWidget:
         w = QWidget()

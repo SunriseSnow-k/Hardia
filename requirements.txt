@@ -1,2 +1,5 @@
 PySide6
 pytest
+psutil
+wmi
+pywin32

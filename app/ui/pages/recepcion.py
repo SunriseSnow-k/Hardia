@@ -1,12 +1,16 @@
-from PySide6.QtCore import Signal
+import html
+
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
                                QLabel, QLineEdit, QComboBox, QPushButton, QFrame)
 from app.db.repo import Repository, PRIORIDADES
+from app.ui.pages.escaneo import fila_html
 
 
 class RecepcionPage(QWidget):
     case_created = Signal(str)
     open_case = Signal(str)
+    go_scan = Signal()
 
     CHIPS = ["Lento", "Se apaga", "No enciende", "Se calienta", "Disco lleno", "Pantalla azul"]
 
@@ -14,6 +18,7 @@ class RecepcionPage(QWidget):
         super().__init__()
         self.repo = repo
         self._prev_code = None
+        self.hw: dict | None = None
 
         root = QVBoxLayout(self)
         root.setContentsMargins(26, 22, 26, 22)
@@ -111,7 +116,7 @@ class RecepcionPage(QWidget):
         botones.addStretch()
         fv.addLayout(botones)
 
-        # --- Panel de datos del equipo (Fase 4) ---
+        # --- Panel de datos del equipo (escaneo) ---
         lado = QFrame()
         lado.setObjectName("Panel")
         lv = QVBoxLayout(lado)
@@ -119,14 +124,13 @@ class RecepcionPage(QWidget):
         lv.setSpacing(10)
         h3 = QLabel("Datos del equipo")
         h3.setObjectName("SectionTitle")
-        info = QLabel("Sin datos de hardware.\nEl escaneo automático se activará en la Fase 4.")
-        info.setObjectName("Muted")
-        info.setWordWrap(True)
-        scan = QPushButton("Escanear este equipo")
-        scan.setObjectName("Secondary")
-        scan.setEnabled(False)
         lv.addWidget(h3)
-        lv.addWidget(info)
+        self.hw_box = QVBoxLayout()
+        self.hw_box.setSpacing(8)
+        lv.addLayout(self.hw_box)
+        scan = QPushButton("Escanear o importar datos")
+        scan.setObjectName("Secondary")
+        scan.clicked.connect(self.go_scan.emit)
         lv.addWidget(scan)
         lv.addStretch()
 
@@ -134,6 +138,7 @@ class RecepcionPage(QWidget):
         cuerpo.addWidget(lado, 2)
         root.addLayout(cuerpo)
         root.addStretch()
+        self._render_hw()
 
     @staticmethod
     def _campo(etiqueta: str, widget: QWidget) -> QWidget:
@@ -147,6 +152,39 @@ class RecepcionPage(QWidget):
         v.addWidget(widget)
         return w
 
+    # ---------- Datos de hardware ----------
+    def set_hardware(self, data: dict):
+        """Recibe un escaneo (local o importado desde USB)."""
+        self.hw = data
+        resumen = data.get("summary", {})
+        if resumen.get("serial") and not self.serie.text().strip():
+            self.serie.setText(resumen["serial"])
+        if resumen.get("description") and not self.equipo.text().strip():
+            self.equipo.setText(resumen["description"])
+        self._render_hw()
+
+    def _render_hw(self):
+        while self.hw_box.count():
+            w = self.hw_box.takeAt(0).widget()
+            if w:
+                w.deleteLater()
+        if not self.hw:
+            lbl = QLabel("Sin datos de hardware.\nUse el escaneo para completarlos automáticamente.")
+            lbl.setObjectName("Muted")
+            lbl.setWordWrap(True)
+            self.hw_box.addWidget(lbl)
+            return
+        for c in self.hw.get("components", []):
+            lbl = QLabel(fila_html(c.get("name", "?"), c.get("detail", ""), c.get("status", "ok")))
+            lbl.setTextFormat(Qt.RichText)
+            lbl.setWordWrap(True)
+            self.hw_box.addWidget(lbl)
+        fecha = str(self.hw.get("scanned_at", "")).replace("T", " ")[:16]
+        nota = QLabel(f"Escaneado el {html.escape(fecha)}")
+        nota.setObjectName("Muted")
+        self.hw_box.addWidget(nota)
+
+    # ---------- Reingreso ----------
     def _on_serie(self, texto: str):
         texto = texto.strip()
         self._prev_code = None
@@ -164,7 +202,6 @@ class RecepcionPage(QWidget):
             f'{ultimo["created_at"][:10]} — {ultimo["problem"]}.'
         )
         self.alert.show()
-        # Autocompleta solo los campos que estén vacíos
         if not self.cliente.text().strip():
             self.cliente.setText(ultimo["cliente"] or "")
         if not self.telefono.text().strip():
@@ -176,9 +213,11 @@ class RecepcionPage(QWidget):
         if self._prev_code:
             self.open_case.emit(self._prev_code)
 
+    # ---------- Guardar ----------
     def _guardar(self):
         self.ok.setText("")
         cliente = self.cliente.text().strip()
+        telefono = self.telefono.text().strip()
         equipo = self.equipo.text().strip()
         serie = self.serie.text().strip()
         partes = [c.text() for c in self.chips if c.isChecked()]
@@ -191,9 +230,15 @@ class RecepcionPage(QWidget):
             return
         self.error.setText("")
         code = self.repo.register_intake(
-            cliente, self.telefono.text(), serie, equipo, problema,
-            self.prioridad.currentText(),
+            cliente, telefono, serie, equipo, problema, self.prioridad.currentText(),
         )
+        if self.hw:  # guarda el hardware escaneado en el equipo
+            r = self.hw.get("summary", {})
+            cid = self.repo.add_client(cliente, telefono)
+            self.repo.upsert_equipment(
+                serie, equipo, cid, cpu=r.get("cpu", ""), ram=r.get("ram", ""),
+                storage=r.get("storage", ""), os_name=r.get("os", ""),
+            )
         self._limpiar()
         self.ok.setText(f"Caso {code} registrado en la cola de trabajo.")
         self.case_created.emit(code)
@@ -207,3 +252,5 @@ class RecepcionPage(QWidget):
         self.error.setText("")
         self.ok.setText("")
         self.alert.hide()
+        self.hw = None
+        self._render_hw()
