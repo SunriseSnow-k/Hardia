@@ -2,24 +2,28 @@ from PySide6.QtCore import Qt, QStringListModel, QTimer
 from PySide6.QtWidgets import (QMainWindow, QWidget, QHBoxLayout, QVBoxLayout,
                                QListWidget, QStackedWidget, QLabel, QFrame,
                                QLineEdit, QCompleter)
+from app import backup
 from app.ai.config import check_ai
 from app.db.repo import Repository
 from app.ui.case_dialog import CaseDialog
 from app.ui.pages.inicio import InicioPage
 from app.ui.pages.recepcion import RecepcionPage
 from app.ui.pages.escaneo import EscaneoPage
+from app.ui.pages.equipos import EquiposPage
 from app.ui.pages.historial import HistorialPage
 from app.ui.pages.reportes import ReportesPage
 from app.ui.pages.conocimiento import ConocimientoPage
 from app.ui.pages.ia_local import IaLocalPage
+from app.ui.pages.configuracion import ConfiguracionPage
+from app.ui.pages.acerca import AcercaPage
 
 SECCIONES = [
     "Inicio", "Recepción de equipo", "Escanear equipo", "Equipos", "Historial",
     "Reportes", "Base de conocimiento", "IA local", "Configuración",
     "Acerca del sistema",
 ]
-IDX_INICIO, IDX_RECEPCION, IDX_ESCANEO, IDX_HISTORIAL = 0, 1, 2, 4
-IDX_REPORTES, IDX_CONOCIMIENTO, IDX_IA = 5, 6, 7
+(IDX_INICIO, IDX_RECEPCION, IDX_ESCANEO, IDX_EQUIPOS, IDX_HISTORIAL,
+ IDX_REPORTES, IDX_CONOCIMIENTO, IDX_IA, IDX_CONFIG, IDX_ACERCA) = range(10)
 
 
 class MainWindow(QMainWindow):
@@ -27,6 +31,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.repo = repo
         self._hits: dict[str, str] = {}
+        self._skip_backup = False
         self.setWindowTitle("Sistema Inteligente Offline")
         self.resize(1200, 720)
 
@@ -40,19 +45,23 @@ class MainWindow(QMainWindow):
         self.inicio = InicioPage(repo)
         self.recepcion = RecepcionPage(repo)
         self.escaneo = EscaneoPage()
+        self.equipos = EquiposPage(repo)
         self.historial = HistorialPage(repo)
         self.reportes = ReportesPage(repo, user_id)
         self.conocimiento = ConocimientoPage()
         self.ia = IaLocalPage(repo)
+        self.config = ConfiguracionPage(repo, user_id)
+        self.acerca = AcercaPage(repo)
         reales = {
             IDX_INICIO: self.inicio, IDX_RECEPCION: self.recepcion,
-            IDX_ESCANEO: self.escaneo, IDX_HISTORIAL: self.historial,
-            IDX_REPORTES: self.reportes, IDX_CONOCIMIENTO: self.conocimiento,
-            IDX_IA: self.ia,
+            IDX_ESCANEO: self.escaneo, IDX_EQUIPOS: self.equipos,
+            IDX_HISTORIAL: self.historial, IDX_REPORTES: self.reportes,
+            IDX_CONOCIMIENTO: self.conocimiento, IDX_IA: self.ia,
+            IDX_CONFIG: self.config, IDX_ACERCA: self.acerca,
         }
         self.pages = QStackedWidget()
-        for i, nombre in enumerate(SECCIONES):
-            self.pages.addWidget(reales.get(i) or self._placeholder(nombre))
+        for i in range(len(SECCIONES)):
+            self.pages.addWidget(reales[i])
 
         # Barra lateral
         self.sidebar = QListWidget()
@@ -75,8 +84,11 @@ class MainWindow(QMainWindow):
         self.recepcion.case_created.connect(lambda _c: self._refrescar_todo())
         self.recepcion.go_scan.connect(lambda: self.sidebar.setCurrentRow(IDX_ESCANEO))
         self.escaneo.use_data.connect(self._usar_escaneo)
+        self.equipos.open_case.connect(self.abrir_caso)
+        self.equipos.new_intake.connect(self._nueva_recepcion)
         self.historial.open_case.connect(self.abrir_caso)
         self.ia.settings_changed.connect(self.actualizar_ia)
+        self.config.restored.connect(self._tras_restaurar)
 
         self.actualizar_ia()
         self.sidebar.setCurrentRow(IDX_INICIO)
@@ -158,9 +170,16 @@ class MainWindow(QMainWindow):
         self.inicio.refresh()
         self.historial.refresh()
         self.reportes.refresh()
+        self.equipos.refresh()
 
     def _usar_escaneo(self, data: dict):
         self.recepcion.set_hardware(data)
+        self.sidebar.setCurrentRow(IDX_RECEPCION)
+
+    def _nueva_recepcion(self, serie: str):
+        """Abre la recepción con la serie del equipo (activa el aviso de reingreso)."""
+        self.recepcion._limpiar()
+        self.recepcion.serie.setText(serie)
         self.sidebar.setCurrentRow(IDX_RECEPCION)
 
     def abrir_caso(self, code: str):
@@ -169,22 +188,18 @@ class MainWindow(QMainWindow):
         if dlg.changed:
             self._refrescar_todo()
 
+    def _tras_restaurar(self):
+        self._skip_backup = True  # no se hace copia automática de datos recién restaurados
+        self.close()
+
     def closeEvent(self, event):
         self.ia.shutdown()
         w = self.escaneo.worker
         if w and w.isRunning():
             w.wait(15000)  # deja terminar un escaneo en curso
+        if not self._skip_backup and self.repo.get_setting("auto_backup", "1") == "1":
+            try:
+                backup.auto_backup(self.repo.c)
+            except Exception:
+                pass  # una copia automática fallida no debe impedir cerrar el programa
         super().closeEvent(event)
-
-    def _placeholder(self, nombre: str) -> QWidget:
-        w = QWidget()
-        lay = QVBoxLayout(w)
-        lay.setContentsMargins(26, 22, 26, 22)
-        t = QLabel(nombre)
-        t.setObjectName("PageTitle")
-        s = QLabel("Pantalla pendiente de construir.")
-        s.setObjectName("Muted")
-        lay.addWidget(t)
-        lay.addWidget(s)
-        lay.addStretch()
-        return w

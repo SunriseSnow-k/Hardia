@@ -6,6 +6,7 @@ from app.db.repo import Repository
 from app.ui.styles import QSS
 from app.ui.login import LoginDialog
 from app.ui.main_window import MainWindow
+from app.ui.welcome import WelcomeDialog
 
 
 def main() -> int:
@@ -19,6 +20,9 @@ def main() -> int:
     if login.exec() != LoginDialog.Accepted:
         db.close()
         return 0
+
+    if repo.get_setting("setup_done") != "1":
+        WelcomeDialog(repo).exec()
 
     win = MainWindow(repo, login.user_id)
     win.show()

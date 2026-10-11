@@ -21,3 +21,10 @@ def reports_dir() -> Path:
     path = data_dir() / "Reportes"
     path.mkdir(parents=True, exist_ok=True)
     return path
+
+
+def backups_dir() -> Path:
+    """Carpeta donde se guardan las copias de seguridad."""
+    path = data_dir() / "Copias"
+    path.mkdir(parents=True, exist_ok=True)
+    return path
