@@ -1,6 +1,6 @@
 import sqlite3
 
-VERSION_ESQUEMA = 1
+VERSION_ESQUEMA = 2
 
 ESQUEMA = """
 CREATE TABLE IF NOT EXISTS users (
@@ -40,7 +40,19 @@ CREATE TABLE IF NOT EXISTS settings (
     key   TEXT PRIMARY KEY,
     value TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS case_scans (
+    case_code TEXT PRIMARY KEY REFERENCES cases(code),
+    scan      TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS diagnoses (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    case_code  TEXT NOT NULL REFERENCES cases(code),
+    result     TEXT NOT NULL,
+    method     TEXT NOT NULL DEFAULT 'Reglas',
+    created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+);
 CREATE INDEX IF NOT EXISTS idx_cases_equipment ON cases(equipment_id);
+CREATE INDEX IF NOT EXISTS idx_diagnoses_case ON diagnoses(case_code);
 """
 
 

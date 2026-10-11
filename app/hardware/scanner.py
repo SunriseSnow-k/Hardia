@@ -1,5 +1,6 @@
 """Lectura de hardware en Windows (psutil + WMI). Cada componente es
 independiente: si uno falla, el resto sigue funcionando."""
+import gc
 import os
 import platform
 import socket
@@ -144,38 +145,45 @@ def _temps(c):
 _FUNCIONES = [_cpu, _ram, _storage, _gpu, _board, _os, _temps]
 
 
+def _escanear(progress) -> dict:
+    """Lee todos los componentes. Los objetos WMI viven solo dentro de esta
+    función, así se liberan antes de cerrar COM."""
+    c = None
+    if wmi:
+        try:
+            c = wmi.WMI()
+        except Exception:
+            c = None
+    comps, metrics = [], {}
+    summary = {"description": "", "serial": "", "cpu": "", "ram": "",
+               "storage": "", "os": "", "gpu": ""}
+    for i, (nombre, fn) in enumerate(zip(COMPONENT_NAMES, _FUNCIONES)):
+        try:
+            detalle, estado, info = fn(c)
+        except Exception as e:
+            detalle, estado, info = f"No se pudo leer ({type(e).__name__})", "error", {}
+        summary.update({k: v for k, v in info.get("summary", {}).items() if v})
+        metrics.update(info.get("metrics", {}))
+        comps.append({"name": nombre, "detail": detalle, "status": estado})
+        if progress:
+            progress(i, nombre, detalle, estado)
+    if not summary["description"]:
+        summary["description"] = socket.gethostname()
+    return {
+        "format": FORMAT, "version": VERSION,
+        "scanned_at": datetime.now().isoformat(timespec="seconds"),
+        "host": socket.gethostname(),
+        "summary": summary, "components": comps, "metrics": metrics,
+    }
+
+
 def run_scan(progress=None) -> dict:
     """Escanea el equipo. `progress(i, nombre, detalle, estado)` se llama por componente."""
     if pythoncom:
         pythoncom.CoInitialize()
     try:
-        c = None
-        if wmi:
-            try:
-                c = wmi.WMI()
-            except Exception:
-                c = None
-        comps, metrics = [], {}
-        summary = {"description": "", "serial": "", "cpu": "", "ram": "",
-                   "storage": "", "os": "", "gpu": ""}
-        for i, (nombre, fn) in enumerate(zip(COMPONENT_NAMES, _FUNCIONES)):
-            try:
-                detalle, estado, info = fn(c)
-            except Exception as e:
-                detalle, estado, info = f"No se pudo leer ({type(e).__name__})", "error", {}
-            summary.update({k: v for k, v in info.get("summary", {}).items() if v})
-            metrics.update(info.get("metrics", {}))
-            comps.append({"name": nombre, "detail": detalle, "status": estado})
-            if progress:
-                progress(i, nombre, detalle, estado)
-        if not summary["description"]:
-            summary["description"] = socket.gethostname()
-        return {
-            "format": FORMAT, "version": VERSION,
-            "scanned_at": datetime.now().isoformat(timespec="seconds"),
-            "host": socket.gethostname(),
-            "summary": summary, "components": comps, "metrics": metrics,
-        }
+        return _escanear(progress)
     finally:
+        gc.collect()  # libera los objetos WMI antes de cerrar COM
         if pythoncom:
             pythoncom.CoUninitialize()

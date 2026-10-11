@@ -232,13 +232,14 @@ class RecepcionPage(QWidget):
         code = self.repo.register_intake(
             cliente, telefono, serie, equipo, problema, self.prioridad.currentText(),
         )
-        if self.hw:  # guarda el hardware escaneado en el equipo
+        if self.hw:  # guarda el hardware escaneado en el equipo y en el caso
             r = self.hw.get("summary", {})
             cid = self.repo.add_client(cliente, telefono)
             self.repo.upsert_equipment(
                 serie, equipo, cid, cpu=r.get("cpu", ""), ram=r.get("ram", ""),
                 storage=r.get("storage", ""), os_name=r.get("os", ""),
             )
+            self.repo.save_scan(code, self.hw)
         self._limpiar()
         self.ok.setText(f"Caso {code} registrado en la cola de trabajo.")
         self.case_created.emit(code)

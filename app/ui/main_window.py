@@ -8,13 +8,14 @@ from app.ui.pages.inicio import InicioPage
 from app.ui.pages.recepcion import RecepcionPage
 from app.ui.pages.escaneo import EscaneoPage
 from app.ui.pages.historial import HistorialPage
+from app.ui.pages.conocimiento import ConocimientoPage
 
 SECCIONES = [
     "Inicio", "Recepción de equipo", "Escanear equipo", "Equipos", "Historial",
     "Reportes", "Base de conocimiento", "IA local", "Configuración",
     "Acerca del sistema",
 ]
-IDX_INICIO, IDX_RECEPCION, IDX_ESCANEO, IDX_HISTORIAL = 0, 1, 2, 4
+IDX_INICIO, IDX_RECEPCION, IDX_ESCANEO, IDX_HISTORIAL, IDX_CONOCIMIENTO = 0, 1, 2, 4, 6
 
 
 class MainWindow(QMainWindow):
@@ -36,9 +37,11 @@ class MainWindow(QMainWindow):
         self.recepcion = RecepcionPage(repo)
         self.escaneo = EscaneoPage()
         self.historial = HistorialPage(repo)
+        self.conocimiento = ConocimientoPage()
         reales = {
             IDX_INICIO: self.inicio, IDX_RECEPCION: self.recepcion,
             IDX_ESCANEO: self.escaneo, IDX_HISTORIAL: self.historial,
+            IDX_CONOCIMIENTO: self.conocimiento,
         }
         self.pages = QStackedWidget()
         for i, nombre in enumerate(SECCIONES):

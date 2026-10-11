@@ -1,0 +1,220 @@
+[
+  {
+    "id": "R-001", "category": "Temperatura", "priority": "Alta",
+    "cause": "Sobrecalentamiento por polvo o pasta térmica seca",
+    "symptoms": [
+      {"name": "Se calienta", "keywords": ["calienta", "caliente", "sobrecalent", "temperatura alta", "hirviendo"]},
+      {"name": "Ventilador constante", "keywords": ["ventilador", "turbina", "ruido del ventilador"]},
+      {"name": "Se apaga solo", "keywords": ["se apaga", "apaga solo", "apagado"]}
+    ],
+    "conditions": [
+      {"metric": "cpu_temp", "op": ">", "value": 80, "label": "Temperatura de CPU superior a 80 °C"}
+    ],
+    "recommendations": [
+      "Abrir el equipo y limpiar ventiladores y disipador",
+      "Renovar la pasta térmica del procesador",
+      "Comprobar la temperatura nuevamente tras la limpieza"
+    ]
+  },
+  {
+    "id": "R-002", "category": "Temperatura", "priority": "Alta", "min_evidence": 2,
+    "cause": "Sistema de refrigeración deficiente",
+    "symptoms": [
+      {"name": "Se calienta", "keywords": ["calienta", "caliente", "sobrecalent", "temperatura alta"]},
+      {"name": "Ventilador constante", "keywords": ["ventilador", "turbina", "ruido del ventilador"]},
+      {"name": "Lentitud", "keywords": ["lento", "lenta"]}
+    ],
+    "conditions": [
+      {"metric": "cpu_temp", "op": ">", "value": 85, "label": "Temperatura de CPU superior a 85 °C"},
+      {"metric": "cpu_usage", "op": "<", "value": 40, "label": "Temperatura alta con poco uso del procesador"}
+    ],
+    "recommendations": [
+      "Verificar que el ventilador gire correctamente",
+      "Revisar que el disipador esté bien fijado",
+      "Reemplazar el ventilador si está dañado"
+    ]
+  },
+  {
+    "id": "R-003", "category": "CPU", "priority": "Media", "min_evidence": 2,
+    "cause": "Uso elevado y sostenido del procesador",
+    "symptoms": [
+      {"name": "Lentitud", "keywords": ["lento", "lenta", "tarda"]},
+      {"name": "Congelamientos", "keywords": ["congela", "se traba", "trabad", "se cuelga", "colgado"]}
+    ],
+    "conditions": [
+      {"metric": "cpu_usage", "op": ">", "value": 85, "label": "Uso de CPU superior a 85 %"}
+    ],
+    "recommendations": [
+      "Abrir el Administrador de tareas y revisar los procesos que más consumen",
+      "Desactivar o desinstalar programas innecesarios",
+      "Analizar el equipo en busca de software no deseado"
+    ]
+  },
+  {
+    "id": "R-004", "category": "RAM", "priority": "Media", "min_evidence": 2,
+    "cause": "Memoria RAM saturada",
+    "symptoms": [
+      {"name": "Lentitud", "keywords": ["lento", "lenta"]},
+      {"name": "Aplicaciones se cierran", "keywords": ["se cierran", "se cierra", "cierra solo"]},
+      {"name": "Mención de memoria", "keywords": ["ram", "memoria"]}
+    ],
+    "conditions": [
+      {"metric": "ram_usage", "op": ">", "value": 85, "label": "Uso de RAM superior a 85 %"}
+    ],
+    "recommendations": [
+      "Cerrar las aplicaciones que no se usen",
+      "Revisar los programas que se ejecutan al iniciar",
+      "Valorar ampliar la memoria RAM"
+    ]
+  },
+  {
+    "id": "R-005", "category": "RAM", "priority": "Media", "min_evidence": 2,
+    "cause": "Poca memoria RAM instalada",
+    "symptoms": [
+      {"name": "Lentitud", "keywords": ["lento", "lenta"]},
+      {"name": "Congelamientos", "keywords": ["congela", "se traba", "trabad", "se cuelga", "colgado"]}
+    ],
+    "conditions": [
+      {"field": "ram", "regex": "^(2|3|4|6) GB$", "label": "Menos de 8 GB de RAM instalada"}
+    ],
+    "recommendations": [
+      "Ampliar la RAM a 8 GB o más",
+      "Verificar la compatibilidad del módulo antes de comprarlo"
+    ]
+  },
+  {
+    "id": "R-006", "category": "Almacenamiento", "priority": "Alta",
+    "cause": "Poco espacio libre en el disco",
+    "symptoms": [
+      {"name": "Disco lleno", "keywords": ["disco lleno", "lleno", "sin espacio", "espacio insuficiente"]}
+    ],
+    "conditions": [
+      {"metric": "disk_free_gb", "op": "<", "value": 15, "label": "Menos de 15 GB libres"},
+      {"metric": "disk_used_pct", "op": ">", "value": 90, "label": "Disco usado en más de 90 %"}
+    ],
+    "recommendations": [
+      "Liberar espacio eliminando archivos temporales y descargas",
+      "Desinstalar programas que no se usen",
+      "Mover archivos grandes a un disco externo"
+    ]
+  },
+  {
+    "id": "R-007", "category": "Almacenamiento", "priority": "Alta",
+    "cause": "Unidad de almacenamiento con desgaste o errores",
+    "symptoms": [
+      {"name": "Errores de disco", "keywords": ["error de disco", "errores de almacenamiento", "error de lectura", "error de escritura", "sector"]},
+      {"name": "Lectura o escritura lenta", "keywords": ["lectura", "escritura", "copia lenta"]},
+      {"name": "Ruidos o clics", "keywords": ["clic", "click", "golpeteo"]}
+    ],
+    "conditions": [],
+    "recommendations": [
+      "Respaldar de inmediato la información importante",
+      "Revisar el estado SMART de la unidad",
+      "Reemplazar la unidad si presenta fallas"
+    ]
+  },
+  {
+    "id": "R-008", "category": "Almacenamiento", "priority": "Media", "min_evidence": 2,
+    "cause": "Disco mecánico (HDD) con rendimiento limitado",
+    "symptoms": [
+      {"name": "Lentitud", "keywords": ["lento", "lenta"]},
+      {"name": "Arranque lento", "keywords": ["arranque lento", "inicio lento", "tarda en iniciar"]}
+    ],
+    "conditions": [
+      {"field": "storage", "regex": "^HDD", "label": "El equipo usa un disco HDD"}
+    ],
+    "recommendations": [
+      "Cambiar el HDD por una unidad SSD",
+      "Clonar el sistema actual para no tener que reinstalar"
+    ]
+  },
+  {
+    "id": "R-009", "category": "Arranque", "priority": "Media", "min_evidence": 2,
+    "cause": "Demasiados programas al iniciar el sistema",
+    "symptoms": [
+      {"name": "Inicio lento", "keywords": ["inicio lento", "arranque lento", "tarda en iniciar", "tarda en arrancar", "tarda en encender"]},
+      {"name": "Lentitud general", "keywords": ["lento", "lenta"]}
+    ],
+    "conditions": [],
+    "recommendations": [
+      "Desactivar programas de inicio innecesarios desde el Administrador de tareas",
+      "Liberar espacio en el disco del sistema"
+    ]
+  },
+  {
+    "id": "R-010", "category": "Arranque", "priority": "Alta",
+    "cause": "Falla de la fuente de alimentación o de la conexión de energía",
+    "symptoms": [
+      {"name": "No enciende", "keywords": ["no enciende", "no prende", "sin energia", "no hay luz"]},
+      {"name": "No inicia", "keywords": ["no inicia", "no arranca"]}
+    ],
+    "conditions": [],
+    "recommendations": [
+      "Probar con otro cable y otra toma de corriente",
+      "Revisar el cargador o la fuente de poder con un equipo de prueba",
+      "Verificar que la memoria RAM esté bien colocada"
+    ]
+  },
+  {
+    "id": "R-011", "category": "Arranque", "priority": "Alta", "min_evidence": 2,
+    "cause": "Reinicios por inestabilidad de memoria o alimentación",
+    "symptoms": [
+      {"name": "Reinicios", "keywords": ["reinicia", "reinicios", "se reinicia"]},
+      {"name": "Apagados inesperados", "keywords": ["se apaga", "apagado"]},
+      {"name": "Pantalla azul", "keywords": ["pantalla azul", "bsod"]}
+    ],
+    "conditions": [],
+    "recommendations": [
+      "Ejecutar una prueba de memoria RAM",
+      "Revisar la fuente de poder y las conexiones",
+      "Comprobar la temperatura del equipo"
+    ]
+  },
+  {
+    "id": "R-012", "category": "Sistema operativo", "priority": "Media",
+    "cause": "Controlador o actualización defectuosa",
+    "symptoms": [
+      {"name": "Pantalla azul", "keywords": ["pantalla azul", "bsod"]},
+      {"name": "Tras actualizar o instalar", "keywords": ["actualizacion", "actualizar", "instal"]},
+      {"name": "Errores del sistema", "keywords": ["error", "errores"]}
+    ],
+    "conditions": [],
+    "recommendations": [
+      "Iniciar en modo seguro",
+      "Restaurar el sistema a un punto anterior",
+      "Actualizar o reinstalar los controladores"
+    ]
+  },
+  {
+    "id": "R-013", "category": "Sistema operativo", "priority": "Media", "min_confidence": 0.2,
+    "cause": "Software no deseado o malware",
+    "symptoms": [
+      {"name": "Anuncios o ventanas emergentes", "keywords": ["anuncios", "publicidad", "ventanas emergentes", "ventanas"]},
+      {"name": "Navegador alterado", "keywords": ["navegador", "pagina de inicio"]},
+      {"name": "Sospecha de virus", "keywords": ["virus", "malware", "troyano"]}
+    ],
+    "conditions": [
+      {"metric": "cpu_usage", "op": ">", "value": 80, "label": "Uso de CPU superior a 80 %"}
+    ],
+    "recommendations": [
+      "Ejecutar un análisis completo con un antivirus actualizado",
+      "Desinstalar programas y extensiones desconocidas",
+      "Respaldar la información antes de limpiar el sistema"
+    ]
+  },
+  {
+    "id": "R-014", "category": "GPU", "priority": "Media",
+    "cause": "Controlador gráfico o tarjeta de video con fallas",
+    "symptoms": [
+      {"name": "Imagen distorsionada", "keywords": ["artefactos", "rayas", "distors"]},
+      {"name": "Parpadeo de pantalla", "keywords": ["parpadea", "parpadeo"]},
+      {"name": "Sin imagen", "keywords": ["sin imagen", "no da imagen", "pantalla negra"]}
+    ],
+    "conditions": [],
+    "recommendations": [
+      "Actualizar o reinstalar el controlador de video",
+      "Probar con otro monitor o cable",
+      "Revisar la temperatura de la tarjeta gráfica"
+    ]
+  }
+]

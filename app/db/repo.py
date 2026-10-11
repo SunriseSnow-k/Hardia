@@ -1,3 +1,4 @@
+import json
 import sqlite3
 from .database import Database
 from .security import hash_password, verify_password
@@ -136,3 +137,40 @@ class Repository:
     def count_by_status(self) -> dict[str, int]:
         filas = self.c.execute("SELECT status, COUNT(*) n FROM cases GROUP BY status").fetchall()
         return {f["status"]: f["n"] for f in filas}
+
+    # ---------- Escaneos y diagnósticos por caso ----------
+    def save_scan(self, code: str, scan: dict) -> None:
+        self.c.execute(
+            "INSERT INTO case_scans(case_code, scan) VALUES (?,?) "
+            "ON CONFLICT(case_code) DO UPDATE SET scan=excluded.scan",
+            (code, json.dumps(scan, ensure_ascii=False)),
+        )
+        self.c.commit()
+
+    def get_scan(self, code: str) -> dict | None:
+        row = self.c.execute("SELECT scan FROM case_scans WHERE case_code=?", (code,)).fetchone()
+        return json.loads(row["scan"]) if row else None
+
+    def save_diagnosis(self, code: str, result: dict, method: str = "Reglas") -> None:
+        """Guarda el resultado y actualiza la prioridad, el método y el estado del caso."""
+        self.c.execute(
+            "INSERT INTO diagnoses(case_code, result, method) VALUES (?,?,?)",
+            (code, json.dumps(result, ensure_ascii=False), method),
+        )
+        if result.get("causes"):
+            self.c.execute("UPDATE cases SET priority=? WHERE code=?",
+                           (result["causes"][0]["priority"], code))
+        self.c.execute("UPDATE cases SET method=? WHERE code=?", (method, code))
+        self.c.execute("UPDATE cases SET status='En diagnóstico' WHERE code=? AND status='Recibido'",
+                       (code,))
+        self.c.commit()
+
+    def get_diagnosis(self, code: str) -> dict | None:
+        row = self.c.execute(
+            "SELECT result, method, created_at FROM diagnoses WHERE case_code=? "
+            "ORDER BY id DESC LIMIT 1", (code,),
+        ).fetchone()
+        if not row:
+            return None
+        return {"result": json.loads(row["result"]), "method": row["method"],
+                "created_at": row["created_at"]}
