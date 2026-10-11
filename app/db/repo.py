@@ -39,6 +39,19 @@ class Repository:
         ).fetchone()
         return bool(row) and verify_password(password, row["pw_hash"], row["salt"])
 
+    # ---------- Ajustes ----------
+    def get_setting(self, key: str, default: str = "") -> str:
+        row = self.c.execute("SELECT value FROM settings WHERE key=?", (key,)).fetchone()
+        return row["value"] if row else default
+
+    def set_setting(self, key: str, value: str) -> None:
+        self.c.execute(
+            "INSERT INTO settings(key, value) VALUES (?,?) "
+            "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+            (key, value),
+        )
+        self.c.commit()
+
     # ---------- Clientes y equipos ----------
     def add_client(self, name: str, phone: str = "") -> int:
         row = self.c.execute(
@@ -122,6 +135,19 @@ class Repository:
 
     def other_cases(self, serial: str, exclude_code: str) -> list[sqlite3.Row]:
         return [r for r in self.previous_cases(serial) if r["code"] != exclude_code]
+
+    def equipment_history(self, serial: str) -> list[dict]:
+        """Historial de un equipo, del más antiguo al más reciente, con su causa principal."""
+        historial = []
+        for r in reversed(self.previous_cases(serial)):
+            d = self.get_diagnosis(r["code"])
+            causas = d["result"].get("causes") if d else None
+            historial.append({
+                "code": r["code"], "fecha": r["created_at"][:10], "problema": r["problem"],
+                "estado": r["status"], "prioridad": r["priority"],
+                "causa": causas[0]["cause"] if causas else None,
+            })
+        return historial
 
     def search(self, text: str) -> list[sqlite3.Row]:
         """Búsqueda global por cliente, teléfono, serie, equipo o código."""

@@ -1,12 +1,15 @@
-from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel,
-                               QComboBox, QPushButton, QListWidget)
+from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, QComboBox,
+                               QPushButton, QListWidget, QMessageBox)
+from app.ai import prompts
 from app.db.repo import Repository, ESTADOS
+from app.diagnosis.engine import diagnose
+from app.ui.ai_widgets import AiDialog
 from app.ui.diagnosis_dialog import DiagnosisDialog
 from app.ui.styles import PRIORITY_COLORS
 
 
 class CaseDialog(QDialog):
-    """Detalle de un caso: datos, estado, diagnóstico y casos anteriores del equipo."""
+    """Detalle de un caso: datos, estado, diagnóstico, IA y casos anteriores del equipo."""
 
     def __init__(self, repo: Repository, code: str, parent=None):
         super().__init__(parent)
@@ -16,7 +19,7 @@ class CaseDialog(QDialog):
         caso = repo.get_case(code)
 
         self.setWindowTitle(f"Caso {code}")
-        self.setMinimumWidth(560)
+        self.setMinimumWidth(580)
         lay = QVBoxLayout(self)
         lay.setContentsMargins(22, 20, 22, 20)
         lay.setSpacing(8)
@@ -43,7 +46,8 @@ class CaseDialog(QDialog):
         problema.setWordWrap(True)
         lay.addWidget(problema)
         lay.addWidget(QLabel(f'Fecha de ingreso: {caso["created_at"]}'))
-        lay.addWidget(QLabel(f'Método de análisis: {caso["method"]}'))
+        self.metodo = QLabel(f'Método de análisis: {caso["method"]}')
+        lay.addWidget(self.metodo)
 
         fila2 = QHBoxLayout()
         fila2.addWidget(QLabel("Estado:"))
@@ -72,11 +76,24 @@ class CaseDialog(QDialog):
         btn_d.clicked.connect(self._diagnosticar)
         lay.addWidget(btn_d)
 
+        sec_i = QLabel("Asistente de IA local (opcional)")
+        sec_i.setObjectName("SectionTitle")
+        lay.addWidget(sec_i)
+        fila_ia = QHBoxLayout()
+        b1 = QPushButton("Resumir historial del equipo")
+        b2 = QPushButton("Mensaje para el cliente")
+        for b in (b1, b2):
+            b.setObjectName("Secondary")
+            fila_ia.addWidget(b)
+        b1.clicked.connect(self._resumir_historial)
+        b2.clicked.connect(self._mensaje_cliente)
+        lay.addLayout(fila_ia)
+
         sec = QLabel("Otros casos del mismo equipo")
         sec.setObjectName("SectionTitle")
         lay.addWidget(sec)
         lista = QListWidget()
-        lista.setMaximumHeight(120)
+        lista.setMaximumHeight(110)
         otros = repo.other_cases(caso["serial"], code)
         if otros:
             for r in otros:
@@ -102,12 +119,16 @@ class CaseDialog(QDialog):
         d = self.repo.get_diagnosis(self.code)
         if not d:
             return "Aún no se ha ejecutado un diagnóstico."
-        causas = d["result"]["causes"]
+        res = d["result"]
         fecha = d["created_at"][:16]
-        if not causas:
-            return f"Último diagnóstico ({fecha}): sin causas identificadas."
-        return (f'Último diagnóstico ({fecha}): {causas[0]["cause"]} '
-                f'— prioridad {causas[0]["priority"]}.')
+        if not res["causes"]:
+            texto = f"Último diagnóstico ({fecha}): sin causas identificadas."
+        else:
+            texto = (f'Último diagnóstico ({fecha}): {res["causes"][0]["cause"]} '
+                     f'— prioridad {res["causes"][0]["priority"]}.')
+        if res.get("ai_analysis"):
+            texto += f'\nAnálisis de IA local: {res["ai_analysis"]}'
+        return texto
 
     def _diagnosticar(self):
         dlg = DiagnosisDialog(self.repo, self.code, self)
@@ -117,9 +138,38 @@ class CaseDialog(QDialog):
             caso = self.repo.get_case(self.code)
             self._pintar_prio(caso["priority"])
             self.estado.setCurrentText(caso["status"])
+            self.metodo.setText(f'Método de análisis: {caso["method"]}')
             self.diag_lbl.setText(self._resumen_diag())
 
     def _guardar_estado(self):
         self.repo.update_case_status(self.code, self.estado.currentText())
         self.changed = True
         self.ok.setText("Estado actualizado.")
+
+    # ---------- IA ----------
+    def _resumir_historial(self):
+        caso = self.repo.get_case(self.code)
+        historial = self.repo.equipment_history(caso["serial"])
+        if len(historial) < 2:
+            QMessageBox.information(self, "Resumen del historial",
+                                    "Este equipo no tiene casos anteriores que resumir.")
+            return
+        dlg = AiDialog(self.repo, "Resumen del historial",
+                       f'{caso["equipo"]} · Serie {caso["serial"]}',
+                       prompts.history_messages(caso, historial), self,
+                       nota="Revise el texto: es una asistencia de la IA local.")
+        dlg.exec()
+
+    def _mensaje_cliente(self):
+        caso = self.repo.get_case(self.code)
+        d = self.repo.get_diagnosis(self.code)
+        resultado = d["result"] if d else diagnose(caso["problem"], self.repo.get_scan(self.code))
+        if not resultado["causes"]:
+            QMessageBox.information(self, "Mensaje para el cliente",
+                                    "Aún no hay causas identificadas. Ejecute primero el diagnóstico.")
+            return
+        dlg = AiDialog(self.repo, "Mensaje para el cliente",
+                       f'{caso["cliente"] or "Cliente"} · {caso["equipo"]}',
+                       prompts.client_messages(caso, resultado), self,
+                       nota="Revise y ajuste el texto antes de enviarlo al cliente.")
+        dlg.exec()

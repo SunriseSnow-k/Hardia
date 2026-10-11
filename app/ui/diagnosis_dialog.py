@@ -1,10 +1,12 @@
 import html
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel,
                                QPushButton, QFrame, QScrollArea, QWidget)
+from app.ai import config as ia_config, prompts
 from app.db.repo import Repository
 from app.diagnosis.engine import diagnose
+from app.ui.ai_widgets import AiStreamPanel
 from app.ui.styles import PRIORITY_COLORS
 
 ESTADO_COLORES = {
@@ -22,18 +24,22 @@ def tag_html(prioridad: str) -> str:
 
 
 class DiagnosisDialog(QDialog):
-    """Ejecuta el motor de reglas sobre un caso y muestra posibles causas."""
+    """Ejecuta el motor de reglas sobre un caso y muestra posibles causas.
+    El análisis de IA local es opcional y no bloquea el resultado."""
 
     def __init__(self, repo: Repository, code: str, parent=None):
         super().__init__(parent)
         self.repo, self.code, self.saved = repo, code, False
-        caso = repo.get_case(code)
-        scan = repo.get_scan(code)
-        self.result = diagnose(caso["problem"], scan)
-        r = self.result
+        self.caso = repo.get_case(code)
+        self.scan = repo.get_scan(code)
+        self.result = diagnose(self.caso["problem"], self.scan)
+        self.ai_text = ""
+        self._model = ia_config.DEFAULT_MODEL
+        self.panel = None
+        caso, r = self.caso, self.result
 
         self.setWindowTitle(f"Diagnóstico — {code}")
-        self.resize(660, 700)
+        self.resize(680, 760)
         lay = QVBoxLayout(self)
         lay.setContentsMargins(22, 18, 22, 18)
         lay.setSpacing(8)
@@ -99,6 +105,32 @@ class DiagnosisDialog(QDialog):
                 l = QLabel(f"{i}. {rec}")
                 l.setWordWrap(True)
                 cl.addWidget(l)
+
+        # ---------- Análisis de IA local (opcional) ----------
+        h3 = QLabel("Análisis de IA local (opcional)")
+        h3.setObjectName("SectionTitle")
+        cl.addWidget(h3)
+        if r["causes"]:
+            self.panel = AiStreamPanel(
+                vacio="El análisis de la IA aparecerá aquí.",
+                msg_cancel="Análisis de IA cancelado. El resultado por reglas sigue siendo válido.")
+            self.panel.text_ready.connect(self._on_ai_ready)
+            self.b_ia = QPushButton("Analizar con IA local")
+            self.b_ia.setObjectName("Secondary")
+            self.b_ia.clicked.connect(self._iniciar_ia)
+            cl.addWidget(self.panel)
+            cl.addWidget(self.b_ia, alignment=Qt.AlignLeft)
+            ok, self._model, msg = ia_config.check_ai(repo)
+            if not ok:
+                self.panel.mostrar_mensaje(msg)
+            elif ia_config.load(repo)["mode"] == "completo":
+                QTimer.singleShot(0, self._iniciar_ia)
+        else:
+            nota = QLabel("Sin causas identificadas: no se ejecuta la IA para evitar "
+                          "conclusiones sin datos.")
+            nota.setObjectName("Muted")
+            nota.setWordWrap(True)
+            cl.addWidget(nota)
         cl.addStretch()
 
         scroll = QScrollArea()
@@ -130,8 +162,33 @@ class DiagnosisDialog(QDialog):
         fila.addStretch()
         lay.addLayout(fila)
 
+    # ---------- IA ----------
+    def _iniciar_ia(self):
+        ok, model, msg = ia_config.check_ai(self.repo)
+        if not ok:
+            self.panel.mostrar_mensaje(msg, error=True)
+            return
+        self._model = model
+        self.ai_text = ""
+        self.panel.start(model, prompts.analysis_messages(self.caso, self.scan, self.result))
+
+    def _on_ai_ready(self, texto: str):
+        self.ai_text = texto
+        self.b_ia.setText("Analizar de nuevo")
+
+    # ---------- Guardar ----------
     def _guardar(self):
-        self.repo.save_diagnosis(self.code, self.result)
+        resultado, metodo = dict(self.result), "Reglas"
+        if self.ai_text:
+            resultado["ai_analysis"] = self.ai_text
+            resultado["ai_model"] = self._model
+            metodo = "Reglas + IA local"
+        self.repo.save_diagnosis(self.code, resultado, metodo)
         self.saved = True
         self.b_guardar.setEnabled(False)
-        self.ok.setText("Diagnóstico guardado en el caso.")
+        self.ok.setText(f"Diagnóstico guardado ({metodo}).")
+
+    def done(self, r):
+        if self.panel is not None:
+            self.panel.shutdown()
+        super().done(r)

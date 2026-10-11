@@ -2,6 +2,7 @@ from PySide6.QtCore import Qt, QStringListModel, QTimer
 from PySide6.QtWidgets import (QMainWindow, QWidget, QHBoxLayout, QVBoxLayout,
                                QListWidget, QStackedWidget, QLabel, QFrame,
                                QLineEdit, QCompleter)
+from app.ai.config import check_ai
 from app.db.repo import Repository
 from app.ui.case_dialog import CaseDialog
 from app.ui.pages.inicio import InicioPage
@@ -9,13 +10,15 @@ from app.ui.pages.recepcion import RecepcionPage
 from app.ui.pages.escaneo import EscaneoPage
 from app.ui.pages.historial import HistorialPage
 from app.ui.pages.conocimiento import ConocimientoPage
+from app.ui.pages.ia_local import IaLocalPage
 
 SECCIONES = [
     "Inicio", "Recepción de equipo", "Escanear equipo", "Equipos", "Historial",
     "Reportes", "Base de conocimiento", "IA local", "Configuración",
     "Acerca del sistema",
 ]
-IDX_INICIO, IDX_RECEPCION, IDX_ESCANEO, IDX_HISTORIAL, IDX_CONOCIMIENTO = 0, 1, 2, 4, 6
+IDX_INICIO, IDX_RECEPCION, IDX_ESCANEO, IDX_HISTORIAL = 0, 1, 2, 4
+IDX_CONOCIMIENTO, IDX_IA = 6, 7
 
 
 class MainWindow(QMainWindow):
@@ -38,10 +41,11 @@ class MainWindow(QMainWindow):
         self.escaneo = EscaneoPage()
         self.historial = HistorialPage(repo)
         self.conocimiento = ConocimientoPage()
+        self.ia = IaLocalPage(repo)
         reales = {
             IDX_INICIO: self.inicio, IDX_RECEPCION: self.recepcion,
             IDX_ESCANEO: self.escaneo, IDX_HISTORIAL: self.historial,
-            IDX_CONOCIMIENTO: self.conocimiento,
+            IDX_CONOCIMIENTO: self.conocimiento, IDX_IA: self.ia,
         }
         self.pages = QStackedWidget()
         for i, nombre in enumerate(SECCIONES):
@@ -69,7 +73,9 @@ class MainWindow(QMainWindow):
         self.recepcion.go_scan.connect(lambda: self.sidebar.setCurrentRow(IDX_ESCANEO))
         self.escaneo.use_data.connect(self._usar_escaneo)
         self.historial.open_case.connect(self.abrir_caso)
+        self.ia.settings_changed.connect(self.actualizar_ia)
 
+        self.actualizar_ia()
         self.sidebar.setCurrentRow(IDX_INICIO)
 
     # ---------- Barra superior con búsqueda global ----------
@@ -81,10 +87,12 @@ class MainWindow(QMainWindow):
         name = QLabel("Sistema Inteligente Offline")
         name.setStyleSheet("font-weight:600;")
         tl.addWidget(name)
-        for text in ("● Modo Offline", "● IA Local Disponible"):
-            chip = QLabel(text)
-            chip.setObjectName("Chip")
-            tl.addWidget(chip)
+        offline = QLabel("● Modo Offline")
+        offline.setObjectName("Chip")
+        self.chip_ia = QLabel("● IA Local")
+        self.chip_ia.setObjectName("Chip")
+        tl.addWidget(offline)
+        tl.addWidget(self.chip_ia)
         tl.addStretch()
 
         self.buscador = QLineEdit()
@@ -105,6 +113,15 @@ class MainWindow(QMainWindow):
         user.setObjectName("Chip")
         tl.addWidget(user)
         return top
+
+    def actualizar_ia(self):
+        ok, _modelo, _msg = check_ai(self.repo)
+        if ok:
+            self.chip_ia.setText("● IA Local Disponible")
+            self.chip_ia.setStyleSheet("color:#2f855a;")
+        else:
+            self.chip_ia.setText("● IA no disponible · modo reglas")
+            self.chip_ia.setStyleSheet("color:#66727f;")
 
     def _al_buscar(self, texto: str):
         if len(texto.strip()) < 2:
@@ -131,6 +148,8 @@ class MainWindow(QMainWindow):
         pagina = self.pages.widget(i)
         if hasattr(pagina, "refresh"):
             pagina.refresh()
+        if i == IDX_IA:
+            self.actualizar_ia()
 
     def _refrescar_todo(self):
         self.inicio.refresh()
@@ -147,6 +166,7 @@ class MainWindow(QMainWindow):
             self._refrescar_todo()
 
     def closeEvent(self, event):
+        self.ia.shutdown()
         w = self.escaneo.worker
         if w and w.isRunning():
             w.wait(15000)  # deja terminar un escaneo en curso
