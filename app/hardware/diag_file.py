@@ -7,6 +7,7 @@ import psutil
 
 FORMAT = "SD-DIAG"
 VERSION = 1
+_DANADO = "El archivo está incompleto o dañado."
 
 
 def save_scan(data: dict, path) -> Path:
@@ -23,7 +24,11 @@ def load_scan(path) -> dict:
     if not isinstance(data, dict) or data.get("format") != FORMAT:
         raise ValueError("El archivo no es un escaneo válido del sistema.")
     if not isinstance(data.get("summary"), dict) or not isinstance(data.get("components"), list):
-        raise ValueError("El archivo está incompleto o dañado.")
+        raise ValueError(_DANADO)
+    if not all(isinstance(c, dict) for c in data["components"]):
+        raise ValueError(_DANADO)
+    if not isinstance(data.setdefault("metrics", {}), dict):
+        raise ValueError(_DANADO)
     return data
 
 

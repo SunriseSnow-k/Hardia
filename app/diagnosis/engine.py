@@ -20,23 +20,33 @@ def normalizar(texto: str) -> str:
     return "".join(c for c in t if not unicodedata.combining(c)).lower().strip()
 
 
+def _contiene(texto: str, palabra: str) -> bool:
+    """True si `palabra` aparece al inicio de una palabra del texto (ya normalizado).
+    Así "ram" no coincide con "programas", pero "calient" sí con "calienta"."""
+    p = normalizar(palabra)
+    return bool(p) and re.search(r"(?<![a-z0-9])" + re.escape(p), texto) is not None
+
+
 def load_rules(path=RULES_PATH) -> list[dict]:
     with open(path, encoding="utf-8") as f:
         return json.load(f)
 
 
 def _evaluar(cond: dict, metrics: dict, summary: dict):
-    """True / False, o None si el dato no está disponible."""
-    if "metric" in cond:
-        valor = metrics.get(cond["metric"])
-        if valor is None:
-            return None
-        return OPERADORES[cond["op"]](valor, cond["value"])
-    if "field" in cond:
-        valor = summary.get(cond["field"])
-        if not valor:
-            return None
-        return re.search(cond["regex"], str(valor), re.IGNORECASE) is not None
+    """True / False, o None si el dato no está disponible o no es válido."""
+    try:
+        if "metric" in cond:
+            valor = metrics.get(cond["metric"])
+            if valor is None or isinstance(valor, bool):
+                return None
+            return OPERADORES[cond["op"]](float(valor), cond["value"])
+        if "field" in cond:
+            valor = summary.get(cond["field"])
+            if not valor:
+                return None
+            return re.search(cond["regex"], str(valor), re.IGNORECASE) is not None
+    except (TypeError, ValueError):
+        return None
     return None
 
 
@@ -52,17 +62,22 @@ def _estado_general(causas: list, tiene_scan: bool) -> str:
     return "REVISIÓN RECOMENDADA"
 
 
+def _dict(valor) -> dict:
+    return valor if isinstance(valor, dict) else {}
+
+
 def diagnose(problema: str, scan: dict | None = None, rules: list | None = None) -> dict:
     rules = rules if rules is not None else load_rules()
-    metrics = (scan or {}).get("metrics", {}) or {}
-    summary = (scan or {}).get("summary", {}) or {}
-    texto = normalizar(problema)
+    scan = scan if isinstance(scan, dict) else None
+    metrics = _dict(scan.get("metrics")) if scan else {}
+    summary = _dict(scan.get("summary")) if scan else {}
+    texto = normalizar(problema if isinstance(problema, str) else "")
 
     causas, detectados = [], set()
     for r in rules:
         sintomas = r.get("symptoms", [])
         s_hits = [s["name"] for s in sintomas
-                  if any(normalizar(k) in texto for k in s["keywords"])]
+                  if any(_contiene(texto, k) for k in s["keywords"])]
         c_hits, c_posibles = [], 0
         for c in r.get("conditions", []):
             res = _evaluar(c, metrics, summary)

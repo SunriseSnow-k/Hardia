@@ -25,8 +25,7 @@
       {"name": "Lentitud", "keywords": ["lento", "lenta"]}
     ],
     "conditions": [
-      {"metric": "cpu_temp", "op": ">", "value": 85, "label": "Temperatura de CPU superior a 85 °C"},
-      {"metric": "cpu_usage", "op": "<", "value": 40, "label": "Temperatura alta con poco uso del procesador"}
+      {"metric": "cpu_temp", "op": ">", "value": 85, "label": "Temperatura de CPU superior a 85 °C"}
     ],
     "recommendations": [
       "Verificar que el ventilador gire correctamente",
@@ -186,7 +185,7 @@
     ]
   },
   {
-    "id": "R-013", "category": "Sistema operativo", "priority": "Media", "min_confidence": 0.2,
+    "id": "R-013", "category": "Sistema operativo", "priority": "Media", "min_evidence": 2,
     "cause": "Software no deseado o malware",
     "symptoms": [
       {"name": "Anuncios o ventanas emergentes", "keywords": ["anuncios", "publicidad", "ventanas emergentes", "ventanas"]},
