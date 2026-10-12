@@ -2,6 +2,7 @@ import sys
 from PySide6.QtWidgets import QApplication
 from app.paths import db_path
 from app.db.database import Database
+from app.db.hardware_repo import HardwareRepository
 from app.db.repo import Repository
 from app.ui.styles import QSS
 from app.ui.login import LoginDialog
@@ -15,6 +16,10 @@ def main() -> int:
 
     db = Database(db_path())
     repo = Repository(db)
+    try:  # convierte los escaneos anteriores en capturas (no borra nada; se repite sin efecto)
+        HardwareRepository(repo).migrate_legacy()
+    except Exception:
+        pass  # un fallo de migración no debe impedir abrir el programa
 
     login = LoginDialog(repo)
     if login.exec() != LoginDialog.Accepted:

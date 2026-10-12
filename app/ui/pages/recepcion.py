@@ -3,6 +3,7 @@ import html
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
                                QLabel, QLineEdit, QComboBox, QPushButton, QFrame)
+from app.db.hardware_repo import HardwareRepository
 from app.db.repo import Repository, PRIORIDADES
 from app.ui.pages.escaneo import fila_html
 
@@ -17,6 +18,7 @@ class RecepcionPage(QWidget):
     def __init__(self, repo: Repository):
         super().__init__()
         self.repo = repo
+        self.hwr = HardwareRepository(repo)
         self._prev_code = None
         self.hw: dict | None = None
 
@@ -99,8 +101,10 @@ class RecepcionPage(QWidget):
 
         self.error = QLabel("")
         self.error.setObjectName("Error")
+        self.error.setWordWrap(True)
         self.ok = QLabel("")
         self.ok.setObjectName("Ok")
+        self.ok.setWordWrap(True)
         fv.addWidget(self.error)
         fv.addWidget(self.ok)
 
@@ -125,6 +129,10 @@ class RecepcionPage(QWidget):
         h3 = QLabel("Datos del equipo")
         h3.setObjectName("SectionTitle")
         lv.addWidget(h3)
+        self.ident_lbl = QLabel("")
+        self.ident_lbl.setTextFormat(Qt.RichText)
+        self.ident_lbl.setWordWrap(True)
+        lv.addWidget(self.ident_lbl)
         self.hw_box = QVBoxLayout()
         self.hw_box.setSpacing(8)
         lv.addLayout(self.hw_box)
@@ -152,16 +160,47 @@ class RecepcionPage(QWidget):
         v.addWidget(widget)
         return w
 
-    # ---------- Datos de hardware ----------
+    # ---------- Datos de hardware e identificación ----------
     def set_hardware(self, data: dict):
-        """Recibe un escaneo (local o importado desde USB)."""
+        """Recibe un escaneo (local o importado desde USB) y lo relaciona con los equipos registrados."""
         self.hw = data
-        resumen = data.get("summary", {})
-        if resumen.get("serial") and not self.serie.text().strip():
-            self.serie.setText(resumen["serial"])
-        if resumen.get("description") and not self.equipo.text().strip():
-            self.equipo.setText(resumen["description"])
+        self._identificar(data)
         self._render_hw()
+
+    def _identificar(self, data: dict):
+        resumen = data.get("summary", {}) if isinstance(data.get("summary"), dict) else {}
+        try:
+            res = self.hwr.identify_scan(data)
+        except Exception as e:  # la identificación nunca debe impedir registrar el equipo
+            self.ident_lbl.setText(f"<span style='color:#b7791f'>No se pudo comprobar si el equipo ya "
+                                   f"estaba registrado: {html.escape(str(e))}</span>")
+            return
+        estado, cand = res["status"], res["candidates"]
+        escrita = self.serie.text().strip()
+        if estado == "encontrado":
+            c = cand[0]
+            texto = (f"<b style='color:#2f855a'>Equipo ya registrado:</b> {html.escape(c['description'])} "
+                     f"(serie {html.escape(c['serial'])}).")
+            if not escrita:
+                self.serie.setText(c["serial"])  # activa el aviso de reingreso
+            elif escrita.upper() != c["serial"].upper():
+                texto += (f"<br><span style='color:#c0392b'>Usted escribió la serie {html.escape(escrita)}, "
+                          "pero el escaneo corresponde al equipo anterior. Verifique antes de guardar.</span>")
+        elif estado == "ambiguo":
+            lista = ", ".join(f"{html.escape(c['description'])} ({html.escape(c['serial'])})" for c in cand)
+            texto = ("<b style='color:#c0392b'>El escaneo coincide con varios equipos registrados:</b> "
+                     f"{lista}. Escriba la serie correcta para continuar.")
+        elif estado == "probable":
+            lista = ", ".join(f"{html.escape(c['description'])} ({html.escape(c['serial'])})" for c in cand)
+            texto = ("<b style='color:#b7791f'>Posible equipo conocido:</b> coincide solo por un identificador "
+                     f"débil (MAC) con {lista}. Confirme escribiendo la serie.")
+        else:
+            texto = "<b>Equipo nuevo:</b> no coincide con ningún equipo registrado."
+            if resumen.get("serial") and not escrita:
+                self.serie.setText(resumen["serial"])
+        if estado != "encontrado" and resumen.get("description") and not self.equipo.text().strip():
+            self.equipo.setText(resumen["description"])
+        self.ident_lbl.setText(texto)
 
     def _render_hw(self):
         while self.hw_box.count():
@@ -232,16 +271,23 @@ class RecepcionPage(QWidget):
         code = self.repo.register_intake(
             cliente, telefono, serie, equipo, problema, self.prioridad.currentText(),
         )
-        if self.hw:  # guarda el hardware escaneado en el equipo y en el caso
+        aviso = ""
+        if self.hw:  # guarda una captura nueva (las anteriores se conservan) y los datos actuales del equipo
             r = self.hw.get("summary", {})
             cid = self.repo.add_client(cliente, telefono)
             self.repo.upsert_equipment(
                 serie, equipo, cid, cpu=r.get("cpu", ""), ram=r.get("ram", ""),
                 storage=r.get("storage", ""), os_name=r.get("os", ""),
             )
-            self.repo.save_scan(code, self.hw)
+            try:
+                res = self.hwr.save_capture(code, self.hw)
+                if res["conflicts"]:
+                    aviso = (f" Aviso: {len(res['conflicts'])} identificador(es) del escaneo ya pertenecen a "
+                             "otro equipo y no se reasignaron; revise que la serie sea la correcta.")
+            except Exception as e:
+                aviso = f" Aviso: no se pudo guardar la captura de hardware ({e})."
         self._limpiar()
-        self.ok.setText(f"Caso {code} registrado en la cola de trabajo.")
+        self.ok.setText(f"Caso {code} registrado en la cola de trabajo.{aviso}")
         self.case_created.emit(code)
 
     def _limpiar(self):
@@ -252,6 +298,7 @@ class RecepcionPage(QWidget):
         self.prioridad.setCurrentText("Media")
         self.error.setText("")
         self.ok.setText("")
+        self.ident_lbl.setText("")
         self.alert.hide()
         self.hw = None
         self._render_hw()

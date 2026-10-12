@@ -6,7 +6,7 @@ from pathlib import Path
 import psutil
 
 FORMAT = "SD-DIAG"
-VERSION = 1
+VERSION = 2  # 2 = incluye inventario y disponibilidad; los archivos de versión 1 se siguen leyendo
 _DANADO = "El archivo está incompleto o dañado."
 
 
@@ -18,7 +18,7 @@ def save_scan(data: dict, path) -> Path:
 
 
 def load_scan(path) -> dict:
-    """Carga y valida un archivo .diag. Lanza ValueError si no es válido."""
+    """Carga y valida un archivo .diag (versión 1 o 2). Lanza ValueError si no es válido."""
     texto = Path(path).read_text(encoding="utf-8")
     data = json.loads(texto)
     if not isinstance(data, dict) or data.get("format") != FORMAT:
@@ -29,6 +29,9 @@ def load_scan(path) -> dict:
         raise ValueError(_DANADO)
     if not isinstance(data.setdefault("metrics", {}), dict):
         raise ValueError(_DANADO)
+    for clave in ("inventory", "availability"):
+        if clave in data and not isinstance(data[clave], dict):
+            raise ValueError(_DANADO)
     return data
 
 

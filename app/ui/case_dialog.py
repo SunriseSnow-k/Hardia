@@ -1,15 +1,21 @@
+from pathlib import Path
+
+from PySide6.QtCore import Qt, QUrl
+from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, QComboBox,
-                               QPushButton, QListWidget, QMessageBox)
+                               QPushButton, QListWidget, QListWidgetItem, QMessageBox)
 from app.ai import prompts
 from app.db.repo import Repository, ESTADOS
+from app.db.reports_repo import ReportsRepository
 from app.diagnosis.engine import diagnose
+from app.reports.service import KINDS
 from app.ui.ai_widgets import AiDialog
 from app.ui.diagnosis_dialog import DiagnosisDialog
 from app.ui.styles import PRIORITY_COLORS
 
 
 class CaseDialog(QDialog):
-    """Detalle de un caso: datos, estado, diagnóstico, IA y casos anteriores del equipo."""
+    """Detalle de un caso: datos, estado, diagnóstico, IA, reportes y casos anteriores del equipo."""
 
     def __init__(self, repo: Repository, code: str, parent=None):
         super().__init__(parent)
@@ -89,6 +95,15 @@ class CaseDialog(QDialog):
         b2.clicked.connect(self._mensaje_cliente)
         lay.addLayout(fila_ia)
 
+        sec_r = QLabel("Reportes de este caso")
+        sec_r.setObjectName("SectionTitle")
+        lay.addWidget(sec_r)
+        self.lista_reportes = QListWidget()
+        self.lista_reportes.setMaximumHeight(90)
+        self.lista_reportes.itemDoubleClicked.connect(self._abrir_reporte)
+        lay.addWidget(self.lista_reportes)
+        self._cargar_reportes()
+
         sec = QLabel("Otros casos del mismo equipo")
         sec.setObjectName("SectionTitle")
         lay.addWidget(sec)
@@ -145,6 +160,32 @@ class CaseDialog(QDialog):
         self.repo.update_case_status(self.code, self.estado.currentText())
         self.changed = True
         self.ok.setText("Estado actualizado.")
+
+    # ---------- reportes del caso ----------
+    def _cargar_reportes(self):
+        self.lista_reportes.clear()
+        reportes = ReportsRepository(self.repo).for_case(self.code)
+        if not reportes:
+            vacio = QListWidgetItem("Aún no hay reportes de este caso.")
+            vacio.setFlags(Qt.NoItemFlags)
+            self.lista_reportes.addItem(vacio)
+            return
+        for r in reportes:
+            item = QListWidgetItem(
+                f'{KINDS.get(r["kind"], r["kind"])} · {r["created_at"][:16]} · {Path(r["path"]).name}')
+            item.setData(Qt.UserRole, r["path"])
+            self.lista_reportes.addItem(item)
+
+    def _abrir_reporte(self, item: QListWidgetItem):
+        ruta = item.data(Qt.UserRole)
+        if not ruta:
+            return
+        if not Path(ruta).exists():
+            self.ok.setStyleSheet("color:#c0392b;")
+            self.ok.setText("El archivo del reporte ya no existe.")
+            return
+        self.ok.setStyleSheet("")
+        QDesktopServices.openUrl(QUrl.fromLocalFile(ruta))
 
     # ---------- IA ----------
     def _resumir_historial(self):

@@ -28,12 +28,21 @@ QComboBox { background: white; border: 1px solid #d9dfe5; border-radius: 4px;
 QComboBox QAbstractItemView { background: white; color: #1b2430;
                               selection-background-color: #e1f0f5;
                               selection-color: #1b2430; }
+QDateEdit { background: white; border: 1px solid #d9dfe5; border-radius: 4px;
+            padding: 6px 8px; color: #1b2430; }
+QDateEdit:focus { border-color: #1f6f8b; }
+QDateEdit:disabled { background: #eef1f4; color: #a0a9b3; }
+QCalendarWidget QAbstractItemView { background: white; color: #1b2430;
+                                    selection-background-color: #1f6f8b;
+                                    selection-color: white; }
+QCheckBox { color: #1b2430; spacing: 6px; }
 QListWidget { background: white; border: 1px solid #d9dfe5; border-radius: 4px; }
 QCompleter QAbstractItemView, QListView { background: white; color: #1b2430; }
 
 QPushButton#Primary { background: #1f6f8b; color: white; border: none;
                       border-radius: 4px; padding: 9px 16px; }
 QPushButton#Primary:hover { background: #185a72; }
+QPushButton#Primary:disabled { background: #a9c7d2; }
 QPushButton#Secondary { background: white; color: #1b2430; border: 1px solid #d9dfe5;
                         border-radius: 4px; padding: 8px 14px; }
 QPushButton#Secondary:hover { border-color: #1f6f8b; }

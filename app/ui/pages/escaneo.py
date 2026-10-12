@@ -1,4 +1,5 @@
 import html
+from datetime import datetime
 from pathlib import Path
 
 from PySide6.QtCore import Qt, QThread, Signal
@@ -7,6 +8,7 @@ from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushB
                                QFileDialog, QStackedWidget)
 from app.hardware import diag_file
 from app.hardware.scanner import run_scan, COMPONENT_NAMES
+from app.ui.inventory_dialog import InventoryDialog
 
 ICONOS = {
     "ok": ("✓", "#2f855a"), "warn": ("⚠", "#b7791f"), "error": ("✕", "#c0392b"),
@@ -142,10 +144,14 @@ class EscaneoPage(QWidget):
         self.b_usar = QPushButton("Usar estos datos en la recepción")
         self.b_usar.setObjectName("Primary")
         self.b_usar.clicked.connect(self._usar)
+        self.b_inv = QPushButton("Ver inventario detallado")
+        self.b_inv.setObjectName("Secondary")
+        self.b_inv.clicked.connect(self._ver_inventario)
         self.b_guardar = QPushButton("Guardar escaneo en USB/archivo…")
         self.b_guardar.setObjectName("Secondary")
         self.b_guardar.clicked.connect(self._guardar_copia)
         acciones.addWidget(self.b_usar)
+        acciones.addWidget(self.b_inv)
         acciones.addWidget(self.b_guardar)
         acciones.addStretch()
         pv.addLayout(acciones)
@@ -160,9 +166,15 @@ class EscaneoPage(QWidget):
         self.msg.setStyleSheet(f"color:{color};")
         self.msg.setText(texto)
 
+    def _tiene_inventario(self) -> bool:
+        return bool(self.data) and isinstance(self.data.get("inventory"), dict)
+
     def _botones_resultado(self, activo: bool):
         self.b_usar.setEnabled(activo)
         self.b_guardar.setEnabled(activo)
+        self.b_inv.setEnabled(activo and self._tiene_inventario())
+        self.b_inv.setToolTip("" if self._tiene_inventario() or not activo else
+                              "Este archivo es de una versión anterior y no incluye inventario detallado.")
 
     def _preparar_filas(self, nombres):
         while self.filas_lay.count():
@@ -218,9 +230,10 @@ class EscaneoPage(QWidget):
             self._set_fila(i + 1, COMPONENT_NAMES[i + 1], "Leyendo…", "running")
 
     def _fin(self, data: dict):
+        data["provenance"] = {"how": "local_scan", "file": None}
         self.data = data
         ok = sum(1 for c in data["components"] if c["status"] == "ok")
-        self.estado.setText(f'Escaneo completado: {ok} de {len(data["components"])} componentes leídos.')
+        self.estado.setText(f'Escaneo completado: {ok} de {len(data["components"])} categorías sin novedades.')
         self.b_scan.setText("Volver a escanear")
         self.b_scan.setEnabled(True)
         self._botones_resultado(True)
@@ -266,6 +279,8 @@ class EscaneoPage(QWidget):
         except (ValueError, OSError) as e:
             self._msg(f"No se pudo importar: {e}", ok=False)
             return
+        data["provenance"] = {"how": "imported_file", "file": ruta.name,
+                              "imported_at": datetime.now().isoformat(timespec="seconds")}
         self.data = data
         comps = data["components"]
         self._preparar_filas([c.get("name", "?") for c in comps])
@@ -290,6 +305,10 @@ class EscaneoPage(QWidget):
             self._msg(f"No se pudo guardar: {e}", ok=False)
             return
         self._msg(f"Escaneo guardado en {ruta}")
+
+    def _ver_inventario(self):
+        if self._tiene_inventario():
+            InventoryDialog(self.data, self).exec()
 
     def _usar(self):
         if self.data:

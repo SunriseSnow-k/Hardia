@@ -36,3 +36,11 @@ class ReportsRepository:
             "ORDER BY r.id DESC LIMIT ?",
             (limit,),
         ).fetchall()
+
+    def for_case(self, case_code: str) -> list[sqlite3.Row]:
+        """Reportes generados para un caso, del más reciente al más antiguo."""
+        return self.c.execute(
+            "SELECT id, case_code, kind, path, created_at FROM reports "
+            "WHERE case_code = ? ORDER BY id DESC",
+            (case_code,),
+        ).fetchall()
