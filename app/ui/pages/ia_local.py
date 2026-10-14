@@ -1,13 +1,35 @@
 import html
 
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-                               QFrame, QCheckBox, QComboBox, QLineEdit, QScrollArea)
+from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel, QPushButton,
+                               QCheckBox, QComboBox, QLineEdit)
 from app.ai import config as ia_config, prompts
-from app.ai.ollama_client import list_models, has_model, OllamaError
+from app.ai.ollama_client import TIMEOUT_RESPUESTA, list_models, has_model, OllamaError
 from app.db.repo import Repository
 from app.diagnosis.engine import load_rules
 from app.ui.ai_widgets import AiStreamPanel
+from app.ui.widgets import AreaDesplazable, cabecera, campo, muted, panel
+
+PUEDE = (
+    "Lee los datos del taller que se le entregan: el caso, el diagnóstico por reglas y la base "
+    "de conocimiento.",
+    "Redacta resúmenes, explicaciones y mensajes para el cliente.",
+    "Funciona en este equipo, sin Internet.",
+)
+NO_PUEDE = (
+    "No modifica nada: no guarda, no borra ni cambia casos por su cuenta.",
+    "No decide el diagnóstico: la validación final siempre es del técnico.",
+    "Solo usa los datos que se le entregan; puede equivocarse, así que revise siempre su texto.",
+    "Sin Ollama, el programa sigue funcionando en modo reglas.",
+)
+
+
+def _lista(puntos, signo: str, color: str) -> QLabel:
+    lbl = QLabel("<br>".join(f"<span style='color:{color};font-weight:600'>{signo}</span>&nbsp; "
+                             f"{html.escape(p)}" for p in puntos))
+    lbl.setTextFormat(Qt.RichText)
+    lbl.setWordWrap(True)
+    return lbl
 
 
 class IaLocalPage(QWidget):
@@ -19,93 +41,100 @@ class IaLocalPage(QWidget):
         outer = QVBoxLayout(self)
         outer.setContentsMargins(26, 22, 26, 22)
         outer.setSpacing(8)
-        t = QLabel("IA local")
-        t.setObjectName("PageTitle")
-        s = QLabel("Asistente opcional que funciona en este equipo, sin Internet. "
-                   "Nunca decide el diagnóstico: solo redacta y resume.")
-        s.setObjectName("Muted")
-        s.setWordWrap(True)
-        outer.addWidget(t)
-        outer.addWidget(s)
+        textos, _t, _s = cabecera("IA local",
+                                  "Asistente opcional que funciona en este equipo, sin Internet. "
+                                  "Nunca decide el diagnóstico: solo redacta y resume.")
+        outer.addLayout(textos)
 
         inner = QWidget()
+        inner.setObjectName("ScrollBody")
         lay = QVBoxLayout(inner)
         lay.setContentsMargins(0, 8, 0, 0)
         lay.setSpacing(12)
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setWidget(inner)
+        scroll = AreaDesplazable(inner)
         outer.addWidget(scroll, 1)
 
-        # --- Estado ---
-        p1, v1 = self._panel("Estado")
+        arriba = QGridLayout()
+        arriba.setHorizontalSpacing(12)
+
+        # --- Estado y configuración ---
+        p1, v1 = panel("Estado")
         self.estado = QLabel("")
         self.estado.setTextFormat(Qt.RichText)
         self.estado.setWordWrap(True)
-        b_chk = QPushButton("Comprobar de nuevo")
-        b_chk.setObjectName("Secondary")
-        b_chk.clicked.connect(self.refresh)
         v1.addWidget(self.estado)
-        v1.addWidget(b_chk, alignment=Qt.AlignLeft)
-        lay.addWidget(p1)
-
-        # --- Configuración ---
-        p2, v2 = self._panel("Configuración")
         self.chk = QCheckBox("Activar IA local")
         self.cb_modelo = QComboBox()
         self.cb_modelo.setEditable(True)
         self.cb_modo = QComboBox()
         self.cb_modo.addItem("Rápido (solo reglas; la IA se pide con un botón)", "rapido")
         self.cb_modo.addItem("Completo (reglas + análisis automático de IA)", "completo")
-        for etiqueta, w in (("Modelo", self.cb_modelo), ("Modo de diagnóstico", self.cb_modo)):
-            l = QLabel(etiqueta)
-            l.setObjectName("Muted")
-            v2.addWidget(l)
-            v2.addWidget(w)
-        v2.insertWidget(1, self.chk)
+        v1.addWidget(self.chk)
+        fila_c = QHBoxLayout()
+        fila_c.addWidget(campo("Modelo", self.cb_modelo), 1)
+        fila_c.addWidget(campo("Modo de diagnóstico", self.cb_modo), 1)
+        v1.addLayout(fila_c)
+        v1.addWidget(muted(f"Tiempo máximo de espera de una respuesta: {TIMEOUT_RESPUESTA} s "
+                           "(valor fijo del programa)."))
         fila = QHBoxLayout()
-        b_save = QPushButton("Guardar configuración")
+        b_save = QPushButton("Guardar")
         b_save.setObjectName("Primary")
         b_save.clicked.connect(self._guardar)
-        b_test = QPushButton("Probar modelo")
+        b_test = QPushButton("Probar conexión")
         b_test.setObjectName("Secondary")
+        b_test.setToolTip("Envía una consulta corta al modelo y mide cuánto tarda")
         b_test.clicked.connect(self._probar)
+        b_chk = QPushButton("Comprobar de nuevo")
+        b_chk.setObjectName("Secondary")
+        b_chk.clicked.connect(self.refresh)
         fila.addWidget(b_save)
         fila.addWidget(b_test)
+        fila.addWidget(b_chk)
         fila.addStretch()
-        v2.addLayout(fila)
+        v1.addLayout(fila)
         self.msg = QLabel("")
         self.msg.setWordWrap(True)
-        v2.addWidget(self.msg)
+        v1.addWidget(self.msg)
         self.test_panel = AiStreamPanel(altura=50, msg_cancel="Prueba cancelada.")
-        v2.addWidget(self.test_panel)
-        lay.addWidget(p2)
+        v1.addWidget(self.test_panel)
+        arriba.addWidget(p1, 0, 0)
+
+        # --- Qué puede y qué no ---
+        p2, v2 = panel("Qué puede y qué no")
+        v2.addWidget(_lista(PUEDE, "✓", "#2f855a"))
+        v2.addSpacing(6)
+        v2.addWidget(_lista(NO_PUEDE, "✕", "#c0392b"))
+        v2.addStretch()
+        arriba.addWidget(p2, 0, 1)
+        arriba.setColumnStretch(0, 3)
+        arriba.setColumnStretch(1, 2)
+        lay.addLayout(arriba)
 
         # --- Soporte ---
-        p3, v3 = self._panel("Consultar soporte")
-        ayuda = QLabel("Pregunte sobre un problema; la respuesta se apoya en la base de conocimiento local.")
-        ayuda.setObjectName("Muted")
-        ayuda.setWordWrap(True)
+        p3, v3 = panel("Consultar soporte")
+        v3.addWidget(muted("Pregunte sobre un problema; la respuesta se apoya en la base de "
+                           "conocimiento local."))
         self.pregunta = QLineEdit()
         self.pregunta.setPlaceholderText("Ej.: ¿Qué reviso si el equipo se calienta y el ventilador suena fuerte?")
         self.pregunta.returnPressed.connect(self._preguntar)
         b_ask = QPushButton("Preguntar")
-        b_ask.setObjectName("Primary")
+        b_ask.setObjectName("Secondary")
         b_ask.clicked.connect(self._preguntar)
+        fila_p = QHBoxLayout()
+        fila_p.addWidget(self.pregunta, 1)
+        fila_p.addWidget(b_ask)
+        v3.addLayout(fila_p)
         self.soporte = AiStreamPanel(vacio="La respuesta aparecerá aquí.", altura=130,
                                      msg_cancel="Consulta cancelada.")
-        for w in (ayuda, self.pregunta):
-            v3.addWidget(w)
-        v3.addWidget(b_ask, alignment=Qt.AlignLeft)
         v3.addWidget(self.soporte)
         lay.addWidget(p3)
 
         # --- Ayuda ---
-        p4, v4 = self._panel("Instalación del modelo")
+        p4, v4 = panel("Instalación del modelo")
         txt = QLabel(
             "1. Instale Ollama desde ollama.com y déjelo en ejecución.<br>"
             "2. En una terminal: <b>ollama pull llama3.2:3b</b> (o <b>llama3.2:1b</b> si el equipo es modesto).<br>"
-            "3. Pulse «Probar modelo» para medir cuánto tarda en este equipo.<br>"
+            "3. Pulse «Probar conexión» para medir cuánto tarda en este equipo.<br>"
             "Si es lento, use el modo Rápido: el diagnóstico por reglas no depende de la IA.")
         txt.setTextFormat(Qt.RichText)
         txt.setWordWrap(True)
@@ -113,18 +142,6 @@ class IaLocalPage(QWidget):
         lay.addWidget(p4)
         lay.addStretch()
         self.refresh()
-
-    @staticmethod
-    def _panel(titulo: str):
-        f = QFrame()
-        f.setObjectName("Panel")
-        v = QVBoxLayout(f)
-        v.setContentsMargins(16, 14, 16, 14)
-        v.setSpacing(8)
-        h = QLabel(titulo)
-        h.setObjectName("SectionTitle")
-        v.addWidget(h)
-        return f, v
 
     def _set_msg(self, texto: str, ok: bool = True):
         self.msg.setStyleSheet("color:#2f855a;font-weight:600;" if ok else "color:#c0392b;")
@@ -150,17 +167,17 @@ class IaLocalPage(QWidget):
         m = html.escape(cfg["model"])
         if instalados is None:
             self.estado.setText(
-                "<b style='color:#c0392b'>● Ollama no detectado.</b> Instálelo desde ollama.com y "
+                "<b style='color:#c0392b'>● Ollama no disponible.</b> Instálelo desde ollama.com y "
                 "déjelo en ejecución. Mientras tanto el sistema trabaja solo con reglas.")
         elif not has_model(instalados, cfg["model"]):
             self.estado.setText(
-                f"<b style='color:#b7791f'>● Ollama detectado.</b> El modelo <b>{m}</b> no está instalado. "
+                f"<b style='color:#b7791f'>● Ollama disponible.</b> El modelo <b>{m}</b> no está instalado. "
                 f"En una terminal ejecute: <b>ollama pull {m}</b>")
         else:
             lista = html.escape(", ".join(instalados))
             self.estado.setText(
-                f"<b style='color:#2f855a'>● Ollama detectado · modelo {m} listo.</b><br>"
-                f"<span style='color:#66727f'>Modelos instalados: {lista}</span>")
+                f"<b style='color:#2f855a'>● Ollama disponible · modelo {m} listo.</b><br>"
+                f"<span style='color:#5f6b77'>Modelos instalados: {lista}</span>")
 
     def _guardar(self):
         modelo = self.cb_modelo.currentText().strip() or ia_config.DEFAULT_MODEL

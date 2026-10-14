@@ -3,12 +3,18 @@
 Solo lectura y consultas parametrizadas: nunca se construye SQL con el texto
 del usuario. Los resultados se paginan (LIMIT/OFFSET) y el total se calcula
 con COUNT(*), sin cargar todos los registros en memoria.
+
+Además de cliente, teléfono, código, serie, equipo y problema, se busca por el
+documento del cliente y por la marca o el modelo de cualquier captura de
+hardware del equipo (útil cuando el técnico escribió un nombre distinto).
 """
 import re
 import sqlite3
 from datetime import date, datetime, timedelta
 from math import ceil
 
+from .clients_repo import ensure_doc_column
+from .hardware_repo import HardwareRepository
 from .repo import Repository
 from .reports_repo import ReportsRepository
 
@@ -29,7 +35,11 @@ _CASOS_FROM = (" FROM cases cs JOIN equipment e ON e.id = cs.equipment_id"
 _CASOS_COLS = ("cs.code, cs.problem, cs.priority, cs.status, cs.method, cs.created_at, "
                "e.serial, e.description AS equipo, cl.name AS cliente, cl.phone, "
                "EXISTS(SELECT 1 FROM diagnoses d WHERE d.case_code = cs.code) AS has_diagnosis")
-_CASOS_CAMPOS = ("cl.name", "cl.phone", "cs.code", "e.serial", "e.description", "cs.problem")
+# Marca o modelo en cualquier captura del equipo. Lleva sus propios marcadores "?".
+_CAPTURA = (f"EXISTS(SELECT 1 FROM hardware_captures h WHERE h.equipment_id = e.id"
+            f" AND (h.manufacturer LIKE ? {_ESC} OR h.model LIKE ? {_ESC}))")
+_CASOS_CAMPOS = ("cl.name", "cl.phone", "cl.doc_id", "cs.code", "e.serial", "e.description",
+                 "cs.problem", _CAPTURA)
 
 _REPORTES_FROM = (" FROM reports r JOIN cases cs ON cs.code = r.case_code"
                   " JOIN equipment e ON e.id = cs.equipment_id"
@@ -37,12 +47,16 @@ _REPORTES_FROM = (" FROM reports r JOIN cases cs ON cs.code = r.case_code"
 _REPORTES_COLS = ("r.id AS report_id, r.case_code, r.kind, r.path, r.created_at, "
                   "e.description AS equipo, e.serial, cl.name AS cliente, "
                   "cs.priority, cs.status AS case_status")
-_REPORTES_CAMPOS = ("cl.name", "cl.phone", "r.case_code", "e.serial", "e.description", "cs.problem")
+_REPORTES_CAMPOS = ("cl.name", "cl.phone", "cl.doc_id", "r.case_code", "e.serial", "e.description",
+                    "cs.problem", _CAPTURA)
 
 
 def prepare(repo: Repository) -> None:
-    """Asegura la tabla de reportes y los índices de búsqueda (idempotente)."""
+    """Asegura las tablas y columnas que usa la búsqueda y sus índices (idempotente).
+    Debe llamarse antes de usar SearchQueries sobre una base nueva o antigua."""
     ReportsRepository(repo)
+    HardwareRepository(repo)
+    ensure_doc_column(repo.c)
     for sql in INDICES:
         repo.c.execute(sql)
     repo.c.commit()
@@ -91,8 +105,9 @@ def _texto(texto: str, campos, campo_fecha: str):
             conds.append(f"{campo_fecha} LIKE ? {_ESC}")
             params.append(fecha + "%")
         else:
-            conds.append("(" + " OR ".join(f"{c} LIKE ? {_ESC}" for c in campos) + ")")
-            params += [_like(tok)] * len(campos)
+            partes = [c if "?" in c else f"{c} LIKE ? {_ESC}" for c in campos]
+            conds.append("(" + " OR ".join(partes) + ")")
+            params += [_like(tok)] * sum(p.count("?") for p in partes)
     return conds, params
 
 

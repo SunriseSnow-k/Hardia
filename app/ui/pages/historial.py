@@ -1,15 +1,26 @@
 from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QColor
-from PySide6.QtWidgets import (QAbstractItemView, QComboBox, QFrame, QHBoxLayout, QHeaderView,
+from PySide6.QtWidgets import (QAbstractItemView, QComboBox, QHBoxLayout, QHeaderView,
                                QLabel, QLineEdit, QPushButton, QTableWidget, QTableWidgetItem,
                                QVBoxLayout, QWidget)
 from app.db.repo import ESTADOS, PRIORIDADES, Repository
 from app.db.search_repo import PAGE_SIZE, pages
 from app.ui.search_widgets import AsyncSearch, DateRangeFilter, PagerBar
-from app.ui.styles import PRIORITY_COLORS
+from app.ui.styles import ACCENT
+from app.ui.widgets import ChipEstado, cabecera, fecha_corta, panel
 
 COLUMNAS = ["Código", "Fecha", "Cliente", "Equipo", "Serie", "Problema",
             "Prioridad", "Estado", "Método de análisis"]
+COL_PRIORIDAD = 6
+
+
+def _chip_celda(texto: str) -> QWidget:
+    w = QWidget()
+    h = QHBoxLayout(w)
+    h.setContentsMargins(8, 0, 8, 0)
+    h.addWidget(ChipEstado(texto))
+    h.addStretch()
+    return w
 
 
 class HistorialPage(QWidget):
@@ -31,22 +42,16 @@ class HistorialPage(QWidget):
         root = QVBoxLayout(self)
         root.setContentsMargins(26, 22, 26, 22)
         root.setSpacing(12)
-        t = QLabel("Historial")
-        t.setObjectName("PageTitle")
-        s = QLabel("Busque por cliente, teléfono, código, serie, equipo, problema o fecha "
-                   "(2026-10-06 o 06/10/2026). Doble clic para ver el detalle del caso.")
-        s.setObjectName("Muted")
-        s.setWordWrap(True)
-        root.addWidget(t)
-        root.addWidget(s)
+        textos, _t, _s = cabecera(
+            "Historial",
+            "Busque por cliente, teléfono, documento, código, serie, equipo, problema o fecha "
+            "(2026-10-06 o 06/10/2026). Doble clic para ver el detalle del caso.")
+        root.addLayout(textos)
 
-        panel = QFrame()
-        panel.setObjectName("Panel")
-        pv = QVBoxLayout(panel)
-        pv.setContentsMargins(14, 12, 14, 12)
-        pv.setSpacing(8)
+        p_filtros, pv = panel("Filtros", margen=14)
         self.buscar = QLineEdit()
         self.buscar.setPlaceholderText("Buscar en el historial…")
+        self.buscar.setClearButtonEnabled(True)
         self.buscar.textChanged.connect(lambda _t: self._timer.start())
         pv.addWidget(self.buscar)
 
@@ -67,10 +72,11 @@ class HistorialPage(QWidget):
         fila.addWidget(b_limpiar)
         fila.addStretch()
         pv.addLayout(fila)
-        root.addWidget(panel)
+        root.addWidget(p_filtros)
 
         self.estado = QLabel("")
         self.estado.setObjectName("Muted")
+        self.estado.setStyleSheet("font-weight:600;")
         root.addWidget(self.estado)
 
         self.tabla = QTableWidget(0, len(COLUMNAS))
@@ -78,8 +84,10 @@ class HistorialPage(QWidget):
         self.tabla.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.tabla.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.tabla.setSelectionMode(QAbstractItemView.SingleSelection)
-        self.tabla.setAlternatingRowColors(True)
+        self.tabla.setShowGrid(False)
         self.tabla.verticalHeader().setVisible(False)
+        self.tabla.verticalHeader().setDefaultSectionSize(40)
+        self.tabla.horizontalHeader().setDefaultAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         self.tabla.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
         self.tabla.horizontalHeader().setSectionResizeMode(5, QHeaderView.Stretch)
         self.tabla.cellDoubleClicked.connect(self._doble_clic)
@@ -153,17 +161,22 @@ class HistorialPage(QWidget):
             return
         self.tabla.setRowCount(len(filas))
         for i, r in enumerate(filas):
-            valores = [r["code"], r["created_at"][:10], r["cliente"] or "", r["equipo"],
-                       r["serial"], r["problem"], r["priority"], r["status"], r["method"]]
+            valores = [r["code"], fecha_corta(r["created_at"], con_hora=False), r["cliente"] or "",
+                       r["equipo"], r["serial"], r["problem"], r["priority"], r["status"], r["method"]]
             for j, v in enumerate(valores):
                 item = QTableWidgetItem(v)
+                item.setToolTip(v)
                 if j == 0:
                     item.setData(Qt.UserRole, r["code"])
-                if j == 6:
-                    bg, fg = PRIORITY_COLORS.get(v, ("#eee", "#333"))
-                    item.setBackground(QColor(bg))
-                    item.setForeground(QColor(fg))
+                    item.setForeground(QColor(ACCENT))
+                    fuente = item.font()
+                    fuente.setBold(True)
+                    item.setFont(fuente)
+                if j == COL_PRIORIDAD:  # el chip se pinta encima; el texto solo da el ancho
+                    item.setText(v + "    ")
+                    item.setForeground(QColor(0, 0, 0, 0))
                 self.tabla.setItem(i, j, item)
+            self.tabla.setCellWidget(i, COL_PRIORIDAD, _chip_celda(r["priority"]))
         if total == 0:
             self.estado.setText("Sin resultados para los criterios seleccionados."
                                 if self._hay_criterios() else "Aún no hay casos registrados.")

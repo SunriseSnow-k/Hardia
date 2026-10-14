@@ -4,7 +4,7 @@ from PySide6.QtWidgets import (QDialog, QHBoxLayout, QLabel, QPushButton, QTreeW
 from app.hardware.inventory import (ESTADO_TEXTO, FALLO, NO_AUTORIZADO, NO_COMPATIBLE,
                                     NO_DISPONIBLE, OK, inventory_rows)
 
-_COLOR = {NO_COMPATIBLE: "#66727f", NO_DISPONIBLE: "#b7791f", NO_AUTORIZADO: "#b7791f", FALLO: "#c0392b"}
+_COLOR = {NO_COMPATIBLE: "#5f6b77", NO_DISPONIBLE: "#b7791f", NO_AUTORIZADO: "#b7791f", FALLO: "#c0392b"}
 
 
 class InventoryDialog(QDialog):
@@ -46,7 +46,7 @@ class InventoryDialog(QDialog):
             item = QTreeWidgetItem(grupo, [f["label"], f["value"],
                                            "" if f["status"] == OK else ESTADO_TEXTO.get(f["status"], "")])
             if f["status"] != OK:
-                brocha = QBrush(QColor(_COLOR.get(f["status"], "#66727f")))
+                brocha = QBrush(QColor(_COLOR.get(f["status"], "#5f6b77")))
                 for col in range(3):
                     item.setForeground(col, brocha)
         self.arbol.expandAll()

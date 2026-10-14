@@ -70,25 +70,45 @@ def _f_cpu(t, d):
                           ("usage_pct", "Uso al capturar", lambda v: f"{v:.0f} %")])
 
 
+def _velocidad_ram(m: dict):
+    """'3200 MHz' o, si la velocidad configurada difiere de la nominal, '3200 MHz (configurada 2666 MHz)'."""
+    nominal, conf = m.get("nominal_mhz"), m.get("configured_mhz")
+    if nominal and conf and nominal != conf:
+        return f"{nominal} MHz (configurada {conf} MHz)"
+    v = m.get("speed_mhz") or conf or nominal
+    return f"{v} MHz" if v else None
+
+
 def _f_memory(t, d):
     filas = _campos(t, d, [("total_gb", "Capacidad total", lambda v: f"{v:g} GB"),
                            ("available_gb", "Disponible al capturar", lambda v: f"{v:g} GB"),
                            ("used_pct", "Uso al capturar", lambda v: f"{v:.0f} %")])
     for i, m in enumerate(_l(d.get("modules")), 1):
         partes = [f'{m.get("capacity_gb"):g} GB' if m.get("capacity_gb") else None, m.get("type"),
-                  f'{m.get("speed_mhz")} MHz' if m.get("speed_mhz") else None, m.get("form_factor"),
+                  _velocidad_ram(m), m.get("form_factor"),
                   m.get("manufacturer"), m.get("part_number"),
                   f'ranura {m.get("slot")}' if m.get("slot") else None]
         filas.append(_fila(t, f"Módulo {i}", " · ".join(p for p in partes if p)))
     return filas
 
 
+def fuente_salud(fuente) -> str:
+    """Texto breve de la fuente de la salud del disco (no hay lectura SMART propia)."""
+    f = str(fuente or "").strip()
+    if not f:
+        return "según el sistema"
+    if "windows storage" in f.lower():
+        return "según Windows Storage"
+    return f"según {f}"
+
+
 def _f_storage(t, d):
     filas = []
     for i, u in enumerate(_l(d.get("physical")), 1):
-        salud = (f'Salud: {u["health"]} ({u.get("health_source", "fuente del sistema")})'
+        salud = (f'Salud: {u["health"]} ({fuente_salud(u.get("health_source"))})'
                  if u.get("health") else "Salud: sin fuente fiable")
         partes = [u.get("model"), u.get("media"), fmt_bytes(u["size_bytes"]) if u.get("size_bytes") else None,
+                  f'{u["rpm"]} rpm' if u.get("rpm") else None,
                   u.get("bus"), "externa" if u.get("external") else None, u.get("manufacturer"), salud]
         filas.append(_fila(t, f"Unidad física {i}", " · ".join(p for p in partes if p)))
     for v in _l(d.get("logical")):
@@ -138,8 +158,8 @@ def _f_network(t, d):
 def _f_battery(t, d):
     return _campos(t, d, [("percent", "Carga actual", lambda v: f"{v:.0f} %"),
                           ("plugged", "Conectada a corriente", _si_no),
-                          ("design_mwh", "Capacidad de diseño", lambda v: f"{v:,} mWh"),
-                          ("full_mwh", "Capacidad máxima actual", lambda v: f"{v:,} mWh"),
+                          ("design_mwh", "Capacidad de diseño", lambda v: f"{v:,} mWh".replace(",", " ")),
+                          ("full_mwh", "Capacidad máxima actual", lambda v: f"{v:,} mWh".replace(",", " ")),
                           ("wear_pct", "Desgaste estimado", lambda v: f"{v:.1f} %")])
 
 
@@ -196,8 +216,7 @@ def inventory_rows(scan: dict) -> list[dict]:
         filas += _FORMATOS[clave](titulo, datos)
         for f in _l(a.get("faltantes")):
             motivo = f.get("motivo", NO_DISPONIBLE)
-            filas.append(_fila(titulo, f.get("campo", "?"),
-                               f"No disponible ({ESTADO_TEXTO.get(motivo, motivo)})", motivo))
+            filas.append(_fila(titulo, f.get("campo", "?"), ESTADO_TEXTO.get(motivo, motivo), motivo))
     return filas
 
 

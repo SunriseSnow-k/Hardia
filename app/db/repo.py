@@ -113,7 +113,9 @@ class Repository:
 
     _SELECT_CASOS = """
         SELECT cs.code, cs.problem, cs.priority, cs.status, cs.method, cs.created_at,
-               e.serial, e.description AS equipo, cl.name AS cliente, cl.phone
+               e.serial, e.description AS equipo, cl.name AS cliente, cl.phone,
+               EXISTS(SELECT 1 FROM cases p WHERE p.equipment_id = cs.equipment_id
+                      AND p.id < cs.id) AS reingreso
         FROM cases cs
         JOIN equipment e ON e.id = cs.equipment_id
         LEFT JOIN clients cl ON cl.id = e.client_id

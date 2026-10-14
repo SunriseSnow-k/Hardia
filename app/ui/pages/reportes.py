@@ -12,9 +12,45 @@ from app.paths import reports_dir
 from app.reports.service import KINDS, generate_report
 from app.ui.case_dialog import CaseDialog
 from app.ui.search_widgets import AsyncSearch, DateRangeFilter, PagerBar
+from app.ui.widgets import cabecera, fecha_corta, muted, panel
 
 COLUMNAS = ["Código", "Cliente", "Equipo", "Serie", "Tipo", "Fecha", "Archivo"]
 MAX_CASOS_COMBO = 50
+# Qué incluye cada PDF (según app/reports/pdf.py)
+CONTENIDO_TECNICO = (
+    "Inventario completo del equipo por categorías",
+    "Datos no disponibles, con su motivo",
+    "Cambios desde la inspección anterior",
+    "Diagnóstico: causas, evidencia, prioridad y recomendaciones",
+    "Salud frente a fábrica: índice, componentes y condiciones de la prueba",
+    "Notas del caso (incluidas las observaciones internas)",
+)
+CONTENIDO_CLIENTE = (
+    "Lenguaje simple: qué medimos, qué encontramos y qué significa",
+    "Estado de los componentes respecto a fábrica (orientativo)",
+    "Recomendaciones y urgencia de cada hallazgo",
+    "Trabajo realizado y notas para el cliente",
+    "Sin precios, sin plazos y sin notas internas",
+)
+
+
+def _tarjeta(titulo: str, puntos, boton: QPushButton) -> QFrame:
+    f = QFrame()
+    f.setObjectName("Card")
+    v = QVBoxLayout(f)
+    v.setContentsMargins(16, 14, 16, 14)
+    v.setSpacing(6)
+    h = QLabel(titulo)
+    h.setObjectName("SectionTitle")
+    v.addWidget(h)
+    for p in puntos:
+        l = QLabel(f"<span style='color:#2f855a'>✓</span>&nbsp; {p}")
+        l.setTextFormat(Qt.RichText)
+        l.setWordWrap(True)
+        v.addWidget(l)
+    v.addStretch()
+    v.addWidget(boton, alignment=Qt.AlignLeft)
+    return f
 
 
 class ReportesPage(QWidget):
@@ -41,59 +77,44 @@ class ReportesPage(QWidget):
         root = QVBoxLayout(self)
         root.setContentsMargins(26, 22, 26, 22)
         root.setSpacing(12)
-        t = QLabel("Reportes")
-        t.setObjectName("PageTitle")
-        s = QLabel("Genere el reporte técnico o el informe para el cliente en PDF y busque los "
-                   "reportes ya generados.")
-        s.setObjectName("Muted")
-        s.setWordWrap(True)
-        root.addWidget(t)
-        root.addWidget(s)
+        textos, _t, _s = cabecera("Reportes",
+                                  "Genere el reporte técnico o el informe para el cliente en PDF y busque "
+                                  "los reportes ya generados.")
+        root.addLayout(textos)
 
         # --- Generar ---
-        gen = QFrame()
-        gen.setObjectName("Panel")
-        gv = QVBoxLayout(gen)
-        gv.setContentsMargins(16, 14, 16, 14)
-        gv.setSpacing(8)
-        h = QLabel("Generar reporte")
-        h.setObjectName("SectionTitle")
-        gv.addWidget(h)
+        gen, gv = panel("Generar reporte")
         self.buscar_caso = QLineEdit()
-        self.buscar_caso.setPlaceholderText("Buscar el caso: cliente, serie, código, equipo…")
+        self.buscar_caso.setPlaceholderText("Buscar el caso: cliente, documento, serie, código, equipo…")
+        self.buscar_caso.setClearButtonEnabled(True)
         self.buscar_caso.textChanged.connect(lambda _t: self._timer_caso.start())
         self.combo = QComboBox()
-        self.info_caso = QLabel("")
-        self.info_caso.setObjectName("Muted")
-        gv.addWidget(self.buscar_caso)
-        gv.addWidget(self.combo)
+        self.info_caso = muted("")
+        sel = QHBoxLayout()
+        sel.addWidget(self.buscar_caso, 1)
+        sel.addWidget(self.combo, 2)
+        gv.addLayout(sel)
         gv.addWidget(self.info_caso)
-        fila = QHBoxLayout()
-        self.b_tec = QPushButton("Reporte técnico (PDF)")
-        self.b_cli = QPushButton("Reporte para el cliente (PDF)")
+        self.b_tec = QPushButton("Generar reporte técnico")
+        self.b_cli = QPushButton("Generar informe para el cliente")
         self.b_tec.setObjectName("Primary")
-        self.b_cli.setObjectName("Primary")
+        self.b_cli.setObjectName("Secondary")
         self.b_tec.clicked.connect(lambda: self._generar("tecnico"))
         self.b_cli.clicked.connect(lambda: self._generar("cliente"))
-        fila.addWidget(self.b_tec)
-        fila.addWidget(self.b_cli)
-        fila.addStretch()
-        gv.addLayout(fila)
+        tarjetas = QHBoxLayout()
+        tarjetas.setSpacing(12)
+        tarjetas.addWidget(_tarjeta("Reporte técnico (PDF)", CONTENIDO_TECNICO, self.b_tec), 1)
+        tarjetas.addWidget(_tarjeta("Informe para el cliente (PDF)", CONTENIDO_CLIENTE, self.b_cli), 1)
+        gv.addLayout(tarjetas)
         self.msg = QLabel("")
         self.msg.setWordWrap(True)
         gv.addWidget(self.msg)
         root.addWidget(gen)
 
         # --- Buscar reportes generados ---
-        h2 = QLabel("Reportes generados")
-        h2.setObjectName("SectionTitle")
-        root.addWidget(h2)
-        panel = QFrame()
-        panel.setObjectName("Panel")
-        pv = QVBoxLayout(panel)
-        pv.setContentsMargins(14, 12, 14, 12)
-        pv.setSpacing(8)
+        p_gen, pv = panel("Reportes generados", margen=14)
         self.buscar = QLineEdit()
+        self.buscar.setClearButtonEnabled(True)
         self.buscar.setPlaceholderText("Buscar por cliente, código del caso, serie, equipo o fecha…")
         self.buscar.textChanged.connect(lambda _t: self._timer.start())
         pv.addWidget(self.buscar)
@@ -112,27 +133,30 @@ class ReportesPage(QWidget):
         ff.addWidget(b_limpiar)
         ff.addStretch()
         pv.addLayout(ff)
-        root.addWidget(panel)
 
         self.estado = QLabel("")
         self.estado.setObjectName("Muted")
-        root.addWidget(self.estado)
+        self.estado.setStyleSheet("font-weight:600;")
+        pv.addWidget(self.estado)
 
         self.tabla = QTableWidget(0, len(COLUMNAS))
         self.tabla.setHorizontalHeaderLabels(COLUMNAS)
         self.tabla.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.tabla.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.tabla.setSelectionMode(QAbstractItemView.SingleSelection)
-        self.tabla.setAlternatingRowColors(True)
+        self.tabla.setShowGrid(False)
+        self.tabla.setMinimumHeight(180)
         self.tabla.verticalHeader().setVisible(False)
+        self.tabla.verticalHeader().setDefaultSectionSize(38)
+        self.tabla.horizontalHeader().setDefaultAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         self.tabla.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
         self.tabla.horizontalHeader().setSectionResizeMode(6, QHeaderView.Stretch)
         self.tabla.cellDoubleClicked.connect(lambda fila, _c: self._abrir_fila(fila))
-        root.addWidget(self.tabla, 1)
+        pv.addWidget(self.tabla, 1)
 
         self.pager = PagerBar()
         self.pager.cambiar.connect(self._ir_pagina)
-        root.addWidget(self.pager)
+        pv.addWidget(self.pager)
 
         fila2 = QHBoxLayout()
         b1 = QPushButton("Abrir PDF seleccionado")
@@ -145,7 +169,8 @@ class ReportesPage(QWidget):
         b1.clicked.connect(lambda: self._abrir_fila(self.tabla.currentRow()))
         b2.clicked.connect(self._ver_caso)
         b3.clicked.connect(lambda: QDesktopServices.openUrl(QUrl.fromLocalFile(str(reports_dir()))))
-        root.addLayout(fila2)
+        pv.addLayout(fila2)
+        root.addWidget(p_gen, 1)
 
         self.refresh(sync=True)
 
@@ -245,7 +270,7 @@ class ReportesPage(QWidget):
         self.tabla.setRowCount(len(filas))
         for i, r in enumerate(filas):
             valores = [r["case_code"], r["cliente"] or "", r["equipo"], r["serial"],
-                       KINDS.get(r["kind"], r["kind"]), r["created_at"][:16], Path(r["path"]).name]
+                       KINDS.get(r["kind"], r["kind"]), fecha_corta(r["created_at"]), Path(r["path"]).name]
             for j, v in enumerate(valores):
                 item = QTableWidgetItem(v)
                 if j == 0:

@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "descripcion": "Referencias de fábrica para la pantalla Salud del equipo. Solo datos publicados por el fabricante o valores típicos documentados; cada entrada indica su fuente. El taller puede ampliar esta base copiando el archivo a %APPDATA%\\SistemaDiagnostico\\references.json.",
+  "cpus": [
+    {"modelo": "i5-8250U", "nombre": "Intel Core i5-8250U", "tjmax_c": 100,
+     "fuente": "Intel ARK, especificación TJUNCTION"},
+    {"modelo": "i7-8550U", "nombre": "Intel Core i7-8550U", "tjmax_c": 100,
+     "fuente": "Intel ARK, especificación TJUNCTION"},
+    {"modelo": "i5-10210U", "nombre": "Intel Core i5-10210U", "tjmax_c": 100,
+     "fuente": "Intel ARK, especificación TJUNCTION"},
+    {"modelo": "i5-1135G7", "nombre": "Intel Core i5-1135G7", "tjmax_c": 100,
+     "fuente": "Intel ARK, especificación TJUNCTION"},
+    {"modelo": "i7-1165G7", "nombre": "Intel Core i7-1165G7", "tjmax_c": 100,
+     "fuente": "Intel ARK, especificación TJUNCTION"},
+    {"modelo": "Ryzen 5 3500U", "nombre": "AMD Ryzen 5 3500U", "tjmax_c": 105,
+     "fuente": "AMD, ficha del producto: Max. Operating Temperature (Tjmax)"},
+    {"modelo": "Ryzen 5 5500U", "nombre": "AMD Ryzen 5 5500U", "tjmax_c": 105,
+     "fuente": "AMD, ficha del producto: Max. Operating Temperature (Tjmax)"}
+  ],
+  "discos_por_tipo": [
+    {"tipo": "SSD SATA", "media": "SSD", "bus": "SATA", "lectura_mb_s": 500,
+     "fuente": "Valor típico aproximado: el enlace SATA III (6 Gb/s) limita la lectura secuencial a unos 550 MB/s"},
+    {"tipo": "HDD 5400 rpm", "media": "HDD", "rpm": 5400, "lectura_mb_s": 100,
+     "fuente": "Valor típico aproximado de lectura secuencial de discos de 2,5\" a 5400 rpm"}
+  ],
+  "cpu_puntajes": {
+    "descripcion": "Puntaje de la prueba de CPU de este programa (operaciones por segundo) medido por el taller en un equipo de referencia en buen estado del mismo modelo. Vacío al instalar: no existen valores públicos en esta unidad.",
+    "modelos": []
+  }
+}

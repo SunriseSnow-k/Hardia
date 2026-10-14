@@ -91,7 +91,7 @@ class WelcomeDialog(QDialog):
         ok, modelo, msg = check_ai(self.repo)
         ia = (f"<b style='color:#2f855a'>● IA local lista</b> (modelo {html.escape(modelo)})."
               if ok else
-              f"<b style='color:#66727f'>● IA local no disponible.</b> {html.escape(msg)}")
+              f"<b style='color:#5f6b77'>● IA local no disponible.</b> {html.escape(msg)}")
         self.info.setText(
             "El programa funciona <b>sin Internet</b>.<br><br>"
             "Sus datos se guardan solo en este equipo:<br>"

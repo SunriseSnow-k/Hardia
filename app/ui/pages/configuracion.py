@@ -1,16 +1,20 @@
+import shutil
 import sqlite3
 from datetime import datetime
 
-from PySide6.QtCore import QUrl, Signal
+from PySide6.QtCore import Qt, QUrl, Signal
 from PySide6.QtGui import QDesktopServices
-from PySide6.QtWidgets import (QCheckBox, QFileDialog, QFrame, QHBoxLayout, QLabel, QLineEdit,
-                               QListWidget, QMessageBox, QPushButton, QScrollArea,
-                               QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QCheckBox, QFileDialog, QGridLayout, QHBoxLayout, QLabel, QLineEdit,
+                               QListWidget, QMessageBox, QPushButton, QVBoxLayout,
+                               QWidget)
 from app import backup
 from app.db.repo import Repository
 from app.db.users_repo import UsersRepository
 from app.hardware.diag_file import removable_drives
+from app.health.references import PAQUETE, load_references, ruta_activa, ruta_taller
 from app.paths import backups_dir, data_dir, reports_dir
+from app.ui.widgets import (AreaDesplazable, cabecera, limpiar_layout, lista_dato_valor, muted, panel,
+                            ruta_cortable)
 
 
 def _abrir(ruta):
@@ -29,69 +33,34 @@ class ConfiguracionPage(QWidget):
         outer = QVBoxLayout(self)
         outer.setContentsMargins(26, 22, 26, 22)
         outer.setSpacing(8)
-        t = QLabel("Configuración")
-        t.setObjectName("PageTitle")
-        s = QLabel("Datos del negocio, copias de seguridad y técnicos.")
-        s.setObjectName("Muted")
-        outer.addWidget(t)
-        outer.addWidget(s)
+        textos, _t, _s = cabecera("Configuración", "Datos del taller, técnicos, copias de seguridad y carpetas.")
+        outer.addLayout(textos)
 
         inner = QWidget()
-        lay = QVBoxLayout(inner)
+        inner.setObjectName("ScrollBody")
+        lay = QGridLayout(inner)
         lay.setContentsMargins(0, 8, 0, 0)
-        lay.setSpacing(12)
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setWidget(inner)
+        lay.setHorizontalSpacing(12)
+        lay.setVerticalSpacing(12)
+        scroll = AreaDesplazable(inner)
         outer.addWidget(scroll, 1)
 
-        # --- Negocio ---
-        p1, v1 = self._panel("Datos del negocio")
+        # --- Taller ---
+        p1, v1 = self._panel("Datos del taller")
         self.nombre = QLineEdit()
         self.telefono = QLineEdit()
         self._campo(v1, "Nombre del negocio", self.nombre)
         self._campo(v1, "Teléfono (opcional)", self.telefono)
+        v1.addWidget(muted("Aparecen en la cabecera de los reportes PDF."))
         b = QPushButton("Guardar")
         b.setObjectName("Primary")
         b.clicked.connect(self._guardar_negocio)
         self.msg_neg = QLabel("")
         self.msg_neg.setWordWrap(True)
-        v1.addWidget(b)
+        v1.addWidget(b, alignment=Qt.AlignLeft)
         v1.addWidget(self.msg_neg)
-        lay.addWidget(p1)
-
-        # --- Copias de seguridad ---
-        p2, v2 = self._panel("Copias de seguridad")
-        self.estado_bk = QLabel("")
-        self.estado_bk.setWordWrap(True)
-        tip = QLabel("Guarde también una copia en un USB o disco externo: protege sus datos "
-                     "si este equipo falla.")
-        tip.setObjectName("Muted")
-        tip.setWordWrap(True)
-        self.chk_auto = QCheckBox("Crear una copia automática al cerrar el programa "
-                                  "(se conservan las 10 más recientes)")
-        self.chk_auto.toggled.connect(self._cambiar_auto)
-        v2.addWidget(self.estado_bk)
-        v2.addWidget(tip)
-        v2.addWidget(self.chk_auto)
-        f1 = QHBoxLayout()
-        f2 = QHBoxLayout()
-        for fila, textos in ((f1, [("Crear copia ahora", "Primary", self._crear_copia),
-                                   ("Guardar copia en otra ubicación…", "Secondary", self._copia_en)]),
-                             (f2, [("Restaurar copia…", "Secondary", self._restaurar),
-                                   ("Abrir carpeta de copias", "Secondary",
-                                    lambda: _abrir(backups_dir()))])):
-            for texto, nombre, fn in textos:
-                btn = QPushButton(texto)
-                btn.setObjectName(nombre)
-                btn.clicked.connect(fn)
-                fila.addWidget(btn)
-            fila.addStretch()
-            v2.addLayout(fila)
-        self.msg_bk = QLabel("")
-        self.msg_bk.setWordWrap(True)
-        v2.addWidget(self.msg_bk)
-        lay.addWidget(p2)
+        v1.addStretch()
+        lay.addWidget(p1, 0, 0)
 
         # --- Técnicos ---
         p3, v3 = self._panel("Técnicos")
@@ -106,11 +75,13 @@ class ConfiguracionPage(QWidget):
         b2 = QPushButton("Crear técnico")
         b2.setObjectName("Secondary")
         b2.clicked.connect(self._crear_tecnico)
-        v3.addWidget(self.nu_id)
-        v3.addWidget(self.nu_pw)
-        v3.addWidget(b2)
+        fila_nu = QHBoxLayout()
+        fila_nu.addWidget(self.nu_id, 1)
+        fila_nu.addWidget(self.nu_pw, 1)
+        v3.addLayout(fila_nu)
+        v3.addWidget(b2, alignment=Qt.AlignLeft)
         etiqueta = QLabel("Cambiar mi contraseña")
-        etiqueta.setObjectName("SectionTitle")
+        etiqueta.setStyleSheet("font-weight:600;")
         v3.addWidget(etiqueta)
         self.pw_actual = QLineEdit()
         self.pw_actual.setPlaceholderText("Contraseña actual")
@@ -121,20 +92,54 @@ class ConfiguracionPage(QWidget):
         b3 = QPushButton("Cambiar contraseña")
         b3.setObjectName("Secondary")
         b3.clicked.connect(self._cambiar_pw)
-        v3.addWidget(self.pw_actual)
-        v3.addWidget(self.pw_nueva)
-        v3.addWidget(b3)
+        fila_pw = QHBoxLayout()
+        fila_pw.addWidget(self.pw_actual, 1)
+        fila_pw.addWidget(self.pw_nueva, 1)
+        v3.addLayout(fila_pw)
+        v3.addWidget(b3, alignment=Qt.AlignLeft)
         self.msg_us = QLabel("")
         self.msg_us.setWordWrap(True)
         v3.addWidget(self.msg_us)
-        lay.addWidget(p3)
+        v3.addStretch()
+        lay.addWidget(p3, 0, 1)
+
+        # --- Copias de seguridad ---
+        p2, v2 = self._panel("Copias de seguridad")
+        self.estado_bk = QLabel("")
+        self.estado_bk.setWordWrap(True)
+        self.estado_bk.setStyleSheet("font-weight:600;")
+        tip = muted("Guarde también una copia en un USB o disco externo: protege sus datos "
+                    "si este equipo falla.")
+        self.chk_auto = QCheckBox("Crear una copia automática al cerrar el programa "
+                                  "(se conservan las 10 más recientes)")
+        self.chk_auto.toggled.connect(self._cambiar_auto)
+        v2.addWidget(self.chk_auto)
+        v2.addWidget(self.estado_bk)
+        v2.addWidget(tip)
+        f1 = QHBoxLayout()
+        f2 = QHBoxLayout()
+        for fila, textos_b in ((f1, [("Crear copia ahora", "Secondary", self._crear_copia),
+                                     ("Guardar copia en otra ubicación…", "Secondary", self._copia_en)]),
+                               (f2, [("Restaurar copia…", "Secondary", self._restaurar),
+                                     ("Abrir carpeta de copias", "Secondary",
+                                      lambda: _abrir(backups_dir()))])):
+            for texto, nombre, fn in textos_b:
+                btn = QPushButton(texto)
+                btn.setObjectName(nombre)
+                btn.clicked.connect(fn)
+                fila.addWidget(btn)
+            fila.addStretch()
+            v2.addLayout(fila)
+        self.msg_bk = QLabel("")
+        self.msg_bk.setWordWrap(True)
+        v2.addWidget(self.msg_bk)
+        v2.addStretch()
+        lay.addWidget(p2, 1, 0)
 
         # --- Carpetas ---
-        p4, v4 = self._panel("Carpetas del programa")
-        info = QLabel(f"Datos: {data_dir()}\nReportes: {reports_dir()}")
-        info.setObjectName("Muted")
-        info.setWordWrap(True)
-        v4.addWidget(info)
+        p4, v4 = self._panel("Carpetas")
+        v4.addWidget(lista_dato_valor([("Datos", ruta_cortable(data_dir())), ("Reportes", ruta_cortable(reports_dir())),
+                                       ("Copias", ruta_cortable(backups_dir()))]))
         f3 = QHBoxLayout()
         for texto, ruta in (("Abrir carpeta de datos", data_dir), ("Abrir carpeta de reportes", reports_dir)):
             btn = QPushButton(texto)
@@ -143,22 +148,41 @@ class ConfiguracionPage(QWidget):
             f3.addWidget(btn)
         f3.addStretch()
         v4.addLayout(f3)
-        lay.addWidget(p4)
-        lay.addStretch()
+        v4.addStretch()
+        lay.addWidget(p4, 1, 1)
+
+        # --- Referencias de fábrica ---
+        p5, v5 = self._panel("Referencias de fábrica")
+        v5.addWidget(muted("Valores de fábrica que usa la pantalla Salud del equipo. Solo contiene datos "
+                           "publicados o típicos documentados, cada uno con su fuente; lo que no está aquí "
+                           "aparece como «Sin referencia»."))
+        self.refs_box = QVBoxLayout()
+        v5.addLayout(self.refs_box)
+        f5 = QHBoxLayout()
+        self.b_copia_refs = QPushButton("Crear copia editable del taller")
+        self.b_copia_refs.setObjectName("Secondary")
+        self.b_copia_refs.setToolTip("Copia la base a la carpeta de datos para que el taller pueda ampliarla")
+        self.b_copia_refs.clicked.connect(self._copiar_referencias)
+        b_abrir_refs = QPushButton("Abrir carpeta de la base")
+        b_abrir_refs.setObjectName("Secondary")
+        b_abrir_refs.clicked.connect(lambda: _abrir(ruta_activa().parent))
+        f5.addWidget(self.b_copia_refs)
+        f5.addWidget(b_abrir_refs)
+        f5.addStretch()
+        v5.addLayout(f5)
+        self.msg_refs = QLabel("")
+        self.msg_refs.setWordWrap(True)
+        v5.addWidget(self.msg_refs)
+        lay.addWidget(p5, 2, 0, 1, 2)
+        lay.setColumnStretch(0, 1)
+        lay.setColumnStretch(1, 1)
+        lay.setRowStretch(3, 1)
         self.refresh()
 
     # ---------- utilidades ----------
     @staticmethod
     def _panel(titulo: str):
-        f = QFrame()
-        f.setObjectName("Panel")
-        v = QVBoxLayout(f)
-        v.setContentsMargins(16, 14, 16, 14)
-        v.setSpacing(8)
-        h = QLabel(titulo)
-        h.setObjectName("SectionTitle")
-        v.addWidget(h)
-        return f, v
+        return panel(titulo)
 
     @staticmethod
     def _campo(layout, etiqueta: str, widget: QWidget):
@@ -180,12 +204,13 @@ class ConfiguracionPage(QWidget):
         self.chk_auto.blockSignals(False)
         self._estado_copia()
         self._listar_usuarios()
+        self._mostrar_referencias()
 
     def _estado_copia(self):
         ultima = backup.last_backup_time()
         n = len(backup.list_backups())
         if ultima:
-            self.estado_bk.setText(f"Última copia: {ultima:%d/%m/%Y %H:%M} · {n} copia(s) guardada(s).")
+            self.estado_bk.setText(f"Última copia: {ultima:%d/%m/%Y %H:%M} · {n} copia(s) guardada(s)")
         else:
             self.estado_bk.setText("Aún no hay copias de seguridad. Cree una ahora.")
 
@@ -267,6 +292,43 @@ class ConfiguracionPage(QWidget):
             f"Se guardó una copia de los datos anteriores en:\n{seguridad}\n\n"
             "El programa se cerrará. Ábralo de nuevo para continuar.")
         self.restored.emit()
+
+    # ---------- referencias de fábrica ----------
+    def _mostrar_referencias(self):
+        limpiar_layout(self.refs_box)
+        try:
+            refs = load_references()
+        except ValueError as e:
+            self.refs_box.addWidget(QLabel(str(e)))
+            return
+        taller = ruta_activa() != PAQUETE
+        fuentes = sorted({r.get("fuente", "") for r in refs["cpus"] + refs["discos_por_tipo"] if r.get("fuente")})
+        filas = [
+            ("Base en uso", ("Copia del taller · " if taller else "Incluida en el programa · ")
+             + ruta_cortable(refs["_ruta"])),
+            ("Procesadores (límite térmico)", ", ".join(c.get("nombre", c.get("modelo", "?")) for c in refs["cpus"])
+             or "Ninguno"),
+            ("Tipos de disco", ", ".join(f'{d["tipo"]} ≈ {d["lectura_mb_s"]:.0f} MB/s'
+                                         for d in refs["discos_por_tipo"]) or "Ninguno"),
+            ("Puntajes de CPU del taller", str(len((refs.get("cpu_puntajes") or {}).get("modelos", [])))),
+            ("Fuentes", " · ".join(fuentes) or "—"),
+        ]
+        self.refs_box.addWidget(lista_dato_valor(filas))
+        self.b_copia_refs.setEnabled(not taller)
+
+    def _copiar_referencias(self):
+        destino = ruta_taller()
+        if destino.exists():
+            self._set(self.msg_refs, "La copia del taller ya existe.", ok=False)
+            return
+        try:
+            destino.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(PAQUETE, destino)
+        except OSError as e:
+            self._set(self.msg_refs, f"No se pudo crear la copia: {e}", ok=False)
+            return
+        self._set(self.msg_refs, f"Copia creada en {destino}. Las entradas nuevas deben indicar su fuente.")
+        self._mostrar_referencias()
 
     # ---------- técnicos ----------
     def _crear_tecnico(self):

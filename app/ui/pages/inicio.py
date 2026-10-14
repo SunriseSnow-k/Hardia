@@ -1,17 +1,25 @@
+from datetime import datetime
+
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
                                QPushButton, QFrame, QScrollArea)
 from app.db.repo import Repository, ESTADOS
-from app.ui.styles import PRIORITY_COLORS
+from app.ui.widgets import ChipEstado, cabecera, fecha_larga, limpiar_layout, tiempo_transcurrido
+
+ACTIVOS = ("Recibido", "En diagnóstico", "Listo")
 
 
 def _clear(layout):
-    while layout.count():
-        item = layout.takeAt(0)
-        if item.widget():
-            item.widget().deleteLater()
-        elif item.layout():
-            _clear(item.layout())
+    limpiar_layout(layout)
+
+
+def _texto_tiempo(row) -> str:
+    """'Ingresó hace 40 min' o 'Reingreso · ingresó hace 2 h'."""
+    hace = tiempo_transcurrido(row["created_at"])
+    reingreso = bool(row["reingreso"]) if "reingreso" in row.keys() else False
+    if reingreso:
+        return f"Reingreso · ingresó {hace}" if hace else "Reingreso"
+    return f"Ingresó {hace}" if hace else ""
 
 
 class CaseCard(QFrame):
@@ -22,31 +30,31 @@ class CaseCard(QFrame):
         self.code = row["code"]
         self.setObjectName("Card")
         self.setCursor(Qt.PointingHandCursor)
+        self.setToolTip(f'Abrir el caso {row["code"]}')
         lay = QVBoxLayout(self)
-        lay.setContentsMargins(10, 8, 10, 8)
-        lay.setSpacing(3)
+        lay.setContentsMargins(12, 10, 12, 10)
+        lay.setSpacing(4)
+
+        arriba = QHBoxLayout()
+        codigo = QLabel(row["code"])
+        codigo.setObjectName("Code")
+        arriba.addWidget(codigo)
+        arriba.addStretch()
+        arriba.addWidget(ChipEstado(row["priority"]))
 
         titulo = QLabel(row["equipo"])
         titulo.setStyleSheet("font-weight:600;")
-        sub = QLabel(f'{row["cliente"] or "Sin cliente"} · {row["code"]}')
-        sub.setObjectName("Muted")
-        problema = QLabel(row["problem"])
-        problema.setWordWrap(True)
+        titulo.setWordWrap(True)
+        sub = QLabel(f'{row["cliente"] or "Sin cliente"} · {row["problem"]}')
+        sub.setWordWrap(True)
+        sub.setStyleSheet("color:#5f6b77; font-size:13px;")
+        tiempo = QLabel(_texto_tiempo(row))
+        tiempo.setObjectName("Muted")
 
-        bg, fg = PRIORITY_COLORS.get(row["priority"], ("#eee", "#333"))
-        tag = QLabel(row["priority"])
-        tag.setStyleSheet(
-            f"background:{bg}; color:{fg}; border-radius:3px; padding:2px 8px;"
-            "font-size:12px; font-weight:600;"
-        )
-        fila = QHBoxLayout()
-        fila.addWidget(tag)
-        fila.addStretch()
-
+        lay.addLayout(arriba)
         lay.addWidget(titulo)
         lay.addWidget(sub)
-        lay.addWidget(problema)
-        lay.addLayout(fila)
+        lay.addWidget(tiempo)
 
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
@@ -62,16 +70,11 @@ class InicioPage(QWidget):
         self.repo = repo
         root = QVBoxLayout(self)
         root.setContentsMargins(26, 22, 26, 22)
-        root.setSpacing(12)
+        root.setSpacing(14)
 
         cab = QHBoxLayout()
-        textos = QVBoxLayout()
-        t = QLabel("Cola de trabajo")
-        t.setObjectName("PageTitle")
-        s = QLabel("Equipos que están hoy en el taller.")
-        s.setObjectName("Muted")
-        textos.addWidget(t)
-        textos.addWidget(s)
+        textos, _t, self.subtitulo = cabecera("Cola de trabajo")
+        self.subtitulo.setWordWrap(False)
         btn = QPushButton("+ Nueva recepción")
         btn.setObjectName("Primary")
         btn.clicked.connect(self.new_intake.emit)
@@ -81,6 +84,7 @@ class InicioPage(QWidget):
         root.addLayout(cab)
 
         contenedor = QWidget()
+        contenedor.setObjectName("ScrollBody")
         self.board = QHBoxLayout(contenedor)
         self.board.setContentsMargins(0, 0, 0, 0)
         self.board.setSpacing(12)
@@ -93,6 +97,11 @@ class InicioPage(QWidget):
 
     def refresh(self):
         _clear(self.board)
+        conteo = self.repo.count_by_status()
+        activos = sum(conteo.get(e, 0) for e in ACTIVOS)
+        listos = conteo.get("Listo", 0)
+        self.subtitulo.setText(f"{fecha_larga(datetime.now())} · {activos} caso(s) activo(s) · "
+                               f"{listos} listo(s) para entregar")
         for estado in ESTADOS:
             casos = self.repo.list_cases(estado)
             limite = 8 if estado == "Entregado" else 50
@@ -102,13 +111,24 @@ class InicioPage(QWidget):
             v = QVBoxLayout(col)
             v.setContentsMargins(10, 10, 10, 10)
             v.setSpacing(8)
-            titulo = QLabel(f"{estado.upper()} ({len(casos)})")
+            cab = QHBoxLayout()
+            titulo = QLabel(estado.upper())
             titulo.setObjectName("ColTitle")
-            v.addWidget(titulo)
+            contador = QLabel(str(len(casos)))
+            contador.setObjectName("Counter")
+            contador.setAccessibleName(f"{len(casos)} caso(s) en {estado}")
+            cab.addWidget(titulo)
+            cab.addWidget(contador)
+            cab.addStretch()
+            v.addLayout(cab)
             for r in casos[:limite]:
                 card = CaseCard(r)
                 card.clicked.connect(self.open_case.emit)
                 v.addWidget(card)
+            if not casos:
+                vacio = QLabel("Sin casos.")
+                vacio.setObjectName("Muted")
+                v.addWidget(vacio)
             if len(casos) > limite:
                 mas = QLabel(f"+ {len(casos) - limite} más en Historial")
                 mas.setObjectName("Muted")

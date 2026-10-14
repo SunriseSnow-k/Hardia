@@ -8,6 +8,7 @@ import threading
 HOST = "127.0.0.1"
 PORT = 11434
 KEEP_ALIVE = "10m"  # mantiene el modelo cargado entre consultas
+TIMEOUT_RESPUESTA = 300  # segundos máximos de espera sin datos de Ollama
 
 
 class OllamaError(Exception):
@@ -98,7 +99,7 @@ class ChatStream:
 
     # ---------- hilo lector ----------
     def _leer(self):
-        conn = http.client.HTTPConnection(HOST, PORT, timeout=300)
+        conn = http.client.HTTPConnection(HOST, PORT, timeout=TIMEOUT_RESPUESTA)
         try:
             self._leer_respuesta(conn)
         except OllamaError as e:

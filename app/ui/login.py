@@ -1,7 +1,14 @@
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import (QDialog, QHBoxLayout, QVBoxLayout, QLabel,
+from PySide6.QtWidgets import (QDialog, QFrame, QHBoxLayout, QVBoxLayout, QLabel,
                                QLineEdit, QPushButton, QWidget)
 from app.db.repo import Repository
+from app.ui.widgets import campo
+
+BENEFICIOS = (
+    "Recepción, escaneo y diagnóstico de cada equipo en un solo lugar",
+    "Reportes en PDF para el técnico y para el cliente",
+    "IA local opcional: sin ella, el diagnóstico por reglas sigue funcionando",
+)
 
 
 class LoginDialog(QDialog):
@@ -11,36 +18,50 @@ class LoginDialog(QDialog):
         self.first_run = repo.count_users() == 0
         self.user_id = ""
         self.setWindowTitle("Sistema Inteligente Offline — Iniciar sesión")
-        self.setFixedSize(760, 460)
+        self.setFixedSize(900, 560)
 
         root = QHBoxLayout(self)
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(0)
 
-        # Panel izquierdo
+        # Mitad izquierda: identidad y beneficios
         left = QWidget()
         left.setObjectName("LoginLeft")
         lv = QVBoxLayout(left)
-        lv.setAlignment(Qt.AlignCenter)
-        icon = QLabel("CPU")
+        lv.setContentsMargins(48, 48, 48, 48)
+        lv.setSpacing(14)
+        lv.addStretch()
+        icon = QLabel(">_")
         icon.setObjectName("LoginIcon")
         icon.setAlignment(Qt.AlignCenter)
+        icon.setFixedSize(72, 64)
         title = QLabel("Sistema Inteligente Offline")
-        title.setStyleSheet("font-size:18px; font-weight:600;")
-        subtitle = QLabel("Diagnóstico y mantenimiento de\ncomputadoras asistido por IA local")
-        subtitle.setAlignment(Qt.AlignCenter)
-        subtitle.setStyleSheet("color:#a9b6c4;")
-        chips = QLabel("●  Modo Offline      ●  IA Local")
-        chips.setStyleSheet("color:#7fd1a0; font-size:12px;")
-        for w in (icon, title, subtitle, chips):
-            lv.addWidget(w, alignment=Qt.AlignCenter)
-            lv.addSpacing(10)
+        title.setStyleSheet("font-size:22px; font-weight:600;")
+        subtitle = QLabel("Diagnóstico asistido y mantenimiento de computadoras. "
+                          "Funciona sin Internet: los datos se quedan en este equipo.")
+        subtitle.setObjectName("LoginMuted")
+        subtitle.setWordWrap(True)
+        lv.addWidget(icon)
+        lv.addWidget(title)
+        lv.addWidget(subtitle)
+        lv.addSpacing(8)
+        for texto in BENEFICIOS:
+            b = QLabel(f"<span style='color:#5ec1df'>✓</span>&nbsp; {texto}")
+            b.setTextFormat(Qt.RichText)
+            b.setWordWrap(True)
+            lv.addWidget(b)
+        lv.addStretch()
 
-        # Panel derecho
+        # Mitad derecha: tarjeta de acceso
         right = QWidget()
         rv = QVBoxLayout(right)
-        rv.setContentsMargins(48, 40, 48, 40)
-        rv.setAlignment(Qt.AlignVCenter)
+        rv.setAlignment(Qt.AlignCenter)
+        card = QFrame()
+        card.setObjectName("LoginCard")
+        card.setFixedWidth(360)
+        cv = QVBoxLayout(card)
+        cv.setContentsMargins(28, 26, 28, 26)
+        cv.setSpacing(10)
         h = QLabel("Crear cuenta inicial" if self.first_run else "Iniciar sesión")
         h.setObjectName("PageTitle")
         sub = QLabel(
@@ -50,9 +71,9 @@ class LoginDialog(QDialog):
         sub.setObjectName("Muted")
         sub.setWordWrap(True)
         self.id_input = QLineEdit()
-        self.id_input.setPlaceholderText("ID de técnico (ej.: TEC-001)")
+        self.id_input.setPlaceholderText("Ej.: TEC-001")
         self.pw_input = QLineEdit()
-        self.pw_input.setPlaceholderText("Contraseña")
+        self.pw_input.setPlaceholderText("Contraseña" + (" (mínimo 6 caracteres)" if self.first_run else ""))
         self.pw_input.setEchoMode(QLineEdit.Password)
         self.error = QLabel("")
         self.error.setObjectName("Error")
@@ -62,10 +83,20 @@ class LoginDialog(QDialog):
         btn.setDefault(True)
         btn.clicked.connect(self.try_login)
         self.pw_input.returnPressed.connect(self.try_login)
+        nota = QLabel("Sin Internet no hay recuperación de contraseña: si la olvida, solo se puede "
+                      "restaurar una copia de seguridad.")
+        nota.setObjectName("Muted")
+        nota.setWordWrap(True)
 
-        for w in (h, sub, self.id_input, self.pw_input, self.error, btn):
-            rv.addWidget(w)
-            rv.addSpacing(8)
+        cv.addWidget(h)
+        cv.addWidget(sub)
+        cv.addSpacing(4)
+        cv.addWidget(campo("ID de técnico", self.id_input))
+        cv.addWidget(campo("Contraseña", self.pw_input))
+        cv.addWidget(self.error)
+        cv.addWidget(btn)
+        cv.addWidget(nota)
+        rv.addWidget(card)
 
         root.addWidget(left, 1)
         root.addWidget(right, 1)

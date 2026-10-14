@@ -191,6 +191,10 @@ def _memoria(env):
             "capacity_gb": round(cap / 1024 ** 3, 1) if cap else None,
             "type": _TIPO_RAM.get(_num(_g(m, "SMBIOSMemoryType"), int)),
             "speed_mhz": _num(_g(m, "ConfiguredClockSpeed"), int) or _num(_g(m, "Speed"), int),
+            # Campos opcionales (formato .diag 2): velocidad nominal del módulo y la configurada
+            # por el equipo. Sirven para comparar con la de fábrica; pueden faltar.
+            "nominal_mhz": _num(_g(m, "Speed"), int) or None,
+            "configured_mhz": _num(_g(m, "ConfiguredClockSpeed"), int) or None,
             "form_factor": _FORMA_RAM.get(_num(_g(m, "FormFactor"), int)),
             "manufacturer": limpio(_g(m, "Manufacturer")), "part_number": limpio(_g(m, "PartNumber"))})
     d = {"total_gb": total, "available_gb": round(vm.available / 1024 ** 3, 1),
@@ -213,13 +217,15 @@ def _almacenamiento(env):
         idx = _g(dk, "Index")
         ms = por_indice.get(str(idx))
         salud = _SALUD.get(_num(_g(ms, "HealthStatus"), int)) if ms is not None else None
+        rpm = _num(_g(ms, "SpindleSpeed"), int) if ms is not None else None
+        rpm = rpm if rpm and 0 < rpm < 0xFFFFFFFF else None  # 0 = SSD; 0xFFFFFFFF = desconocido
         bus = _BUS.get(_num(_g(ms, "BusType"), int)) if ms is not None else None
         fisicas.append({
             "index": idx, "model": limpio(_g(dk, "Model")), "manufacturer": limpio(_g(dk, "Manufacturer")),
             "size_bytes": _num(_g(dk, "Size"), int),
             "media": _MEDIA.get(_num(_g(ms, "MediaType"), int)) if ms is not None else None,
             "bus": bus or limpio(_g(dk, "InterfaceType")) or None,
-            "external": "external" in medio,
+            "external": "external" in medio, "rpm": rpm,
             "health": salud, "health_source": "Windows Storage (MSFT_PhysicalDisk)" if salud else None})
     logicas = []
     vols, e3 = _consulta(env, "Win32_LogicalDisk")
@@ -512,6 +518,84 @@ def _escanear(progress, env) -> dict:
             "scanned_at": datetime.now().isoformat(timespec="seconds"),
             "host": env.hostname(), "summary": resumen, "components": comps, "metrics": metricas,
             "inventory": inventario, "availability": disp}
+
+
+def read_cpu_temperature(env=None) -> tuple[float | None, str | None]:
+    """Temperatura máxima de la CPU en este momento y su fuente (para la prueba de rendimiento).
+    Devuelve (None, None) si no hay lectura. Nunca lanza."""
+    def leer(e):
+        try:
+            r = _sensores(e)
+        except Exception:
+            return None, None
+        if r["status"] != OK:
+            return None, None
+        return r["metrics"].get("cpu_temp"), r["data"].get("cpu_temp_source")
+
+    if env is not None:
+        return leer(env)
+    if pythoncom:
+        pythoncom.CoInitialize()
+    try:
+        return leer(_crear_entorno())
+    finally:
+        gc.collect()
+        if pythoncom:
+            pythoncom.CoUninitialize()
+
+
+class LectorTemperatura:
+    """Lecturas repetidas de temperatura desde un hilo: abre WMI una sola vez.
+    Uso: with LectorTemperatura() as lt: temp, fuente = lt.leer()"""
+
+    def __init__(self, env=None):
+        self._env_dado = env
+        self.env = env
+
+    def __enter__(self):
+        if self._env_dado is None:
+            if pythoncom:
+                pythoncom.CoInitialize()
+            self.env = _crear_entorno()
+        return self
+
+    def leer(self) -> tuple[float | None, str | None]:
+        return read_cpu_temperature(self.env)
+
+    def __exit__(self, *exc):
+        if self._env_dado is None:
+            self.env = None
+            gc.collect()
+            if pythoncom:
+                pythoncom.CoUninitialize()
+        return False
+
+
+def local_identifiers(env=None) -> list[tuple[str, str]]:
+    """Identificadores fuertes y MAC de ESTE equipo (para confirmar que una captura es de él)."""
+    from .inventory import identifiers_from_scan
+
+    def leer(e):
+        inv = {}
+        for clave, fn in (("identity", _identidad), ("motherboard", _placa), ("network", _red)):
+            try:
+                r = fn(e)
+            except Exception:
+                continue
+            if r["status"] == OK:
+                inv[clave] = r["data"]
+        return identifiers_from_scan({"inventory": inv})
+
+    if env is not None:
+        return leer(env)
+    if pythoncom:
+        pythoncom.CoInitialize()
+    try:
+        return leer(_crear_entorno())
+    finally:
+        gc.collect()
+        if pythoncom:
+            pythoncom.CoUninitialize()
 
 
 def run_scan(progress=None, env=None) -> dict:

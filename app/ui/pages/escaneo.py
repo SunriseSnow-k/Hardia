@@ -7,20 +7,96 @@ from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushB
                                QFrame, QProgressBar, QListWidget, QListWidgetItem,
                                QFileDialog, QStackedWidget)
 from app.hardware import diag_file
-from app.hardware.scanner import run_scan, COMPONENT_NAMES
+from app.hardware.inventory import (CATEGORIAS, ESTADO_TEXTO, FALLO, NO_AUTORIZADO, NO_COMPATIBLE,
+                                    NO_DISPONIBLE, OK)
+from app.hardware.scanner import COLECTORES_NOMBRES, run_scan, COMPONENT_NAMES
 from app.ui.inventory_dialog import InventoryDialog
+from app.ui.widgets import AreaDesplazable, ChipEstado, cabecera, fecha_corta, muted, panel
 
 ICONOS = {
     "ok": ("✓", "#2f855a"), "warn": ("⚠", "#b7791f"), "error": ("✕", "#c0392b"),
-    "pending": ("·", "#66727f"), "running": ("…", "#1f6f8b"),
+    "pending": ("·", "#5f6b77"), "running": ("…", "#1f6f8b"),
 }
+# Texto del estado durante la lectura (el icono acompaña, nunca va solo)
+TEXTO_PASO = {"ok": "Detectado", "warn": "Parcial", "error": "Falló",
+              "pending": "Pendiente", "running": "Leyendo…"}
+COLOR_TEXTO = {
+    "Detectado": ("#e1f3e8", "#2f855a"), "Parcial": ("#fbf0d9", "#b7791f"),
+    "Con alerta": ("#fbf0d9", "#b7791f"), "No aplica": ("#eef1f4", "#5f6b77"),
+    "No disponible": ("#fbf0d9", "#b7791f"), "Sin permisos": ("#fbf0d9", "#b7791f"),
+    "Falló": ("#fbe6e3", "#c0392b"), "Pendiente": ("#eef1f4", "#5f6b77"),
+    "Leyendo…": ("#e1f0f5", "#1f6f8b"),
+}
+_CLAVE_POR_NOMBRE = dict(COLECTORES_NOMBRES)
 
 
 def fila_html(nombre: str, detalle: str, estado: str) -> str:
     icono, color = ICONOS.get(estado, ICONOS["pending"])
     return (f'<span style="color:{color};font-weight:600">{icono}</span>&nbsp; '
             f'<b>{html.escape(nombre)}</b><br>'
-            f'<span style="color:#66727f">{html.escape(detalle)}</span>')
+            f'<span style="color:#5f6b77">{html.escape(detalle)}</span>')
+
+
+def texto_estado(componente: dict, disponibilidad: dict | None) -> str:
+    """Estado escrito de una categoría: Detectado, Parcial, No aplica, No disponible…"""
+    if not isinstance(disponibilidad, dict):
+        return TEXTO_PASO.get(componente.get("status"), "Pendiente")
+    st = disponibilidad.get("status")
+    if st == OK:
+        if disponibilidad.get("faltantes"):
+            return "Parcial"
+        return "Con alerta" if componente.get("status") == "warn" else "Detectado"
+    return {NO_COMPATIBLE: "No aplica", NO_DISPONIBLE: "No disponible",
+            NO_AUTORIZADO: "Sin permisos", FALLO: "Falló"}.get(st, "No disponible")
+
+
+def no_leido(scan: dict) -> list[tuple[str, str, str]]:
+    """(categoría, dato, motivo) de todo lo que no se pudo leer, según availability/faltantes."""
+    disp = scan.get("availability") if isinstance(scan, dict) else None
+    if not isinstance(disp, dict):
+        return []
+    filas = []
+    for clave, titulo in CATEGORIAS:
+        a = disp.get(clave)
+        if not isinstance(a, dict):
+            continue
+        st = a.get("status", OK)
+        if st != OK:
+            motivo = ESTADO_TEXTO.get(st, st)
+            if st != NO_COMPATIBLE:  # "no aplica" no es un faltante: el equipo no tiene ese componente
+                filas.append((titulo, "Toda la categoría", f'{motivo}: {a.get("detail", "")}'.rstrip(": ")))
+            continue
+        for f in a.get("faltantes") or []:
+            if isinstance(f, dict):
+                m = f.get("motivo", NO_DISPONIBLE)
+                filas.append((titulo, f.get("campo", "?"), ESTADO_TEXTO.get(m, m)))
+    return filas
+
+
+class _FilaCategoria(QFrame):
+    """Icono de estado, nombre, detalle y estado escrito de una categoría."""
+
+    def __init__(self, nombre: str):
+        super().__init__()
+        self.setObjectName("Row")
+        lay = QHBoxLayout(self)
+        lay.setContentsMargins(4, 8, 4, 8)
+        self.lbl = QLabel()
+        self.lbl.setTextFormat(Qt.RichText)
+        self.lbl.setWordWrap(True)
+        self.chip = ChipEstado("Pendiente")
+        lay.addWidget(self.lbl, 1)
+        lay.addWidget(self.chip, alignment=Qt.AlignVCenter)
+        self.set(nombre, "Pendiente", "pending")
+
+    def set(self, nombre: str, detalle: str, estado: str, texto: str | None = None):
+        self.lbl.setText(fila_html(nombre, detalle, estado))
+        t = texto or TEXTO_PASO.get(estado, "Pendiente")
+        self.chip.set_estado(t, *COLOR_TEXTO.get(t, ("#eef1f4", "#5f6b77")))
+        self.setAccessibleName(f"{nombre}: {t}. {detalle}")
+
+    def text(self) -> str:
+        return self.lbl.text()
 
 
 class ScanWorker(QThread):
@@ -38,32 +114,30 @@ class ScanWorker(QThread):
 
 class EscaneoPage(QWidget):
     use_data = Signal(dict)
+    ver_salud = Signal(dict)
 
     def __init__(self):
         super().__init__()
         self.data = None
         self.worker = None
-        self.filas: list[QLabel] = []
+        self.filas: list[_FilaCategoria] = []
 
         root = QVBoxLayout(self)
         root.setContentsMargins(26, 22, 26, 22)
         root.setSpacing(12)
-        t = QLabel("Escaneo del equipo")
-        t.setObjectName("PageTitle")
-        s = QLabel("Lea el hardware de esta computadora o importe el escaneo de otra desde un USB. "
-                   "Funciona sin Internet.")
-        s.setObjectName("Muted")
-        s.setWordWrap(True)
-        root.addWidget(t)
-        root.addWidget(s)
+        textos, _t, _s = cabecera("Escanear equipo",
+                                  "Lea el hardware de esta computadora o importe el escaneo de otra "
+                                  "desde un USB. Funciona sin Internet.")
+        root.addLayout(textos)
 
         # Selector de modo
         sel = QHBoxLayout()
-        self.b_local = QPushButton("Escanear este equipo")
-        self.b_usb = QPushButton("Importar desde USB")
+        self.b_local = QPushButton("Este equipo")
+        self.b_usb = QPushButton("Importar desde USB (.diag)")
         for i, b in enumerate((self.b_local, self.b_usb)):
             b.setObjectName("ChipBtn")
             b.setCheckable(True)
+            b.setCursor(Qt.PointingHandCursor)
             b.clicked.connect(lambda _=False, i=i: self._modo(i))
             sel.addWidget(b)
         sel.addStretch()
@@ -89,8 +163,8 @@ class EscaneoPage(QWidget):
         self.bar.setTextVisible(False)
         self.bar.setFixedHeight(8)
         self.bar.setStyleSheet(
-            "QProgressBar{background:#e6eaee;border:1px solid #d9dfe5;border-radius:4px;}"
-            "QProgressBar::chunk{background:#1f6f8b;border-radius:3px;}")
+            "QProgressBar{background:#e6eaee;border:none;border-radius:4px;}"
+            "QProgressBar::chunk{background:#1f6f8b;border-radius:4px;}")
         lv.addLayout(fila)
         lv.addWidget(self.bar)
         self.modo.addWidget(loc)
@@ -99,19 +173,16 @@ class EscaneoPage(QWidget):
         usb = QWidget()
         uv = QVBoxLayout(usb)
         uv.setContentsMargins(0, 0, 0, 0)
-        info = QLabel("En el PC del cliente se ejecuta el programa portable, que guarda un archivo .diag "
-                      "en el USB. Conéctelo aquí e impórtelo.")
-        info.setObjectName("Muted")
-        info.setWordWrap(True)
+        info = muted("En el PC del cliente se ejecuta el programa portable, que guarda un archivo .diag "
+                     "en el USB. Conéctelo aquí e impórtelo.")
         self.lista = QListWidget()
         self.lista.setMaximumHeight(110)
         bt = QHBoxLayout()
         b1 = QPushButton("Actualizar")
         b2 = QPushButton("Buscar archivo…")
         b3 = QPushButton("Importar seleccionado")
-        for b in (b1, b2):
+        for b in (b1, b2, b3):
             b.setObjectName("Secondary")
-        b3.setObjectName("Primary")
         b1.clicked.connect(self.refresh_usb)
         b2.clicked.connect(self._buscar_archivo)
         b3.clicked.connect(self._importar_seleccion)
@@ -123,48 +194,69 @@ class EscaneoPage(QWidget):
         uv.addLayout(bt)
         self.modo.addWidget(usb)
         root.addWidget(self.modo)
+        self._ajustar_modo()
 
         self.msg = QLabel("")
         self.msg.setWordWrap(True)
         root.addWidget(self.msg)
 
-        # --- Resultados ---
-        panel = QFrame()
-        panel.setObjectName("Panel")
-        pv = QVBoxLayout(panel)
-        pv.setContentsMargins(16, 14, 16, 14)
-        pv.setSpacing(8)
-        h = QLabel("Componentes")
-        h.setObjectName("SectionTitle")
-        pv.addWidget(h)
-        self.filas_lay = QVBoxLayout()
-        self.filas_lay.setSpacing(8)
-        pv.addLayout(self.filas_lay)
-        acciones = QHBoxLayout()
-        self.b_usar = QPushButton("Usar estos datos en la recepción")
+        # --- Resultados: categorías a la izquierda, acciones y faltantes a la derecha ---
+        cuerpo = QHBoxLayout()
+        cuerpo.setSpacing(16)
+        p_cat, pv = panel("Categorías leídas")
+        filas_w = QWidget()
+        filas_w.setObjectName("ScrollBody")
+        self.filas_lay = QVBoxLayout(filas_w)
+        self.filas_lay.setContentsMargins(0, 0, 0, 0)
+        self.filas_lay.setSpacing(0)
+        sc = AreaDesplazable(filas_w)
+        pv.addWidget(sc, 1)
+        cuerpo.addWidget(p_cat, 3)
+
+        derecha = QVBoxLayout()
+        derecha.setSpacing(12)
+        p_acc, av = panel("Acciones")
+        self.b_usar = QPushButton("Usar datos en la recepción")
         self.b_usar.setObjectName("Primary")
         self.b_usar.clicked.connect(self._usar)
+        self.b_salud = QPushButton("Ver salud del equipo")
+        self.b_salud.setObjectName("Secondary")
+        self.b_salud.clicked.connect(self._ver_salud)
         self.b_inv = QPushButton("Ver inventario detallado")
         self.b_inv.setObjectName("Secondary")
         self.b_inv.clicked.connect(self._ver_inventario)
-        self.b_guardar = QPushButton("Guardar escaneo en USB/archivo…")
+        self.b_guardar = QPushButton("Guardar archivo .diag en USB")
         self.b_guardar.setObjectName("Secondary")
         self.b_guardar.clicked.connect(self._guardar_copia)
-        acciones.addWidget(self.b_usar)
-        acciones.addWidget(self.b_inv)
-        acciones.addWidget(self.b_guardar)
-        acciones.addStretch()
-        pv.addLayout(acciones)
-        root.addWidget(panel, 1)
+        for b in (self.b_usar, self.b_salud, self.b_inv, self.b_guardar):
+            av.addWidget(b)
+        derecha.addWidget(p_acc)
+
+        p_nl, nv = panel("Lo que no se pudo leer")
+        self.no_leido_lbl = QLabel()
+        self.no_leido_lbl.setTextFormat(Qt.RichText)
+        self.no_leido_lbl.setWordWrap(True)
+        nv.addWidget(self.no_leido_lbl)
+        nv.addStretch()
+        derecha.addWidget(p_nl, 1)
+        cuerpo.addLayout(derecha, 2)
+        root.addLayout(cuerpo, 1)
 
         self._preparar_filas(COMPONENT_NAMES)
         self._botones_resultado(False)
+        self._mostrar_no_leido()
 
     # ---------- utilidades ----------
     def _msg(self, texto: str, ok: bool = True):
         color = "#2f855a;font-weight:600" if ok else "#c0392b"
         self.msg.setStyleSheet(f"color:{color};")
         self.msg.setText(texto)
+
+    @staticmethod
+    def _rol(boton: QPushButton, nombre: str):
+        boton.setObjectName(nombre)
+        boton.style().unpolish(boton)
+        boton.style().polish(boton)
 
     def _tiene_inventario(self) -> bool:
         return bool(self.data) and isinstance(self.data.get("inventory"), dict)
@@ -173,28 +265,64 @@ class EscaneoPage(QWidget):
         self.b_usar.setEnabled(activo)
         self.b_guardar.setEnabled(activo)
         self.b_inv.setEnabled(activo and self._tiene_inventario())
+        self.b_salud.setEnabled(activo and self._tiene_inventario())
         self.b_inv.setToolTip("" if self._tiene_inventario() or not activo else
                               "Este archivo es de una versión anterior y no incluye inventario detallado.")
+        self.b_salud.setToolTip(self.b_inv.toolTip())
 
     def _preparar_filas(self, nombres):
         while self.filas_lay.count():
-            w = self.filas_lay.takeAt(0).widget()
-            if w:
-                w.deleteLater()
+            item = self.filas_lay.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
         self.filas = []
         for n in nombres:
-            lbl = QLabel(fila_html(n, "Pendiente", "pending"))
-            lbl.setTextFormat(Qt.RichText)
-            lbl.setWordWrap(True)
-            self.filas_lay.addWidget(lbl)
-            self.filas.append(lbl)
+            f = _FilaCategoria(n)
+            self.filas_lay.addWidget(f)
+            self.filas.append(f)
+        self.filas_lay.addStretch()
 
-    def _set_fila(self, i: int, nombre: str, detalle: str, estado: str):
+    def _set_fila(self, i: int, nombre: str, detalle: str, estado: str, texto: str | None = None):
         if 0 <= i < len(self.filas):
-            self.filas[i].setText(fila_html(nombre, detalle, estado))
+            self.filas[i].set(nombre, detalle, estado, texto)
+
+    def _pintar_resultado(self):
+        """Filas finales con el estado escrito según la disponibilidad de cada categoría."""
+        comps = self.data.get("components", [])
+        disp = self.data.get("availability") if isinstance(self.data.get("availability"), dict) else None
+        self._preparar_filas([c.get("name", "?") for c in comps])
+        for i, c in enumerate(comps):
+            clave = _CLAVE_POR_NOMBRE.get(c.get("name"))
+            a = disp.get(clave) if disp and clave else None
+            self._set_fila(i, c.get("name", "?"), c.get("detail", ""), c.get("status", "ok"),
+                           texto_estado(c, a))
+        self._mostrar_no_leido()
+
+    def _mostrar_no_leido(self):
+        if not self.data:
+            self.no_leido_lbl.setText("<span style='color:#5f6b77'>Aparecerá aquí al terminar el escaneo "
+                                      "o la importación.</span>")
+            return
+        if not isinstance(self.data.get("availability"), dict):
+            self.no_leido_lbl.setText("<span style='color:#5f6b77'>Archivo de una versión anterior: no "
+                                      "incluye el detalle de lo que no se pudo leer.</span>")
+            return
+        filas = no_leido(self.data)
+        if not filas:
+            self.no_leido_lbl.setText("<span style='color:#2f855a'>✓ Se leyeron todos los datos "
+                                      "disponibles.</span>")
+            return
+        self.no_leido_lbl.setText("<br>".join(
+            f"<b>{html.escape(cat)}</b> · {html.escape(dato)}<br>"
+            f"<span style='color:#5f6b77'>{html.escape(motivo)}</span>" for cat, dato, motivo in filas))
+
+    def _ajustar_modo(self):
+        """El QStackedWidget toma la altura de la página más alta: se ajusta a la visible."""
+        self.modo.setFixedHeight(self.modo.currentWidget().sizeHint().height())
 
     def _modo(self, i: int):
         self.modo.setCurrentIndex(i)
+        self._ajustar_modo()
         self.b_local.setChecked(i == 0)
         self.b_usb.setChecked(i == 1)
         self._msg("")
@@ -213,6 +341,7 @@ class EscaneoPage(QWidget):
         self._botones_resultado(False)
         self._msg("")
         self._preparar_filas(COMPONENT_NAMES)
+        self._mostrar_no_leido()
         self._set_fila(0, COMPONENT_NAMES[0], "Leyendo…", "running")
         self.bar.setValue(0)
         self.b_scan.setEnabled(False)
@@ -236,6 +365,8 @@ class EscaneoPage(QWidget):
         self.estado.setText(f'Escaneo completado: {ok} de {len(data["components"])} categorías sin novedades.')
         self.b_scan.setText("Volver a escanear")
         self.b_scan.setEnabled(True)
+        self._rol(self.b_scan, "Secondary")  # ahora la acción principal es usar los datos
+        self._pintar_resultado()
         self._botones_resultado(True)
 
     def _fallo(self, texto: str):
@@ -282,12 +413,9 @@ class EscaneoPage(QWidget):
         data["provenance"] = {"how": "imported_file", "file": ruta.name,
                               "imported_at": datetime.now().isoformat(timespec="seconds")}
         self.data = data
-        comps = data["components"]
-        self._preparar_filas([c.get("name", "?") for c in comps])
-        for i, c in enumerate(comps):
-            self._set_fila(i, c.get("name", "?"), c.get("detail", ""), c.get("status", "ok"))
+        self._pintar_resultado()
         self._botones_resultado(True)
-        fecha = str(data.get("scanned_at", "")).replace("T", " ")[:16]
+        fecha = fecha_corta(data.get("scanned_at", ""))
         self._msg(f"Importado desde {ruta.name} (escaneado el {fecha}).")
 
     def _guardar_copia(self):
@@ -309,6 +437,10 @@ class EscaneoPage(QWidget):
     def _ver_inventario(self):
         if self._tiene_inventario():
             InventoryDialog(self.data, self).exec()
+
+    def _ver_salud(self):
+        if self._tiene_inventario():
+            self.ver_salud.emit(self.data)
 
     def _usar(self):
         if self.data:
