@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
 
 from app.ai import config as ia_config
 from app.ai.worker import AiWorker
+from app.ui.tema import T
 
 _ZOMBIES: list = []  # hilos que tardaron en terminar: se conservan hasta que acaben
 
@@ -37,15 +38,15 @@ class AiStreamPanel(QFrame):
         self.salida.setReadOnly(True)
         self.salida.setPlaceholderText(vacio)
         self.salida.setMinimumHeight(altura)
-        self.salida.setStyleSheet("background:white;border:1px solid #d9dfe5;"
-                                  "border-radius:4px;padding:6px;color:#1b2430;")
+        self.salida.setStyleSheet(f"background:{T.superficie};border:1px solid {T.borde};"
+                                  f"border-radius:4px;padding:6px;color:{T.texto};")
         self.barra = QProgressBar()
         self.barra.setRange(0, 0)
         self.barra.setTextVisible(False)
         self.barra.setFixedHeight(6)
         self.barra.setStyleSheet(
-            "QProgressBar{background:#e6eaee;border:1px solid #d9dfe5;border-radius:3px;}"
-            "QProgressBar::chunk{background:#1f6f8b;border-radius:2px;}")
+            f"QProgressBar{{background:{T.pista};border:1px solid {T.borde};border-radius:3px;}}"
+            f"QProgressBar::chunk{{background:{T.acento};border-radius:2px;}}")
         self.barra.hide()
         fila = QHBoxLayout()
         self.estado = QLabel("")
@@ -113,7 +114,7 @@ class AiStreamPanel(QFrame):
 
     # ---------- internos ----------
     def _estado(self, texto: str, error: bool = False):
-        self.estado.setStyleSheet("color:#c0392b;font-size:13px;" if error else "")
+        self.estado.setStyleSheet(f"color:{T.peligro};font-size:13px;" if error else "")
         self.estado.setText(texto)
 
     def _parar_ui(self):

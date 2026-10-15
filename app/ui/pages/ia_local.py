@@ -24,6 +24,7 @@ from app.ai.ollama_client import TIMEOUT_RESPUESTA, OllamaError, has_model, list
 from app.db.repo import Repository
 from app.diagnosis.engine import load_rules
 from app.ui.ai_widgets import AiStreamPanel
+from app.ui.tema import T
 from app.ui.widgets import AreaDesplazable, cabecera, campo, muted, panel
 
 log = logging.getLogger(__name__)
@@ -41,7 +42,7 @@ NO_PUEDE = (
     "Sin el paquete de IA, el programa sigue funcionando en modo reglas.",
 )
 MOTOR_TEXTO = {"paquete": "Paquete de IA integrado", "ollama": "Ollama (avanzado)"}
-VERDE, AMBAR, ROJO, GRIS = "#2f855a", "#b7791f", "#c0392b", "#5f6b77"
+VERDE, AMBAR, ROJO, GRIS = T.exito, T.aviso, T.peligro, T.texto_suave
 
 
 def _lista(puntos, signo: str, color: str) -> QLabel:
@@ -103,7 +104,7 @@ class FilaModelo(QFrame):
         super().__init__()
         self.modelo_id = modelo_id
         m = paquete.MODELOS[modelo_id]
-        self.setStyleSheet("FilaModelo{border:1px solid #d9dfe5;border-radius:6px;}")
+        self.setStyleSheet(f"FilaModelo{{border:1px solid {T.borde};border-radius:6px;}}")
         h = QHBoxLayout(self)
         h.setContentsMargins(12, 10, 12, 10)
         textos = QVBoxLayout()
@@ -186,8 +187,8 @@ class IaLocalPage(QWidget):
         self.barra.setTextVisible(False)
         self.barra.setFixedHeight(8)
         self.barra.setStyleSheet(
-            "QProgressBar{background:#e6eaee;border:none;border-radius:4px;}"
-            "QProgressBar::chunk{background:#1f6f8b;border-radius:4px;}")
+            f"QProgressBar{{background:{T.pista};border:none;border-radius:4px;}}"
+            f"QProgressBar::chunk{{background:{T.acento};border-radius:4px;}}")
         fila_p = QHBoxLayout()
         self.lbl_descarga = muted("")
         self.b_cancelar = QPushButton("Pausar")

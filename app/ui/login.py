@@ -5,6 +5,7 @@ from PySide6.QtWidgets import QDialog, QFrame, QHBoxLayout, QLabel, QLineEdit, Q
 from app.db.repo import Repository
 from app.paths import recurso
 from app.servicios import cuentas
+from app.ui.tema import T
 from app.ui.widgets import campo
 
 BENEFICIOS = (
@@ -49,7 +50,7 @@ class LoginDialog(QDialog):
         lv.addWidget(subtitle)
         lv.addSpacing(8)
         for texto in BENEFICIOS:
-            b = QLabel(f"<span style='color:#5ec1df'>✓</span>&nbsp; {texto}")
+            b = QLabel(f"<span style='color:{T.acento_claro}'>✓</span>&nbsp; {texto}")
             b.setTextFormat(Qt.RichText)
             b.setWordWrap(True)
             lv.addWidget(b)

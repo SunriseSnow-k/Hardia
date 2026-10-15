@@ -7,6 +7,7 @@ from app.db.health_repo import HealthRepository
 from app.hardware.scanner import LectorTemperatura
 from app.health import benchmark as bm
 from app.ui.pages.escaneo import fila_html
+from app.ui.tema import T
 from app.ui.widgets import lista_dato_valor, muted, panel
 
 
@@ -88,7 +89,7 @@ class BenchmarkDialog(QDialog):
         av.addWidget(a1)
         self.chk_sin_temp = QCheckBox("Entiendo que sin lectura de temperatura no hay corte de seguridad")
         if self.temp_inicial is None:
-            a2 = QLabel("<b style='color:#c0392b'>No hay lectura de temperatura en este equipo:</b> el corte "
+            a2 = QLabel(f"<b style='color:{T.peligro}'>No hay lectura de temperatura en este equipo:</b> el corte "
                         "a 95 °C no podrá actuar. Para tenerla, abra LibreHardwareMonitor antes de la prueba "
                         "o ejecute este programa como administrador (lectura aproximada del sensor ACPI). "
                         "Si continúa sin lectura, vigile el equipo y cancele si se calienta.")
@@ -116,8 +117,8 @@ class BenchmarkDialog(QDialog):
         self.barra.setRange(0, max(1, int(total)))
         self.barra.setTextVisible(False)
         self.barra.setFixedHeight(8)
-        self.barra.setStyleSheet("QProgressBar{background:#e6eaee;border:none;border-radius:4px;}"
-                                 "QProgressBar::chunk{background:#1f6f8b;border-radius:4px;}")
+        self.barra.setStyleSheet(f"QProgressBar{{background:{T.pista};border:none;border-radius:4px;}}"
+                                 f"QProgressBar::chunk{{background:{T.acento};border-radius:4px;}}")
         vp.addWidget(self.barra)
         self.temp_lbl = QLabel(self._texto_temp(self.temp_inicial, self.fuente_inicial))
         self.temp_lbl.setStyleSheet("font-weight:600;")
@@ -190,7 +191,7 @@ class BenchmarkDialog(QDialog):
         if temp is not None:
             self.temp_lbl.setText(self._texto_temp(temp, fuente))
             if float(temp) >= 90:
-                self.temp_lbl.setStyleSheet("font-weight:600; color:#c0392b;")
+                self.temp_lbl.setStyleSheet(f"font-weight:600; color:{T.peligro};")
         self._marcar(0, f"{t:.0f} s · {ritmo:,.0f} op/s".replace(",", " "), "running")
 
     def _on_disco(self, i: int, t: float, leidos: int):
@@ -227,7 +228,7 @@ class BenchmarkDialog(QDialog):
     def _on_fallo(self, mensaje: str):
         self.b_cancelar.setEnabled(False)
         self.b_cerrar.setEnabled(True)
-        self.estado.setStyleSheet("color:#c0392b;")
+        self.estado.setStyleSheet(f"color:{T.peligro};")
         self.estado.setText(f"La prueba falló: {mensaje}")
 
     def done(self, r):

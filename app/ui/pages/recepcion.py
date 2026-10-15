@@ -27,6 +27,7 @@ from app.hardware.inventory import fmt_bytes
 from app.reports.service import generate_report
 from app.servicios import recepcion
 from app.servicios.recepcion import DatosRecepcion
+from app.ui.tema import T
 from app.ui.widgets import AreaDesplazable, cabecera, campo, fecha_corta, limpiar_layout, lista_dato_valor, muted, panel
 
 log = logging.getLogger(__name__)
@@ -126,7 +127,7 @@ class RecepcionPage(QWidget):
         al = QHBoxLayout(self.alert)
         al.setContentsMargins(14, 10, 14, 10)
         icono = QLabel("⚠")
-        icono.setStyleSheet("color:#b7791f; font-size:18px; font-weight:600;")
+        icono.setStyleSheet(f"color:{T.aviso}; font-size:18px; font-weight:600;")
         self.alert_text = QLabel()
         self.alert_text.setWordWrap(True)
         self.alert_text.setTextFormat(Qt.RichText)
@@ -309,7 +310,7 @@ class RecepcionPage(QWidget):
         try:
             res = self.hwr.identify_scan(data)
         except Exception as e:  # la identificación nunca debe impedir registrar el equipo
-            self.ident_lbl.setText(f"<span style='color:#b7791f'>No se pudo comprobar si el equipo ya "
+            self.ident_lbl.setText(f"<span style='color:{T.aviso}'>No se pudo comprobar si el equipo ya "
                                    f"estaba registrado: {html.escape(str(e))}</span>")
             return
         estado, cand = res["status"], res["candidates"]
@@ -317,21 +318,21 @@ class RecepcionPage(QWidget):
         if estado == "encontrado":
             c = cand[0]
             por = _coincide_por(c.get("matched", []))
-            texto = (f"<b style='color:#2f855a'>✓ Equipo ya registrado:</b> {html.escape(c['description'])} "
+            texto = (f"<b style='color:{T.exito}'>✓ Equipo ya registrado:</b> {html.escape(c['description'])} "
                      f"(serie {html.escape(c['serial'])})."
                      + (f" Coincide por {html.escape(por)}." if por else ""))
             if not escrita:
                 self.serie.setText(c["serial"])  # activa el aviso de reingreso
             elif escrita.upper() != c["serial"].upper():
-                texto += (f"<br><span style='color:#c0392b'>Usted escribió la serie {html.escape(escrita)}, "
+                texto += (f"<br><span style='color:{T.peligro}'>Usted escribió la serie {html.escape(escrita)}, "
                           "pero el escaneo corresponde al equipo anterior. Verifique antes de guardar.</span>")
         elif estado == "ambiguo":
             lista = ", ".join(f"{html.escape(c['description'])} ({html.escape(c['serial'])})" for c in cand)
-            texto = ("<b style='color:#c0392b'>✕ El escaneo coincide con varios equipos registrados:</b> "
+            texto = ("<b style='color:{T.peligro}'>✕ El escaneo coincide con varios equipos registrados:</b> "
                      f"{lista}. Escriba la serie correcta para continuar.")
         elif estado == "probable":
             lista = ", ".join(f"{html.escape(c['description'])} ({html.escape(c['serial'])})" for c in cand)
-            texto = ("<b style='color:#b7791f'>⚠ Posible equipo conocido:</b> coincide solo por un identificador "
+            texto = ("<b style='color:{T.aviso}'>⚠ Posible equipo conocido:</b> coincide solo por un identificador "
                      f"débil (MAC) con {lista}. Confirme escribiendo la serie.")
         else:
             texto = "<b>Equipo nuevo:</b> no coincide con ningún equipo registrado."

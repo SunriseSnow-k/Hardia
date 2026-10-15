@@ -26,6 +26,7 @@ from app.diagnosis.engine import diagnose
 from app.reports.service import KINDS, generate_report
 from app.ui.ai_widgets import AiDialog
 from app.ui.diagnosis_dialog import DiagnosisDialog
+from app.ui.tema import T
 from app.ui.widgets import (
     AreaDesplazable,
     BarraPorcentaje,
@@ -76,7 +77,7 @@ class CaseDialog(QDialog):
         fila_t.addWidget(titulo)
         fila_t.addWidget(self.prio)
         if caso["reingreso"]:
-            reing = ChipEstado("Reingreso", "#e1f0f5", "#1f6f8b")
+            reing = ChipEstado("Reingreso", T.acento_suave, T.acento)
             reing.setToolTip("Este equipo ya tuvo casos anteriores en el taller.")
             fila_t.addWidget(reing)
         fila_t.addStretch()
@@ -334,7 +335,7 @@ class CaseDialog(QDialog):
         self.lista_notas.scrollToBottom()
 
     def _msg(self, etiqueta: QLabel, texto: str, ok: bool = True):
-        etiqueta.setStyleSheet("color:#2f855a;font-weight:600;" if ok else "color:#c0392b;")
+        etiqueta.setStyleSheet(f"color:{T.exito};font-weight:600;" if ok else f"color:{T.peligro};")
         etiqueta.setText(texto)
         etiqueta.setVisible(bool(texto))
 

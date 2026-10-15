@@ -36,6 +36,7 @@ from app.hardware.inventory import FUERTES, identifiers_from_scan
 from app.hardware.scanner import COMPONENT_NAMES, local_identifiers
 from app.health import ATENCION, BUENO, REVISAR, SIN_REF, componente, evaluate, load_references
 from app.ui.inventory_dialog import InventoryDialog
+from app.ui.tema import T
 from app.ui.widgets import (
     AreaDesplazable,
     BarraPorcentaje,
@@ -120,7 +121,7 @@ class DetalleComponenteDialog(QDialog):
             g.addWidget(QLabel(f'Medido: {comp["medido"]["valor"]}'), 0, 0)
             g.addWidget(BarraPorcentaje(comp["pct"], color=color_estado(comp["estado"])), 0, 1)
             g.addWidget(QLabel(f'De fábrica: {comp["fabrica"]["valor"]}'), 1, 0)
-            g.addWidget(BarraPorcentaje(100, color="#a9b6c4"), 1, 1)
+            g.addWidget(BarraPorcentaje(100, color=T.lateral_texto), 1, 1)
             g.setColumnStretch(1, 1)
             v1.addLayout(g)
         v1.addWidget(muted(f'Fuente: {comp.get("fuente") or "—"}'))
@@ -141,7 +142,7 @@ class DetalleComponenteDialog(QDialog):
                 val = QLabel(str(valor))
                 val.setWordWrap(True)
                 no_disp = str(valor).startswith("No disponible")
-                val.setStyleSheet("color:#5f6b77;" if no_disp else "font-weight:600;")
+                val.setStyleSheet(f"color:{T.texto_suave};" if no_disp else "font-weight:600;")
                 tv.addWidget(val)
                 grid.addWidget(tarjeta, i // 2, i % 2)
             v2.addLayout(grid)
@@ -235,7 +236,7 @@ class DetalleComponenteDialog(QDialog):
         return f"Salud del equipo — {base}"
 
     def _set_msg(self, texto: str, ok: bool = True):
-        self.msg.setStyleSheet("color:#2f855a;font-weight:600;" if ok else "color:#c0392b;")
+        self.msg.setStyleSheet(f"color:{T.exito};font-weight:600;" if ok else f"color:{T.peligro};")
         self.msg.setText(texto)
 
     def _incluir(self):
@@ -378,7 +379,7 @@ class SaludPage(QWidget):
         al = QHBoxLayout(self.alerta)
         al.setContentsMargins(14, 10, 14, 10)
         icono = QLabel("⚠")
-        icono.setStyleSheet("color:#b7791f; font-size:18px; font-weight:600;")
+        icono.setStyleSheet(f"color:{T.aviso}; font-size:18px; font-weight:600;")
         self.alerta_txt = QLabel("")
         self.alerta_txt.setTextFormat(Qt.RichText)
         self.alerta_txt.setWordWrap(True)
@@ -605,7 +606,7 @@ class SaludPage(QWidget):
             completa = c.get("fuente") or "—"
             fuente = QTableWidgetItem(completa.split(" · ")[0])  # el resto, en el tooltip y en el detalle
             fuente.setToolTip(completa)
-            fuente.setForeground(QColor("#5f6b77"))
+            fuente.setForeground(QColor(T.texto_suave))
             self.tabla.setItem(i, 5, fuente)
             ver = QPushButton("Ver detalle")
             ver.setObjectName("Link")
@@ -761,7 +762,7 @@ class SaludPage(QWidget):
             QApplication.restoreOverrideCursor()
         if not ok:
             self.motivo_bench.setText(motivo)
-            self.motivo_bench.setStyleSheet("color:#c0392b;")
+            self.motivo_bench.setStyleSheet(f"color:{T.peligro};")
             self.motivo_bench.show()
             return
         dlg = BenchmarkDialog(self.repo, self.code, self.datos["captura"], self)

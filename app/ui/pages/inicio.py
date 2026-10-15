@@ -4,6 +4,7 @@ from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QPushButton, QScrollArea, QVBoxLayout, QWidget
 
 from app.db.repo import ESTADOS, Repository
+from app.ui.tema import T
 from app.ui.widgets import ChipEstado, cabecera, fecha_larga, limpiar_layout, tiempo_transcurrido
 
 ACTIVOS = ("Recibido", "En diagnóstico", "Listo")
@@ -48,7 +49,7 @@ class CaseCard(QFrame):
         titulo.setWordWrap(True)
         sub = QLabel(f'{row["cliente"] or "Sin cliente"} · {row["problem"]}')
         sub.setWordWrap(True)
-        sub.setStyleSheet("color:#5f6b77; font-size:13px;")
+        sub.setStyleSheet(f"color:{T.texto_suave}; font-size:13px;")
         tiempo = QLabel(_texto_tiempo(row))
         tiempo.setObjectName("Muted")
 

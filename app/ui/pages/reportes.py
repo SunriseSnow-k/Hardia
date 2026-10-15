@@ -24,6 +24,7 @@ from app.paths import reports_dir
 from app.reports.service import KINDS, generate_report
 from app.ui.case_dialog import CaseDialog
 from app.ui.search_widgets import AsyncSearch, DateRangeFilter, PagerBar
+from app.ui.tema import T
 from app.ui.widgets import AreaDesplazable, cabecera, fecha_corta, muted, panel
 
 COLUMNAS = ["Código", "Cliente", "Equipo", "Serie", "Tipo", "Fecha", "Archivo"]
@@ -56,7 +57,7 @@ def _tarjeta(titulo: str, puntos, boton: QPushButton) -> QFrame:
     h.setObjectName("SectionTitle")
     v.addWidget(h)
     for p in puntos:
-        l = QLabel(f"<span style='color:#2f855a'>✓</span>&nbsp; {p}")
+        l = QLabel(f"<span style='color:{T.exito}'>✓</span>&nbsp; {p}")
         l.setTextFormat(Qt.RichText)
         l.setWordWrap(True)
         v.addWidget(l)
@@ -201,7 +202,7 @@ class ReportesPage(QWidget):
         return c
 
     def _set_msg(self, texto: str, ok: bool = True):
-        self.msg.setStyleSheet("color:#2f855a;font-weight:600;" if ok else "color:#c0392b;")
+        self.msg.setStyleSheet(f"color:{T.exito};font-weight:600;" if ok else f"color:{T.peligro};")
         self.msg.setText(texto)
 
     # ---------- selector de caso para generar ----------
@@ -304,7 +305,7 @@ class ReportesPage(QWidget):
         self.pager.set_state(self._pagina, paginas, total)
 
     def _on_error(self, mensaje: str):
-        self.estado.setStyleSheet("color:#c0392b;font-size:13px;")
+        self.estado.setStyleSheet(f"color:{T.peligro};font-size:13px;")
         self.estado.setText(f"No se pudo completar la búsqueda: {mensaje}")
 
     # ---------- acciones ----------

@@ -32,6 +32,7 @@ from app.hardware.diag_file import removable_drives
 from app.health.references import PAQUETE, load_references, ruta_activa, ruta_taller
 from app.paths import backups_dir, data_dir, reports_dir
 from app.servicios import cuentas
+from app.ui.tema import T
 from app.ui.widgets import AreaDesplazable, cabecera, limpiar_layout, lista_dato_valor, muted, panel, ruta_cortable
 
 
@@ -248,7 +249,7 @@ class ConfiguracionPage(QWidget):
 
     @staticmethod
     def _set(lbl: QLabel, texto: str, ok: bool = True):
-        lbl.setStyleSheet("color:#2f855a;font-weight:600;" if ok else "color:#c0392b;")
+        lbl.setStyleSheet(f"color:{T.exito};font-weight:600;" if ok else f"color:{T.peligro};")
         lbl.setText(texto)
 
     def refresh(self):

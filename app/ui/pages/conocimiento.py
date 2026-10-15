@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
 from app.diagnosis.engine import load_rules, normalizar
 from app.reports.cliente import implication
 from app.ui.styles import ACCENT
+from app.ui.tema import T
 from app.ui.widgets import AreaDesplazable, ChipEstado, cabecera, chip_html, colores_de, limpiar_layout, muted, panel
 
 
@@ -116,7 +117,7 @@ class ConocimientoPage(QWidget):
 
     def _seccion(self, titulo: str, contenido: QWidget | str):
         h = QLabel(titulo)
-        h.setStyleSheet("font-weight:600; color:#5f6b77; font-size:12px;")
+        h.setStyleSheet(f"font-weight:600; color:{T.texto_suave}; font-size:12px;")
         self.detalle.addWidget(h)
         if isinstance(contenido, str):
             lbl = QLabel(contenido)
@@ -138,20 +139,20 @@ class ConocimientoPage(QWidget):
         titulo.setWordWrap(True)
         self.detalle.addWidget(titulo)
         chips = QHBoxLayout()
-        chips.addWidget(ChipEstado(f'Regla {r["id"]}', "#e1f0f5", ACCENT))
-        chips.addWidget(ChipEstado(r["category"], "#eef1f4", "#1b2430"))
+        chips.addWidget(ChipEstado(f'Regla {r["id"]}', T.acento_suave, ACCENT))
+        chips.addWidget(ChipEstado(r["category"], T.fondo_app, T.texto))
         chips.addWidget(ChipEstado(f'Prioridad {r["priority"]}', *colores_de(r["priority"])))
         chips.addStretch()
         self.detalle.addLayout(chips)
 
-        sint = " ".join(chip_html(s["name"], "#e1f0f5", ACCENT) for s in r["symptoms"])
-        self._seccion("SÍNTOMAS", sint or "<span style='color:#5f6b77'>Sin síntomas definidos</span>")
+        sint = " ".join(chip_html(s["name"], T.acento_suave, ACCENT) for s in r["symptoms"])
+        self._seccion("SÍNTOMAS", sint or f"<span style='color:{T.texto_suave}'>Sin síntomas definidos</span>")
         claves = sorted({k for s in r["symptoms"] for k in s.get("keywords", [])})
         self._seccion("PALABRAS CLAVE", html.escape(", ".join(claves)) or "—")
         cond = r.get("conditions", [])
         self._seccion("CONDICIONES CON DATOS DEL EQUIPO",
                       "<br>".join(f"• {html.escape(c['label'])}" for c in cond)
-                      or "<span style='color:#5f6b77'>Solo usa los síntomas descritos</span>")
+                      or f"<span style='color:{T.texto_suave}'>Solo usa los síntomas descritos</span>")
         self._seccion("RECOMENDACIONES", "<br>".join(
             f"<b style='color:{ACCENT}'>{i}.</b> {html.escape(x)}"
             for i, x in enumerate(r["recommendations"], 1)))

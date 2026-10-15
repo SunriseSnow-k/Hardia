@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
 )
 
 from app.ui.styles import ACCENT, MUTED, NEUTRAL_COLORS, PRIORITY_COLORS, STATUS_COLORS, TRACK
+from app.ui.tema import T
 
 _DIAS = ("lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo")
 _MESES = ("enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto",
@@ -168,7 +169,7 @@ class BarraPorcentaje(QWidget):
             p.setBrush(QColor(self._color))
             p.drawRoundedRect(relleno, radio, radio)
         if self._mostrar:
-            p.setPen(QColor("#1b2430"))
+            p.setPen(QColor(T.texto))
             fuente = p.font()
             fuente.setBold(True)
             p.setFont(fuente)
@@ -203,10 +204,10 @@ class IndicadorEtapas(QWidget):
         for i, (lbl, e) in enumerate(zip(self._labels, self.etapas, strict=True)):
             if i < idx:
                 lbl.setText(f"✓ {e}")
-                lbl.setStyleSheet("color:#2f855a; font-size:13px;")
+                lbl.setStyleSheet(f"color:{T.exito}; font-size:13px;")
             elif i == idx:
                 lbl.setText(f"● {e}")
-                lbl.setStyleSheet(f"color:white; background:{ACCENT}; border-radius:3px; "
+                lbl.setStyleSheet(f"color:{T.sobre_acento}; background:{ACCENT}; border-radius:3px; "
                                   "padding:3px 8px; font-size:13px; font-weight:600;")
             else:
                 lbl.setText(f"○ {e}")

@@ -6,6 +6,7 @@ from PySide6.QtWidgets import QDialog, QHBoxLayout, QLabel, QLineEdit, QPushButt
 from app.ai.config import check_ai, nombre_modelo
 from app.db.repo import Repository
 from app.paths import data_dir
+from app.ui.tema import T
 
 
 class WelcomeDialog(QDialog):
@@ -89,9 +90,9 @@ class WelcomeDialog(QDialog):
         self.titulo.setText("Todo listo")
         self.b_sig.setText("Empezar")
         ok, modelo, msg = check_ai(self.repo)
-        ia = (f"<b style='color:#2f855a'>● IA local lista</b> ({html.escape(nombre_modelo(modelo))})."
+        ia = (f"<b style='color:{T.exito}'>● IA local lista</b> ({html.escape(nombre_modelo(modelo))})."
               if ok else
-              "<b style='color:#5f6b77'>● IA local opcional.</b> El programa funciona completo con "
+              f"<b style='color:{T.texto_suave}'>● IA local opcional.</b> El programa funciona completo con "
               "el diagnóstico por reglas. Si quiere ayuda de la IA para redactar y resumir, descargue "
               "el paquete de IA (una sola vez) en la sección <b>IA local</b>.")
         self.info.setText(

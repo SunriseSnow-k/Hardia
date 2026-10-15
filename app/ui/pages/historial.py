@@ -18,6 +18,7 @@ from app.db.repo import ESTADOS, PRIORIDADES, Repository
 from app.db.search_repo import PAGE_SIZE, pages
 from app.ui.search_widgets import AsyncSearch, DateRangeFilter, PagerBar
 from app.ui.styles import ACCENT
+from app.ui.tema import T
 from app.ui.widgets import ChipEstado, cabecera, fecha_corta, panel
 
 COLUMNAS = ["Código", "Fecha", "Cliente", "Equipo", "Serie", "Problema",
@@ -200,7 +201,7 @@ class HistorialPage(QWidget):
         self.pager.set_state(self._pagina, paginas, total)
 
     def _on_error(self, mensaje: str):
-        self.estado.setStyleSheet("color:#c0392b;font-size:13px;")
+        self.estado.setStyleSheet(f"color:{T.peligro};font-size:13px;")
         self.estado.setText(f"No se pudo completar la búsqueda: {mensaje}")
 
     def _doble_clic(self, fila: int, _col: int):

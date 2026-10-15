@@ -2,8 +2,9 @@ from PySide6.QtGui import QBrush, QColor
 from PySide6.QtWidgets import QDialog, QHBoxLayout, QLabel, QPushButton, QTreeWidget, QTreeWidgetItem, QVBoxLayout
 
 from app.hardware.inventory import ESTADO_TEXTO, FALLO, NO_AUTORIZADO, NO_COMPATIBLE, NO_DISPONIBLE, OK, inventory_rows
+from app.ui.tema import T
 
-_COLOR = {NO_COMPATIBLE: "#5f6b77", NO_DISPONIBLE: "#b7791f", NO_AUTORIZADO: "#b7791f", FALLO: "#c0392b"}
+_COLOR = {NO_COMPATIBLE: T.texto_suave, NO_DISPONIBLE: T.aviso, NO_AUTORIZADO: T.aviso, FALLO: T.peligro}
 
 
 class InventoryDialog(QDialog):
@@ -31,7 +32,7 @@ class InventoryDialog(QDialog):
         self.arbol = QTreeWidget()
         self.arbol.setColumnCount(3)
         self.arbol.setHeaderLabels(["Elemento", "Valor", "Estado"])
-        self.arbol.setStyleSheet("QTreeWidget { background: white; border: 1px solid #d9dfe5; "
+        self.arbol.setStyleSheet(f"QTreeWidget {{ background: {T.superficie}; border: 1px solid {T.borde}; "
                                  "border-radius: 4px; } QTreeWidget::item { padding: 3px 4px; }")
         grupos: dict[str, QTreeWidgetItem] = {}
         for f in inventory_rows(scan):
@@ -45,7 +46,7 @@ class InventoryDialog(QDialog):
             item = QTreeWidgetItem(grupo, [f["label"], f["value"],
                                            "" if f["status"] == OK else ESTADO_TEXTO.get(f["status"], "")])
             if f["status"] != OK:
-                brocha = QBrush(QColor(_COLOR.get(f["status"], "#5f6b77")))
+                brocha = QBrush(QColor(_COLOR.get(f["status"], T.texto_suave)))
                 for col in range(3):
                     item.setForeground(col, brocha)
         self.arbol.expandAll()

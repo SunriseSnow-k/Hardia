@@ -17,6 +17,7 @@ from app.db.equipment_repo import EquipmentRepository
 from app.db.health_repo import HealthRepository
 from app.db.repo import Repository
 from app.health import estado_por_pct
+from app.ui.tema import T
 from app.ui.widgets import BarraPorcentaje, cabecera, celda, color_estado, fecha_corta, item_medida, muted, panel
 
 COLUMNAS = ["Equipo", "Serie", "Cliente", "Casos", "Último caso", "Rendimiento", "Acciones"]
@@ -89,7 +90,7 @@ class EquiposPage(QWidget):
         for i, r in enumerate(self._filas):
             hw = " · ".join(x for x in (r["cpu"], r["ram"], r["storage"], r["os"]) if x) or "Sin datos de hardware"
             fecha = fecha_corta(r["ultimo"], con_hora=False) if r["ultimo"] else ""
-            ultimo = (f'<span style="color:#1f6f8b;font-weight:600">{html.escape(r["ultimo_code"])}</span>'
+            ultimo = (f'<span style="color:{T.acento};font-weight:600">{html.escape(r["ultimo_code"])}</span>'
                       f' · {html.escape(fecha)}' if r["ultimo_code"] else "Sin casos")
             cliente = r["cliente"] or "Sin cliente"
             ultimo_txt = f'{r["ultimo_code"]} · {fecha}' if r["ultimo_code"] else "Sin casos"

@@ -31,6 +31,7 @@ from app.ui.pages.inicio import InicioPage
 from app.ui.pages.recepcion import RecepcionPage
 from app.ui.pages.reportes import ReportesPage
 from app.ui.pages.salud import SaludPage
+from app.ui.tema import T
 
 SECCIONES = [
     "Inicio", "Recepción de equipo", "Escanear equipo", "Salud del equipo", "Equipos",
@@ -150,7 +151,7 @@ class MainWindow(QMainWindow):
         tl.addWidget(name)
         offline = QLabel("● Modo Offline")
         offline.setObjectName("Chip")
-        offline.setStyleSheet("color:#2f855a;")
+        offline.setStyleSheet(f"color:{T.exito};")
         offline.setToolTip("El programa funciona sin Internet: los datos se quedan en este equipo.")
         self.chip_ia = QLabel("● IA Local")
         self.chip_ia.setObjectName("Chip")
@@ -182,10 +183,10 @@ class MainWindow(QMainWindow):
         ok, _modelo, msg = check_ai(self.repo)
         if ok:
             self.chip_ia.setText("● IA Local Disponible")
-            self.chip_ia.setStyleSheet("color:#2f855a;")
+            self.chip_ia.setStyleSheet(f"color:{T.exito};")
         else:
             self.chip_ia.setText("● IA no disponible · modo reglas")
-            self.chip_ia.setStyleSheet("color:#5f6b77;")
+            self.chip_ia.setStyleSheet(f"color:{T.texto_suave};")
         self.chip_ia.setToolTip(msg)
 
     def _al_buscar(self, texto: str):

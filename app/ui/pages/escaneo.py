@@ -21,21 +21,22 @@ from app.hardware import diag_file, lhm
 from app.hardware.inventory import CATEGORIAS, ESTADO_TEXTO, FALLO, NO_AUTORIZADO, NO_COMPATIBLE, NO_DISPONIBLE, OK
 from app.hardware.scanner import COLECTORES_NOMBRES, COMPONENT_NAMES, run_scan
 from app.ui.inventory_dialog import InventoryDialog
+from app.ui.tema import T
 from app.ui.widgets import AreaDesplazable, ChipEstado, cabecera, fecha_corta, muted, panel
 
 ICONOS = {
-    "ok": ("✓", "#2f855a"), "warn": ("⚠", "#b7791f"), "error": ("✕", "#c0392b"),
-    "pending": ("·", "#5f6b77"), "running": ("…", "#1f6f8b"),
+    "ok": ("✓", T.exito), "warn": ("⚠", T.aviso), "error": ("✕", T.peligro),
+    "pending": ("·", T.texto_suave), "running": ("…", T.acento),
 }
 # Texto del estado durante la lectura (el icono acompaña, nunca va solo)
 TEXTO_PASO = {"ok": "Detectado", "warn": "Parcial", "error": "Falló",
               "pending": "Pendiente", "running": "Leyendo…"}
 COLOR_TEXTO = {
-    "Detectado": ("#e1f3e8", "#2f855a"), "Parcial": ("#fbf0d9", "#b7791f"),
-    "Con alerta": ("#fbf0d9", "#b7791f"), "No aplica": ("#eef1f4", "#5f6b77"),
-    "No disponible": ("#fbf0d9", "#b7791f"), "Sin permisos": ("#fbf0d9", "#b7791f"),
-    "Falló": ("#fbe6e3", "#c0392b"), "Pendiente": ("#eef1f4", "#5f6b77"),
-    "Leyendo…": ("#e1f0f5", "#1f6f8b"),
+    "Detectado": (T.exito_suave, T.exito), "Parcial": (T.aviso_suave, T.aviso),
+    "Con alerta": (T.aviso_suave, T.aviso), "No aplica": (T.fondo_app, T.texto_suave),
+    "No disponible": (T.aviso_suave, T.aviso), "Sin permisos": (T.aviso_suave, T.aviso),
+    "Falló": (T.peligro_suave, T.peligro), "Pendiente": (T.fondo_app, T.texto_suave),
+    "Leyendo…": (T.acento_suave, T.acento),
 }
 _CLAVE_POR_NOMBRE = dict(COLECTORES_NOMBRES)
 
@@ -44,7 +45,7 @@ def fila_html(nombre: str, detalle: str, estado: str) -> str:
     icono, color = ICONOS.get(estado, ICONOS["pending"])
     return (f'<span style="color:{color};font-weight:600">{icono}</span>&nbsp; '
             f'<b>{html.escape(nombre)}</b><br>'
-            f'<span style="color:#5f6b77">{html.escape(detalle)}</span>')
+            f'<span style="color:{T.texto_suave}">{html.escape(detalle)}</span>')
 
 
 def texto_estado(componente: dict, disponibilidad: dict | None) -> str:
@@ -102,7 +103,7 @@ class _FilaCategoria(QFrame):
     def set(self, nombre: str, detalle: str, estado: str, texto: str | None = None):
         self.lbl.setText(fila_html(nombre, detalle, estado))
         t = texto or TEXTO_PASO.get(estado, "Pendiente")
-        self.chip.set_estado(t, *COLOR_TEXTO.get(t, ("#eef1f4", "#5f6b77")))
+        self.chip.set_estado(t, *COLOR_TEXTO.get(t, (T.fondo_app, T.texto_suave)))
         self.setAccessibleName(f"{nombre}: {t}. {detalle}")
 
     def text(self) -> str:
@@ -181,8 +182,8 @@ class EscaneoPage(QWidget):
         self.bar.setTextVisible(False)
         self.bar.setFixedHeight(8)
         self.bar.setStyleSheet(
-            "QProgressBar{background:#e6eaee;border:none;border-radius:4px;}"
-            "QProgressBar::chunk{background:#1f6f8b;border-radius:4px;}")
+            f"QProgressBar{{background:{T.pista};border:none;border-radius:4px;}}"
+            f"QProgressBar::chunk{{background:{T.acento};border-radius:4px;}}")
         lv.addLayout(fila)
         lv.addWidget(self.bar)
         lv.addWidget(self._aviso_sensores())
@@ -268,7 +269,8 @@ class EscaneoPage(QWidget):
     def _aviso_sensores(self) -> QWidget:
         """Aviso de lo que falta para leer temperaturas, ventiladores y SMART (oculto si no falta nada)."""
         caja = QFrame()
-        caja.setStyleSheet("QFrame#AvisoSensores{background:#fbf0d9;border:1px solid #ecd9a8;border-radius:4px;}")
+        caja.setStyleSheet(f"QFrame#AvisoSensores{{background:{T.aviso_suave};border:1px solid {T.aviso_borde};"
+                           "border-radius:4px;}")
         caja.setObjectName("AvisoSensores")
         h = QHBoxLayout(caja)
         h.setContentsMargins(12, 8, 12, 8)
@@ -280,7 +282,7 @@ class EscaneoPage(QWidget):
                        "temperatura, refrigeración y discos falta: " + "; ".join(html.escape(f) for f in falta) + ".")
         texto.setTextFormat(Qt.RichText)
         texto.setWordWrap(True)
-        texto.setStyleSheet("color:#7a5a12;")
+        texto.setStyleSheet(f"color:{T.aviso_texto};")
         h.addWidget(texto, 1)
         if not lhm.es_administrador():
             b = QPushButton("Reiniciar como administrador")
@@ -304,7 +306,7 @@ class EscaneoPage(QWidget):
 
     # ---------- utilidades ----------
     def _msg(self, texto: str, ok: bool = True):
-        color = "#2f855a;font-weight:600" if ok else "#c0392b"
+        color = f"{T.exito};font-weight:600" if ok else T.peligro
         self.msg.setStyleSheet(f"color:{color};")
         self.msg.setText(texto)
 
@@ -356,21 +358,21 @@ class EscaneoPage(QWidget):
 
     def _mostrar_no_leido(self):
         if not self.data:
-            self.no_leido_lbl.setText("<span style='color:#5f6b77'>Aparecerá aquí al terminar el escaneo "
+            self.no_leido_lbl.setText(f"<span style='color:{T.texto_suave}'>Aparecerá aquí al terminar el escaneo "
                                       "o la importación.</span>")
             return
         if not isinstance(self.data.get("availability"), dict):
-            self.no_leido_lbl.setText("<span style='color:#5f6b77'>Archivo de una versión anterior: no "
+            self.no_leido_lbl.setText(f"<span style='color:{T.texto_suave}'>Archivo de una versión anterior: no "
                                       "incluye el detalle de lo que no se pudo leer.</span>")
             return
         filas = no_leido(self.data)
         if not filas:
-            self.no_leido_lbl.setText("<span style='color:#2f855a'>✓ Se leyeron todos los datos "
+            self.no_leido_lbl.setText(f"<span style='color:{T.exito}'>✓ Se leyeron todos los datos "
                                       "disponibles.</span>")
             return
         self.no_leido_lbl.setText("<br>".join(
             f"<b>{html.escape(cat)}</b> · {html.escape(dato)}<br>"
-            f"<span style='color:#5f6b77'>{html.escape(motivo)}</span>" for cat, dato, motivo in filas))
+            f"<span style='color:{T.texto_suave}'>{html.escape(motivo)}</span>" for cat, dato, motivo in filas))
 
     def _ajustar_modo(self):
         """El QStackedWidget toma la altura de la página más alta: se ajusta a la visible."""

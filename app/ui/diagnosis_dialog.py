@@ -11,13 +11,14 @@ from app.db.repo import Repository
 from app.diagnosis.engine import diagnose
 from app.ui.ai_widgets import AiStreamPanel
 from app.ui.styles import ACCENT
+from app.ui.tema import T
 from app.ui.widgets import AreaDesplazable, BarraPorcentaje, ChipEstado, chip_html, fecha_corta, muted, panel
 
 ESTADO_COLORES = {
-    "ATENCIÓN REQUERIDA": ("#fbe6e3", "#c0392b"),
-    "REVISIÓN RECOMENDADA": ("#fbf0d9", "#b7791f"),
-    "SIN HALLAZGOS RELEVANTES": ("#e1f3e8", "#2f855a"),
-    "DATOS INSUFICIENTES": ("#e6eaee", "#5f6b77"),
+    "ATENCIÓN REQUERIDA": (T.peligro_suave, T.peligro),
+    "REVISIÓN RECOMENDADA": (T.aviso_suave, T.aviso),
+    "SIN HALLAZGOS RELEVANTES": (T.exito_suave, T.exito),
+    "DATOS INSUFICIENTES": (T.pista, T.texto_suave),
 }
 SECCIONES_IA = ("Hechos", "Inferencias", "Recomendación")
 _RE_SECCION = re.compile(
@@ -77,7 +78,7 @@ class DiagnosisDialog(QDialog):
         lay.addWidget(s)
 
         fila_est = QHBoxLayout()
-        bg, fg = ESTADO_COLORES.get(r["status"], ("#e6eaee", "#5f6b77"))
+        bg, fg = ESTADO_COLORES.get(r["status"], (T.pista, T.texto_suave))
         self.chip_estado = ChipEstado(r["status"], bg, fg, grande=True)
         fila_est.addWidget(self.chip_estado)
         fila_est.addStretch()
@@ -163,7 +164,7 @@ class DiagnosisDialog(QDialog):
         av = QHBoxLayout(aviso)
         av.setContentsMargins(14, 10, 14, 10)
         icono = QLabel("⚠")
-        icono.setStyleSheet("color:#b7791f; font-size:16px; font-weight:600;")
+        icono.setStyleSheet(f"color:{T.aviso}; font-size:16px; font-weight:600;")
         al = QLabel(f"<b>Validación del técnico:</b> {html.escape(r['disclaimer'])}")
         al.setTextFormat(Qt.RichText)
         al.setWordWrap(True)
@@ -210,14 +211,14 @@ class DiagnosisDialog(QDialog):
         num = QLabel(str(i))
         num.setAlignment(Qt.AlignCenter)
         num.setFixedSize(26, 26)
-        num.setStyleSheet(f"background:#e1f0f5; color:{ACCENT}; border-radius:13px; font-weight:600;")
+        num.setStyleSheet(f"background:{T.acento_suave}; color:{ACCENT}; border-radius:13px; font-weight:600;")
         causa = QLabel(f'<b>{html.escape(c["cause"])}</b><br>'
-                       f'<span style="color:#5f6b77;font-size:12px">{html.escape(c["category"])} · '
+                       f'<span style="color:{T.texto_suave};font-size:12px">{html.escape(c["category"])} · '
                        f'Regla {html.escape(c["id"])}</span>')
         causa.setTextFormat(Qt.RichText)
         causa.setWordWrap(True)
-        evid = QLabel(" ".join(chip_html(e, "#eef1f4", "#1b2430") for e in c["evidence"])
-                      or "<span style='color:#5f6b77'>Sin evidencia registrada</span>")
+        evid = QLabel(" ".join(chip_html(e, T.fondo_app, T.texto) for e in c["evidence"])
+                      or f"<span style='color:{T.texto_suave}'>Sin evidencia registrada</span>")
         evid.setTextFormat(Qt.RichText)
         evid.setWordWrap(True)
         evid.setToolTip("Evidencia usada por la regla")
