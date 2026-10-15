@@ -7,6 +7,15 @@ import pytest
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 
+@pytest.fixture(autouse=True)
+def _sin_abrir_archivos(monkeypatch):
+    """Las pruebas nunca abren visores (PDF, carpetas) en el escritorio del usuario."""
+    from PySide6.QtGui import QDesktopServices
+    abiertos = []
+    monkeypatch.setattr(QDesktopServices, "openUrl", staticmethod(lambda url: abiertos.append(url) or True))
+    return abiertos
+
+
 def pytest_sessionfinish(session, exitstatus):
     session.config._codigo_salida = int(exitstatus)
 

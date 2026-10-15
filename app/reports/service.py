@@ -2,9 +2,11 @@ from datetime import datetime
 from pathlib import Path
 
 from app.paths import reports_dir
-from .pdf import build_client, build_technical, load_report_data
+from .pdf import build_client, build_order, build_technical, load_order_data, load_report_data
 
-KINDS = {"tecnico": "Técnico", "cliente": "Cliente"}
+KINDS = {"tecnico": "Técnico", "cliente": "Cliente", "orden": "Orden de servicio"}
+BUILDERS = {"tecnico": (load_report_data, build_technical), "cliente": (load_report_data, build_client),
+            "orden": (load_order_data, build_order)}
 
 
 def _unico(path: Path) -> Path:
@@ -23,10 +25,11 @@ def generate_report(repo, reports_repo, code: str, kind: str, tech_id: str = "",
     """Genera el PDF de un caso, lo registra y devuelve su ruta."""
     if kind not in KINDS:
         raise ValueError("Tipo de reporte no válido.")
-    data = load_report_data(repo, code)
+    cargar, construir = BUILDERS[kind]
+    data = cargar(repo, code)
     carpeta = Path(out_dir) if out_dir else reports_dir()
     carpeta.mkdir(parents=True, exist_ok=True)
     path = _unico(carpeta / f"{code}_{kind}_{datetime.now():%Y%m%d-%H%M%S}.pdf")
-    (build_technical if kind == "tecnico" else build_client)(data, path, tech_id)
+    construir(data, path, tech_id)
     reports_repo.add(code, kind, str(path))
     return path

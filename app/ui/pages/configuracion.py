@@ -5,9 +5,10 @@ from datetime import datetime
 from PySide6.QtCore import Qt, QUrl, Signal
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (QCheckBox, QFileDialog, QGridLayout, QHBoxLayout, QLabel, QLineEdit,
-                               QListWidget, QMessageBox, QPushButton, QVBoxLayout,
+                               QListWidget, QMessageBox, QPlainTextEdit, QPushButton, QVBoxLayout,
                                QWidget)
 from app import backup
+from app.db.orders_repo import TERMINOS_PREDETERMINADOS
 from app.db.repo import Repository
 from app.db.users_repo import UsersRepository
 from app.hardware.diag_file import removable_drives
@@ -52,6 +53,10 @@ class ConfiguracionPage(QWidget):
         self._campo(v1, "Nombre del negocio", self.nombre)
         self._campo(v1, "Teléfono (opcional)", self.telefono)
         v1.addWidget(muted("Aparecen en la cabecera de los reportes PDF."))
+        self.terminos = QPlainTextEdit()
+        self.terminos.setMaximumHeight(110)
+        self.terminos.setPlaceholderText("Una condición por línea")
+        self._campo(v1, "Condiciones de la orden de servicio (una por línea)", self.terminos)
         b = QPushButton("Guardar")
         b.setObjectName("Primary")
         b.clicked.connect(self._guardar_negocio)
@@ -199,6 +204,7 @@ class ConfiguracionPage(QWidget):
     def refresh(self):
         self.nombre.setText(self.repo.get_setting("business_name", ""))
         self.telefono.setText(self.repo.get_setting("business_phone", ""))
+        self.terminos.setPlainText(self.repo.get_setting("service_terms", TERMINOS_PREDETERMINADOS))
         self.chk_auto.blockSignals(True)
         self.chk_auto.setChecked(self.repo.get_setting("auto_backup", "1") == "1")
         self.chk_auto.blockSignals(False)
@@ -228,6 +234,7 @@ class ConfiguracionPage(QWidget):
             return
         self.repo.set_setting("business_name", nombre)
         self.repo.set_setting("business_phone", self.telefono.text().strip())
+        self.repo.set_setting("service_terms", self.terminos.toPlainText().strip())
         self._set(self.msg_neg, "Datos guardados.")
 
     # ---------- copias ----------

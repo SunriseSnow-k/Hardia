@@ -186,12 +186,14 @@ class CaseDialog(QDialog):
         fila_r = QHBoxLayout()
         self.b_rep_tec = QPushButton("Reporte técnico (PDF)")
         self.b_rep_cli = QPushButton("Informe para el cliente (PDF)")
-        for b in (self.b_rep_tec, self.b_rep_cli):
+        self.b_rep_ord = QPushButton("Orden de servicio (PDF)")
+        for b in (self.b_rep_tec, self.b_rep_cli, self.b_rep_ord):
             b.setObjectName("Secondary")
             fila_r.addWidget(b)
         fila_r.addStretch()
         self.b_rep_tec.clicked.connect(lambda: self._generar_reporte("tecnico"))
         self.b_rep_cli.clicked.connect(lambda: self._generar_reporte("cliente"))
+        self.b_rep_ord.clicked.connect(lambda: self._generar_reporte("orden"))
         vr.addLayout(fila_r)
         self.lista_reportes = QListWidget()
         self.lista_reportes.setMaximumHeight(100)

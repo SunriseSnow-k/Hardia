@@ -53,7 +53,7 @@ class MainWindow(QMainWindow):
 
         # Páginas
         self.inicio = InicioPage(repo)
-        self.recepcion = RecepcionPage(repo)
+        self.recepcion = RecepcionPage(repo, user_id)
         self.escaneo = EscaneoPage()
         self.salud = SaludPage(repo)
         self.equipos = EquiposPage(repo)

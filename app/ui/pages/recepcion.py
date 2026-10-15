@@ -1,13 +1,17 @@
 import html
 
-from PySide6.QtCore import Qt, Signal
-from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
+from PySide6.QtCore import QDate, Qt, QUrl, Signal
+from PySide6.QtGui import QDesktopServices
+from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QCheckBox, QDateEdit,
                                QLabel, QLineEdit, QComboBox, QPushButton, QFrame)
 from app.db.clients_repo import ClientsRepository, normalize_doc
 from app.db.hardware_repo import HardwareRepository
 from app.db.health_repo import HealthRepository
+from app.db.orders_repo import ACCESORIOS, OrdersRepository
+from app.db.reports_repo import ReportsRepository
 from app.db.repo import Repository, PRIORIDADES
 from app.hardware.inventory import fmt_bytes
+from app.reports.service import generate_report
 from app.ui.widgets import AreaDesplazable, cabecera, campo, fecha_corta, limpiar_layout, lista_dato_valor, muted, panel
 
 TIPOS_ID = {"uuid": "UUID", "serial": "número de serie", "board_serial": "serie de la placa", "mac": "MAC"}
@@ -75,9 +79,11 @@ class RecepcionPage(QWidget):
 
     CHIPS = ["Lento", "Se apaga", "No enciende", "Se calienta", "Disco lleno", "Pantalla azul"]
 
-    def __init__(self, repo: Repository):
+    def __init__(self, repo: Repository, tech_id: str = ""):
         super().__init__()
         self.repo = repo
+        self.tech_id = tech_id
+        self.orders = OrdersRepository(repo)
         self.hwr = HardwareRepository(repo)
         self.clients = ClientsRepository(repo)
         self.health = HealthRepository(repo)
@@ -178,6 +184,56 @@ class RecepcionPage(QWidget):
         fila_p.addStretch()
         fv.addLayout(fila_p)
 
+        # --- Orden de servicio: lo que se recibe junto con el equipo ---
+        fv.addSpacing(4)
+        h3 = QLabel("Ingreso del equipo")
+        h3.setObjectName("SectionTitle")
+        fv.addWidget(h3)
+        fv.addWidget(muted("Marque los accesorios que deja el cliente. Estos datos salen en la orden de servicio."))
+        rejilla_acc = QGridLayout()  # en rejilla para no ensanchar el formulario
+        rejilla_acc.setSpacing(8)
+        self.accesorios = []
+        for i, texto in enumerate(ACCESORIOS):
+            b = QPushButton(texto)
+            b.setObjectName("ChipBtn")
+            b.setCheckable(True)
+            b.setCursor(Qt.PointingHandCursor)
+            self.accesorios.append(b)
+            rejilla_acc.addWidget(b, i // 3, i % 3)
+        fv.addLayout(rejilla_acc)
+        self.otros_acc = QLineEdit()
+        self.otros_acc.setPlaceholderText("Otros accesorios (opcional)")
+        self.estado_fisico = QLineEdit()
+        self.estado_fisico.setPlaceholderText("Ej.: rayones en la tapa, falta una tecla")
+        self.observaciones = QLineEdit()
+        self.observaciones.setPlaceholderText("Ej.: el cliente pide conservar sus archivos")
+        self.chk_fecha = QCheckBox("Fecha estimada de entrega")
+        self.fecha = QDateEdit()
+        self.fecha.setCalendarPopup(True)
+        self.fecha.setDisplayFormat("dd/MM/yyyy")
+        self.fecha.setEnabled(False)
+        self.chk_fecha.toggled.connect(self.fecha.setEnabled)
+        g2 = QGridLayout()
+        g2.setHorizontalSpacing(12)
+        g2.setVerticalSpacing(10)
+        g2.addWidget(self._campo("Otros accesorios", self.otros_acc), 0, 0)
+        g2.addWidget(self._campo("Estado físico", self.estado_fisico), 0, 1, 1, 2)
+        g2.addWidget(self._campo("Observaciones", self.observaciones), 1, 0, 1, 2)
+        caja_f = QWidget()
+        cf = QVBoxLayout(caja_f)
+        cf.setContentsMargins(0, 0, 0, 0)
+        cf.setSpacing(4)
+        cf.addWidget(self.chk_fecha)
+        cf.addWidget(self.fecha)
+        g2.addWidget(caja_f, 1, 2)
+        for c in range(3):
+            g2.setColumnStretch(c, 1)
+        fv.addLayout(g2)
+        self.chk_orden = QCheckBox("Abrir la orden de servicio para imprimir al guardar")
+        self.chk_orden.setChecked(self.repo.get_setting("print_order", "1") == "1")
+        self.chk_orden.toggled.connect(lambda v: self.repo.set_setting("print_order", "1" if v else "0"))
+        fv.addWidget(self.chk_orden)
+
         self.error = QLabel("")
         self.error.setObjectName("Error")
         self.error.setWordWrap(True)
@@ -219,6 +275,7 @@ class RecepcionPage(QWidget):
         cuerpo.addWidget(lado, 2)
         root.addLayout(cuerpo)
         root.addStretch()
+        self.fecha.setDate(QDate.currentDate().addDays(3))
         self._render_hw()
 
     @staticmethod
@@ -353,6 +410,13 @@ class RecepcionPage(QWidget):
         except ValueError as e:
             self.error.setText(str(e))
             return
+        acc = [b.text() for b in self.accesorios if b.isChecked()]
+        if self.otros_acc.text().strip():
+            acc.append(self.otros_acc.text().strip())
+        estimada = self.fecha.date().toString("yyyy-MM-dd") if self.chk_fecha.isChecked() else ""
+        if estimada and self.fecha.date() < QDate.currentDate():
+            self.error.setText("La fecha estimada de entrega no puede ser anterior a hoy.")
+            return
         self.error.setText("")
         code = self.repo.register_intake(
             cliente, telefono, serie, equipo, problema, self.prioridad.currentText(),
@@ -382,6 +446,19 @@ class RecepcionPage(QWidget):
                     self.health.evaluate_case(code)
                 except Exception as e:
                     aviso += f" Aviso: no se pudo evaluar la salud del equipo ({e})."
+        orden_ok = True
+        try:
+            self.orders.save(code, acc, self.estado_fisico.text(), self.observaciones.text(), estimada,
+                             self.tech_id)
+        except Exception as e:
+            orden_ok = False
+            aviso += f" Aviso: no se pudo guardar la orden de servicio ({e})."
+        if orden_ok and self.chk_orden.isChecked():
+            try:
+                ruta = generate_report(self.repo, ReportsRepository(self.repo), code, "orden", self.tech_id)
+                QDesktopServices.openUrl(QUrl.fromLocalFile(str(ruta)))
+            except Exception as e:
+                aviso += f" Aviso: no se pudo generar la orden de servicio ({e})."
         self._limpiar()
         self.ok.setText(f"Caso {code} registrado en la cola de trabajo.{aviso}")
         self.case_created.emit(code)
@@ -390,8 +467,12 @@ class RecepcionPage(QWidget):
         for campo_ in (self.cliente, self.telefono, self.documento, self.equipo, self.serie,
                        self.problema):
             campo_.clear()
-        for c in self.chips:
+        for c in self.chips + self.accesorios:
             c.setChecked(False)
+        for campo_ in (self.otros_acc, self.estado_fisico, self.observaciones):
+            campo_.clear()
+        self.chk_fecha.setChecked(False)
+        self.fecha.setDate(QDate.currentDate().addDays(3))
         self.prioridad.setCurrentText("Media")
         self.error.setText("")
         self.ok.setText("")
