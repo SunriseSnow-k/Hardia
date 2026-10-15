@@ -99,6 +99,7 @@ def test_listados(repo):
 
 def test_configuracion_negocio(repo):
     from app.ui.pages.configuracion import ConfiguracionPage
+    repo.create_user("TEC-001", "secreto1")  # la primera cuenta es administrador
     page = ConfiguracionPage(repo, "TEC-001")
     page.nombre.setText("Taller X")
     page._guardar_negocio()

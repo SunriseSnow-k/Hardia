@@ -4,6 +4,7 @@ from PySide6.QtWidgets import (QDialog, QFrame, QHBoxLayout, QVBoxLayout, QLabel
                                QLineEdit, QPushButton, QWidget)
 from app.db.repo import Repository
 from app.paths import recurso
+from app.servicios import cuentas
 from app.ui.widgets import campo
 
 BENEFICIOS = (
@@ -19,6 +20,7 @@ class LoginDialog(QDialog):
         self.repo = repo
         self.first_run = repo.count_users() == 0
         self.user_id = ""
+        self.sesion: cuentas.Sesion | None = None
         self.setWindowTitle("Sistema Inteligente Offline — Iniciar sesión")
         self.setFixedSize(900, 560)
 
@@ -84,8 +86,8 @@ class LoginDialog(QDialog):
         btn.setDefault(True)
         btn.clicked.connect(self.try_login)
         self.pw_input.returnPressed.connect(self.try_login)
-        nota = QLabel("Sin Internet no hay recuperación de contraseña: si la olvida, solo se puede "
-                      "restaurar una copia de seguridad.")
+        nota = QLabel("Si olvida su contraseña, un administrador del taller puede asignarle una nueva "
+                      "desde Configuración.")
         nota.setObjectName("Muted")
         nota.setWordWrap(True)
 
@@ -103,20 +105,16 @@ class LoginDialog(QDialog):
         root.addWidget(right, 1)
 
     def try_login(self):
-        tech_id = self.id_input.text().strip()
-        password = self.pw_input.text()
-        if not tech_id or not password:
-            self.error.setText("Ingrese su ID y su contraseña.")
+        try:
+            if self.first_run:
+                sesion = cuentas.crear_cuenta_inicial(self.repo, self.id_input.text(), self.pw_input.text())
+            else:
+                sesion = cuentas.iniciar_sesion(self.repo, self.id_input.text(), self.pw_input.text())
+        except (ValueError, cuentas.SinPermiso) as e:
+            self.error.setText(str(e))
+            if not self.first_run:
+                self.pw_input.clear()
             return
-        if self.first_run:
-            try:
-                self.repo.create_user(tech_id, password)
-            except ValueError as e:
-                self.error.setText(str(e))
-                return
-        elif not self.repo.verify_user(tech_id, password):
-            self.error.setText("ID o contraseña incorrectos.")
-            self.pw_input.clear()
-            return
-        self.user_id = tech_id.upper()
+        self.sesion = sesion
+        self.user_id = sesion.tech_id
         self.accept()

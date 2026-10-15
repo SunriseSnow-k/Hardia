@@ -20,8 +20,13 @@ class Repository:
     def count_users(self) -> int:
         return self.c.execute("SELECT COUNT(*) FROM users").fetchone()[0]
 
-    def create_user(self, tech_id: str, password: str, name: str = "") -> None:
+    def create_user(self, tech_id: str, password: str, name: str = "", role: str | None = None) -> None:
+        """Crea un técnico. La primera cuenta del programa siempre es administrador."""
         tech_id = tech_id.strip().upper()
+        if role is None:
+            role = "admin" if self.count_users() == 0 else "tecnico"
+        if role not in ("admin", "tecnico"):
+            raise ValueError("Rol no válido.")
         if not tech_id:
             raise ValueError("El ID de técnico es obligatorio.")
         if len(password) < 6:
@@ -29,8 +34,8 @@ class Repository:
         h, s = hash_password(password)
         try:
             self.c.execute(
-                "INSERT INTO users(tech_id, name, pw_hash, salt) VALUES (?,?,?,?)",
-                (tech_id, name or tech_id, h, s),
+                "INSERT INTO users(tech_id, name, pw_hash, salt, role) VALUES (?,?,?,?,?)",
+                (tech_id, name or tech_id, h, s, role),
             )
             self.c.commit()
         except sqlite3.IntegrityError:
@@ -38,7 +43,7 @@ class Repository:
 
     def verify_user(self, tech_id: str, password: str) -> bool:
         row = self.c.execute(
-            "SELECT pw_hash, salt FROM users WHERE tech_id = ?",
+            "SELECT pw_hash, salt FROM users WHERE tech_id = ? AND active = 1",
             (tech_id.strip().upper(),),
         ).fetchone()
         return bool(row) and verify_password(password, row["pw_hash"], row["salt"])

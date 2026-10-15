@@ -115,7 +115,7 @@ def test_migra_base_antigua_sin_perder_datos_y_con_copia(tmp_path):
     _base_version_2(ruta)
     d = Database(ruta, carpeta_copias=copias)
     try:
-        assert d.migraciones_aplicadas == [3]
+        assert d.migraciones_aplicadas == [3, 4]
         repo = Repository(d)
         caso = repo.get_case("C-001")
         assert (caso["cliente"], caso["serial"]) == ("Peña", "SN-1")
@@ -150,7 +150,7 @@ def test_migracion_fallida_no_deja_cambios(tmp_path, monkeypatch):
     monkeypatch.setattr(migraciones, "VERSION_ACTUAL", VERSION_ACTUAL + 1)
     with pytest.raises(sqlite3.OperationalError):
         Database(ruta)
-    assert _leer_desde_otra_conexion(ruta, "PRAGMA user_version") == VERSION_ACTUAL  # la 3 sí quedó
+    assert _leer_desde_otra_conexion(ruta, "PRAGMA user_version") == VERSION_ACTUAL  # las anteriores sí quedaron
     assert _leer_desde_otra_conexion(
         ruta, "SELECT COUNT(*) FROM sqlite_master WHERE name='a_medias'") == 0
 

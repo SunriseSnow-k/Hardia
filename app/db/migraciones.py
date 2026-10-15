@@ -176,8 +176,29 @@ def _v3_esquema_consolidado(conn) -> None:
     """)
 
 
+def _v4_roles_y_auditoria(conn) -> None:
+    """Roles (administrador/técnico), cuentas desactivables, bloqueo por intentos fallidos y
+    registro de auditoría. El técnico más antiguo (quien instaló el programa) queda como administrador."""
+    _ejecutar(conn, """
+        ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'tecnico';
+        ALTER TABLE users ADD COLUMN active INTEGER NOT NULL DEFAULT 1;
+        ALTER TABLE users ADD COLUMN failed_attempts INTEGER NOT NULL DEFAULT 0;
+        ALTER TABLE users ADD COLUMN locked_until TEXT NOT NULL DEFAULT '';
+        UPDATE users SET role = 'admin' WHERE id = (SELECT MIN(id) FROM users);
+        CREATE TABLE audit_log (
+            id      INTEGER PRIMARY KEY AUTOINCREMENT,
+            at      TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+            tech_id TEXT NOT NULL DEFAULT '',
+            action  TEXT NOT NULL,
+            detail  TEXT NOT NULL DEFAULT ''
+        );
+        CREATE INDEX idx_audit_at ON audit_log(at)
+    """)
+
+
 MIGRACIONES = [
     (3, "Esquema consolidado", _v3_esquema_consolidado),
+    (4, "Roles, bloqueo de acceso y auditoría", _v4_roles_y_auditoria),
 ]
 VERSION_ACTUAL = MIGRACIONES[-1][0]
 
