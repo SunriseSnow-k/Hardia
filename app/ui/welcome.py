@@ -3,7 +3,7 @@ import html
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (QDialog, QHBoxLayout, QLabel, QLineEdit, QPushButton,
                                QStackedWidget, QVBoxLayout, QWidget)
-from app.ai.config import check_ai
+from app.ai.config import check_ai, nombre_modelo
 from app.db.repo import Repository
 from app.paths import data_dir
 
@@ -89,14 +89,15 @@ class WelcomeDialog(QDialog):
         self.titulo.setText("Todo listo")
         self.b_sig.setText("Empezar")
         ok, modelo, msg = check_ai(self.repo)
-        ia = (f"<b style='color:#2f855a'>● IA local lista</b> (modelo {html.escape(modelo)})."
+        ia = (f"<b style='color:#2f855a'>● IA local lista</b> ({html.escape(nombre_modelo(modelo))})."
               if ok else
-              f"<b style='color:#5f6b77'>● IA local no disponible.</b> {html.escape(msg)}")
+              "<b style='color:#5f6b77'>● IA local opcional.</b> El programa funciona completo con "
+              "el diagnóstico por reglas. Si quiere ayuda de la IA para redactar y resumir, descargue "
+              "el paquete de IA (una sola vez) en la sección <b>IA local</b>.")
         self.info.setText(
             "El programa funciona <b>sin Internet</b>.<br><br>"
             "Sus datos se guardan solo en este equipo:<br>"
-            f"{html.escape(str(data_dir()))}<br><br>{ia}<br><br>"
-            "Puede configurar la IA en la sección <b>IA local</b>.")
+            f"{html.escape(str(data_dir()))}<br><br>{ia}")
 
     def _siguiente(self):
         if self.stack.currentIndex() == 0:

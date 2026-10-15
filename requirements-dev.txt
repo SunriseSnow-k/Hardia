@@ -1,0 +1,4 @@
+# Herramientas de desarrollo: pruebas y empaquetado
+-r requirements.txt
+pytest==9.1.1
+pyinstaller==6.22.3

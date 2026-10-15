@@ -215,5 +215,92 @@
       "Probar con otro monitor o cable",
       "Revisar la temperatura de la tarjeta gráfica"
     ]
+  },
+  {
+    "id": "R-015", "category": "GPU", "priority": "Alta",
+    "cause": "Tarjeta gráfica con temperatura elevada",
+    "symptoms": [],
+    "conditions": [
+      {"metric": "gpu_temp", "op": ">=", "value": 85, "label": "Temperatura de la GPU de 85 °C o más"},
+      {"metric": "gpu_hotspot", "op": ">=", "value": 100, "label": "Punto más caliente de la GPU (hot spot) de 100 °C o más"}
+    ],
+    "recommendations": [
+      "Limpiar el disipador y los ventiladores de la tarjeta gráfica",
+      "Revisar que los ventiladores de la GPU giren bajo carga",
+      "Renovar la pasta térmica (y las almohadillas térmicas si corresponde)",
+      "Mejorar el flujo de aire del gabinete o usar base refrigerante en laptops"
+    ]
+  },
+  {
+    "id": "R-016", "category": "Temperatura", "priority": "Alta", "min_evidence": 2, "min_confidence": 0.5,
+    "cause": "Ventilador detenido o sin girar",
+    "symptoms": [
+      {"name": "Ventilador no gira", "keywords": ["ventilador no gira", "no gira", "ventilador detenido", "ventilador no funciona", "no suena el ventilador"]},
+      {"name": "Se calienta", "keywords": ["calienta", "caliente", "sobrecalent"]}
+    ],
+    "conditions": [
+      {"metric": "fan_max_rpm", "op": "<", "value": 200, "label": "Ningún ventilador del sistema supera las 200 RPM"},
+      {"metric": "cpu_temp", "op": ">", "value": 75, "label": "Temperatura de CPU superior a 75 °C"}
+    ],
+    "recommendations": [
+      "Comprobar que el ventilador esté conectado y gire libremente",
+      "Limpiar o reemplazar el ventilador si está trabado o hace ruido",
+      "Revisar en el BIOS la curva y el modo de control del ventilador"
+    ]
+  },
+  {
+    "id": "R-017", "category": "Temperatura", "priority": "Media", "min_evidence": 2, "min_confidence": 0.6,
+    "cause": "Temperatura de CPU alta estando en reposo",
+    "symptoms": [
+      {"name": "Se calienta", "keywords": ["calienta", "caliente", "sobrecalent", "temperatura alta"]}
+    ],
+    "conditions": [
+      {"metric": "cpu_temp", "op": ">", "value": 70, "label": "Temperatura de CPU superior a 70 °C"},
+      {"metric": "cpu_usage", "op": "<", "value": 30, "label": "Uso de CPU bajo (menos de 30 %)"}
+    ],
+    "recommendations": [
+      "Limpiar el polvo del disipador y las rejillas de ventilación",
+      "Renovar la pasta térmica del procesador",
+      "Verificar que el disipador esté bien asentado"
+    ]
+  },
+  {
+    "id": "R-018", "category": "Almacenamiento", "priority": "Alta",
+    "cause": "Vida útil del SSD casi agotada",
+    "symptoms": [],
+    "conditions": [
+      {"metric": "disk_life_min_pct", "op": "<", "value": 20, "label": "Vida útil restante del disco menor a 20 %"}
+    ],
+    "recommendations": [
+      "Respaldar de inmediato la información importante",
+      "Planificar el reemplazo de la unidad",
+      "Clonar el sistema a una unidad nueva para no reinstalar"
+    ]
+  },
+  {
+    "id": "R-019", "category": "Almacenamiento", "priority": "Alta",
+    "cause": "Windows informa la unidad de almacenamiento con fallas",
+    "symptoms": [],
+    "conditions": [
+      {"metric": "disk_health_warning", "op": ">=", "value": 1, "label": "Windows Storage informa la unidad con advertencias"}
+    ],
+    "recommendations": [
+      "Respaldar de inmediato la información importante",
+      "Revisar el estado SMART completo de la unidad",
+      "Reemplazar la unidad"
+    ]
+  },
+  {
+    "id": "R-020", "category": "Almacenamiento", "priority": "Media",
+    "cause": "Unidad de almacenamiento con temperatura elevada",
+    "symptoms": [],
+    "conditions": [
+      {"metric": "disk_temp_max", "op": ">=", "value": 60, "label": "Temperatura del disco de 60 °C o más"}
+    ],
+    "recommendations": [
+      "Mejorar la ventilación alrededor de la unidad",
+      "En unidades NVMe, colocar un disipador",
+      "Volver a medir la temperatura tras la limpieza"
+    ]
   }
 ]

@@ -67,7 +67,11 @@ def _f_cpu(t, d):
                           ("architecture", "Arquitectura", None), ("cores", "Núcleos físicos", None),
                           ("threads", "Hilos lógicos", None),
                           ("max_mhz", "Frecuencia máxima declarada", lambda v: f"{v / 1000:.2f} GHz"),
-                          ("usage_pct", "Uso al capturar", lambda v: f"{v:.0f} %")])
+                          ("usage_pct", "Uso al capturar", lambda v: f"{v:.0f} %"),
+                          ("temp_c", "Temperatura al capturar", lambda v: f"{v:.0f} °C"),
+                          ("temp_max_core_c", "Núcleo más caliente", lambda v: f"{v:.0f} °C"),
+                          ("clock_mhz", "Frecuencia media al capturar", lambda v: f"{v / 1000:.2f} GHz"),
+                          ("power_w", "Consumo del procesador", lambda v: f"{v:.0f} W")])
 
 
 def _velocidad_ram(m: dict):
@@ -109,7 +113,10 @@ def _f_storage(t, d):
                  if u.get("health") else "Salud: sin fuente fiable")
         partes = [u.get("model"), u.get("media"), fmt_bytes(u["size_bytes"]) if u.get("size_bytes") else None,
                   f'{u["rpm"]} rpm' if u.get("rpm") else None,
-                  u.get("bus"), "externa" if u.get("external") else None, u.get("manufacturer"), salud]
+                  u.get("bus"), "externa" if u.get("external") else None, u.get("manufacturer"), salud,
+                  f'{u["temp_c"]:.0f} °C' if u.get("temp_c") is not None else None,
+                  f'vida útil restante {u["life_pct"]:.0f} %' if u.get("life_pct") is not None else None,
+                  f'{u["written_gb"]:,.0f} GB escritos'.replace(",", " ") if u.get("written_gb") else None]
         filas.append(_fila(t, f"Unidad física {i}", " · ".join(p for p in partes if p)))
     for v in _l(d.get("logical")):
         if v.get("size_bytes"):
@@ -125,7 +132,11 @@ def _f_graphics(t, d):
     for i, g in enumerate(_l(d.get("adapters")), 1):
         vram = f'memoria gráfica {g["vram_gb"]:g} GB' if g.get("vram_gb") else "memoria gráfica no informada"
         partes = [g.get("name"), g.get("manufacturer"), vram,
-                  f'controlador {g["driver_version"]}' if g.get("driver_version") else None]
+                  f'controlador {g["driver_version"]}' if g.get("driver_version") else None,
+                  f'{g["temp_c"]:.0f} °C' if g.get("temp_c") is not None else None,
+                  f'punto más caliente {g["hotspot_c"]:.0f} °C' if g.get("hotspot_c") is not None else None,
+                  f'uso {g["load_pct"]:.0f} %' if g.get("load_pct") is not None else None,
+                  f'ventilador {g["fan_rpm"]:.0f} RPM' if g.get("fan_rpm") is not None else None]
         filas.append(_fila(t, f"Adaptador {i}", " · ".join(p for p in partes if p)))
     return filas
 
@@ -174,13 +185,24 @@ def _f_other(t, d):
     return filas
 
 
+_PIEZA = {"cpu": "CPU", "gpu": "GPU", "storage": "Disco", "motherboard": "Placa", "cooler": "Refrigeración",
+          "memory": "RAM"}
+
+
+def _sensor(s: dict) -> str:
+    """'GPU · GPU Core' o solo el nombre si no se sabe de qué pieza es."""
+    pieza = _PIEZA.get(s.get("hw"))
+    nombre = s.get("name", "?")
+    return f"{pieza} · {nombre}" if pieza and not nombre.lower().startswith(pieza.lower()) else nombre
+
+
 def _f_sensors(t, d):
     filas = []
     for s in _l(d.get("temperatures")):
-        filas.append(_fila(t, f'Temperatura: {s.get("name", "?")}',
+        filas.append(_fila(t, f'Temperatura: {_sensor(s)}',
                            f'{s["value"]:.0f} °C (fuente: {s.get("source", "s/d")})'))
     for s in _l(d.get("fans")):
-        filas.append(_fila(t, f'Ventilador: {s.get("name", "?")}', f'{s["rpm"]:.0f} RPM'))
+        filas.append(_fila(t, f'Ventilador: {_sensor(s)}', f'{s["rpm"]:.0f} RPM'))
     return filas
 
 

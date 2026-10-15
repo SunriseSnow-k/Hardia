@@ -60,6 +60,18 @@ IMPLICACIONES = {
     "R-013": "Puede haber programas no deseados o dañinos que hacen lento el equipo "
              "o ponen en riesgo su información.",
     "R-014": "La parte que maneja la imagen (tarjeta o controlador de video) podría estar fallando.",
+    "R-015": "La tarjeta de video se calienta demasiado; puede provocar cierres de juegos o programas, "
+             "fallas de imagen y acortar su vida útil.",
+    "R-016": "Un ventilador no está girando, así que el equipo no se enfría bien y puede apagarse "
+             "o dañarse por calor.",
+    "R-017": "El procesador se calienta incluso sin trabajo pesado; suele deberse a polvo o pasta "
+             "térmica seca.",
+    "R-018": "La unidad de estado sólido (SSD) se acerca al final de su vida útil. Le recomendamos "
+             "respaldar su información y planificar su cambio.",
+    "R-019": "Windows detectó fallas en la unidad donde se guardan sus archivos. Respalde su "
+             "información cuanto antes.",
+    "R-020": "La unidad de almacenamiento trabaja muy caliente, lo que puede volverla lenta y "
+             "reducir su vida útil.",
 }
 IMPLICACION_GENERICA = "Nuestro técnico le explicará qué significa y cómo resolverlo."
 

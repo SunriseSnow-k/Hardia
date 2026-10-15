@@ -4,7 +4,7 @@ import html
 from datetime import datetime
 
 from PySide6.QtCore import QEvent, QRectF, QSize, Qt, QTimer
-from PySide6.QtGui import QColor, QPainter
+from PySide6.QtGui import QColor, QFont, QFontMetrics, QPainter
 from PySide6.QtWidgets import (QFrame, QGridLayout, QHBoxLayout, QLabel, QScrollArea, QSizePolicy,
                                QTableWidgetItem, QVBoxLayout, QWidget)
 
@@ -368,11 +368,21 @@ def ajustar_alto_tabla(tabla):
 
 
 def item_medida(*textos: str) -> QTableWidgetItem:
-    """Ítem con el texto más largo de la celda, sin pintar: así la columna toma el ancho
-    correcto aunque el contenido visible sea un widget."""
-    item = QTableWidgetItem(max(textos, key=len) + "    ")
-    item.setForeground(QColor(0, 0, 0, 0))
+    """Ítem vacío que solo indica el tamaño del texto más largo de la celda: así la columna
+    toma el ancho correcto aunque el contenido visible sea un widget.
+
+    No lleva texto: un texto "invisible" se volvía visible al seleccionar la fila (la regla
+    QTableWidget::item:selected de la hoja de estilos cambia su color) y se pintaba debajo
+    del widget, encimándose con los datos."""
+    fm = QFontMetrics(_FUENTE_TABLA)
+    texto = max(textos, key=len) + "    "
+    item = QTableWidgetItem()
+    item.setData(Qt.SizeHintRole, QSize(fm.horizontalAdvance(texto) + 16, fm.height() + 8))
     return item
+
+
+_FUENTE_TABLA = QFont("Segoe UI")  # la misma que la hoja de estilos (QWidget, 14 px)
+_FUENTE_TABLA.setPixelSize(14)
 
 
 def color_estado(estado: str) -> str:

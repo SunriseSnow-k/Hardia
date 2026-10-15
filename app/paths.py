@@ -1,4 +1,5 @@
 import os
+import sys
 from pathlib import Path
 
 APP_NAME = "SistemaDiagnostico"
@@ -28,3 +29,8 @@ def backups_dir() -> Path:
     path = data_dir() / "Copias"
     path.mkdir(parents=True, exist_ok=True)
     return path
+
+def recurso(*partes: str) -> Path:
+    """Archivo incluido con el programa (app/assets, …), también cuando está empaquetado."""
+    base = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parents[1]))
+    return base.joinpath("app", *partes)

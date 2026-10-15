@@ -17,6 +17,9 @@ ESTADOS = (BUENO, REVISAR, ATENCION, SIN_REF)
 GRAVEDAD = {ATENCION: 0, REVISAR: 1, BUENO: 2, SIN_REF: 3}
 UMBRAL_BUENO, UMBRAL_REVISAR = 80.0, 60.0      # % respecto a fábrica
 MARGEN_BUENO, MARGEN_REVISAR = 20.0, 10.0      # °C hasta el límite del procesador
+GPU_REVISAR, GPU_ATENCION = 83.0, 90.0         # °C del núcleo de la GPU (umbral orientativo del taller)
+DISCO_T_REVISAR, DISCO_T_ATENCION = 55.0, 65.0  # °C de la unidad (umbral orientativo del taller)
+FAN_PARADO_RPM, TEMP_FAN_PARADO = 200.0, 75.0  # ventiladores casi detenidos con la CPU caliente
 SIN_MEDICION = "Sin medición: requiere la prueba de rendimiento"
 FUENTE_LHM = "LibreHardwareMonitor"
 
@@ -58,6 +61,14 @@ QUE_SIGNIFICA = {
                    "prioritarias.",
                    "El equipo se calienta demasiado; puede volverse lento o apagarse."),
     },
+    "graficos": {
+        BUENO: ("La temperatura de la GPU está dentro de lo habitual.",
+                "La tarjeta de video no se está calentando de más."),
+        REVISAR: ("La GPU trabaja caliente: revise ventiladores, polvo y flujo de aire.",
+                  "La tarjeta de video se calienta más de lo ideal."),
+        ATENCION: ("La GPU está muy caliente: limpieza, pasta y almohadillas térmicas prioritarias.",
+                   "La tarjeta de video se calienta demasiado; puede fallar o cerrar juegos y programas."),
+    },
     "procesador": {
         BUENO: ("El puntaje medido está cerca de la referencia del taller para este modelo.",
                 "El procesador rinde como se espera."),
@@ -74,7 +85,7 @@ QUE_HACER = {
     "disco": "Respaldar la información y repetir la medición; si Windows informa advertencias, planificar el reemplazo.",
     "refrigeracion": "Limpiar ventiladores y disipador, renovar la pasta térmica y volver a medir bajo carga.",
     "procesador": "Repetir la prueba con el cargador conectado y sin programas abiertos; revisar la temperatura.",
-    "graficos": "No hay medición de gráficos en esta versión.",
+    "graficos": "Limpiar el disipador y los ventiladores de la GPU y volver a medir bajo carga.",
 }
 
 
@@ -225,21 +236,32 @@ def _discos(inv, references, benchmark) -> list[dict]:
                    ("Tipo", u.get("media") or "No disponible"), ("Conexión", u.get("bus") or "No disponible")]
         if u.get("rpm"):
             windows.append(("Velocidad de giro", f'{u["rpm"]} rpm'))
-        windows += [("Temperatura del disco", "No disponible: esta versión no la lee"),
-                    ("Horas de uso", "No disponible: requiere administrador y esta versión no la lee")]
+        t_disco, vida = u.get("temp_c"), u.get("life_pct")
+        windows.append(("Temperatura del disco", f"{t_disco:.0f} °C (LibreHardwareMonitor)" if t_disco is not None
+                        else "No disponible: requiere ejecutar como administrador"))
+        windows.append(("Vida útil restante", f"{vida:.0f} % (SMART, LibreHardwareMonitor)" if vida is not None
+                        else "No disponible: la unidad no la informa o falta ejecutar como administrador"))
+        if u.get("written_gb"):
+            windows.append(("Datos escritos", f'{u["written_gb"]:,.0f} GB'.replace(",", " ")))
+        e_temp = (ATENCION if t_disco is not None and t_disco >= DISCO_T_ATENCION else
+                  REVISAR if t_disco is not None and t_disco >= DISCO_T_REVISAR else None)
+        if e_temp:
+            e_salud = peor(e_salud, e_temp) if e_salud != SIN_REF else e_temp
         ref = find_disk_type(references, u)
         med = medidas.get(str(u.get("index")))
         mb_s = med.get("lectura_mb_s") if med else None
         fabrica = ((f'{ref["lectura_mb_s"]:.0f} MB/s', f'típico de {ref["tipo"]}') if ref
                    else ("Sin referencia", "no hay valor de fábrica para este tipo de unidad"))
-        fuente = "Windows Storage (MSFT_PhysicalDisk)" + (
+        fuente = "Windows Storage (MSFT_PhysicalDisk)" + (" · SMART: LibreHardwareMonitor" if vida is not None else "") + (
             f' · lectura medida por este programa · referencia: {ref["fuente"]}' if mb_s and ref else
             " · lectura medida por este programa" if mb_s else "")
         nombre = "Almacenamiento" if len(fisicos) == 1 else f"Almacenamiento {n}"
         texto_salud = f"Windows Storage informa la unidad {u.get('model') or ''} en estado «{salud}»." if salud else ""
+        if vida is not None:
+            texto_salud = (texto_salud + " " if texto_salud else "") + f"Le queda el {vida:.0f} % de su vida útil."
         if mb_s and ref:
             pct = 100 * mb_s / ref["lectura_mb_s"]
-            estado = peor(e_salud, estado_por_pct(pct))
+            estado = peor(e_salud, estado_por_pct(pct), *([estado_por_pct(vida)] if vida is not None else []))
             resumen = (texto_salud + " " if e_salud == ATENCION else "") + \
                 f"La lectura medida es el {pct:.0f} % de la típica ({mb_s:.0f} de {ref['lectura_mb_s']:.0f} MB/s)."
             salida.append(_comp(
@@ -248,6 +270,16 @@ def _discos(inv, references, benchmark) -> list[dict]:
                 fuente=fuente, medido_num=mb_s, fabrica_num=ref["lectura_mb_s"], unidad="MB/s",
                 calculo=f"{mb_s:.0f} MB/s ÷ {ref['lectura_mb_s']:.0f} MB/s = {pct:.0f} %",
                 windows=windows, resumen=resumen.strip(), tipo="disco"))
+            continue
+        if vida is not None and not mb_s:
+            # La vida útil SMART se compara con la de una unidad nueva (100 %)
+            estado = peor(e_salud, estado_por_pct(vida)) if e_salud != SIN_REF else estado_por_pct(vida)
+            salida.append(_comp(
+                f"disco:{u.get('index')}", nombre, modelo, estado,
+                medido=(f"{vida:.0f} %", "vida útil restante (SMART)"), fabrica=("100 %", "unidad nueva"),
+                pct=vida, alt=SIN_MEDICION, fuente=fuente, medido_num=vida, fabrica_num=100.0, unidad="%",
+                calculo=f"{vida:.0f} % ÷ 100 % = {vida:.0f} %", windows=windows, resumen=texto_salud,
+                tipo="disco"))
             continue
         if mb_s:
             alt = "Sin referencia para este tipo de unidad"
@@ -295,6 +327,9 @@ def _refrigeracion(inv, scan, references, benchmark) -> dict:
                      alt="Sin límite de fábrica para este procesador en la base", fuente=fuente, windows=windows)
     margen = ref["tjmax_c"] - float(temp)
     estado = ATENCION if bcpu.get("detenido_por_temp") else estado_por_margen(margen)
+    if _ventiladores_parados(sen) and float(temp) > TEMP_FAN_PARADO:
+        estado = peor(estado, REVISAR)
+        windows.append(("Ventiladores", f"Ninguno supera {FAN_PARADO_RPM:.0f} rpm con la CPU a {float(temp):.0f} °C"))
     return _comp(
         "refrigeracion", "Refrigeración", cpu, estado, medido=medido, fabrica=fabrica,
         alt=f"Margen de {margen:.0f} °C", fuente=fuente, medido_num=float(temp), fabrica_num=ref["tjmax_c"],
@@ -302,6 +337,12 @@ def _refrigeracion(inv, scan, references, benchmark) -> dict:
         windows=windows,
         resumen=f"Margen térmico de {margen:.0f} °C hasta el límite del procesador ({ref['tjmax_c']:.0f} °C)"
                 + (", con temperatura aproximada." if aprox else "."))
+
+
+def _ventiladores_parados(sen) -> bool:
+    rpm = [f["rpm"] for f in _l(sen.get("fans"))
+           if isinstance(f, dict) and f.get("rpm") is not None and f.get("hw") != "gpu"]
+    return bool(rpm) and max(rpm) < FAN_PARADO_RPM
 
 
 def _procesador(inv, scan, references, benchmark) -> dict:
@@ -337,12 +378,33 @@ def _procesador(inv, scan, references, benchmark) -> dict:
 
 
 def _graficos(inv) -> dict | None:
-    adaptadores = [a.get("name") for a in _l(_d(inv.get("graphics")).get("adapters"))
-                   if isinstance(a, dict) and a.get("name")]
+    adaptadores = [a for a in _l(_d(inv.get("graphics")).get("adapters")) if isinstance(a, dict) and a.get("name")]
     if not adaptadores:
         return None
-    return _comp("graficos", "Gráficos", " · ".join(adaptadores), medido=("No medido", ""),
-                 alt="Sin referencia: no se mide en esta versión", fuente="—")
+    modelo = " · ".join(a["name"] for a in adaptadores)
+    windows = []
+    for a in adaptadores:
+        pre = f'{a["name"]}: ' if len(adaptadores) > 1 else ""
+        for campo, etiqueta, fmt in (("temp_c", "Temperatura", "{:.0f} °C"),
+                                     ("hotspot_c", "Punto más caliente", "{:.0f} °C"),
+                                     ("load_pct", "Uso al capturar", "{:.0f} %"), ("fan_rpm", "Ventilador", "{:.0f} rpm")):
+            if a.get(campo) is not None:
+                windows.append((pre + etiqueta, fmt.format(a[campo])))
+        if a.get("mem_used_mb") is not None and a.get("mem_total_mb"):
+            windows.append((pre + "Memoria gráfica en uso", f'{a["mem_used_mb"]:.0f} de {a["mem_total_mb"]:.0f} MB'))
+    con_temp = [a for a in adaptadores if a.get("temp_c") is not None]
+    if not con_temp:
+        return _comp("graficos", "Gráficos", modelo, medido=("No medido", ""), windows=windows,
+                     alt="Sin lectura de temperatura de la GPU",
+                     fuente="LibreHardwareMonitor" if windows else "—")
+    caliente = max(con_temp, key=lambda a: a["temp_c"])
+    temp = float(caliente["temp_c"])
+    estado = ATENCION if temp >= GPU_ATENCION else REVISAR if temp >= GPU_REVISAR else BUENO
+    return _comp("graficos", "Gráficos", modelo, estado, medido=(f"{temp:.0f} °C", "temperatura al capturar"),
+                 fabrica=(f"< {GPU_REVISAR:.0f} °C", "umbral orientativo del taller"),
+                 alt=f"{caliente['name']} a {temp:.0f} °C", fuente="Sensores: LibreHardwareMonitor",
+                 medido_num=temp, unidad="°C", windows=windows,
+                 resumen=f"La GPU {caliente['name']} está a {temp:.0f} °C." if estado != BUENO else "")
 
 
 # ---------------- evaluación ----------------

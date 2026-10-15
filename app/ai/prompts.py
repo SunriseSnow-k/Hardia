@@ -31,13 +31,17 @@ def _datos_scan(scan) -> str:
     m = scan.get("metrics", {}) or {}
     r = scan.get("summary", {}) or {}
     lineas = []
-    for k, n, u in [("cpu_temp", "Temperatura de CPU", "°C"), ("cpu_usage", "Uso de CPU", "%"),
+    for k, n, u in [("cpu_temp", "Temperatura de CPU", "°C"), ("cpu_temp_max_core", "Núcleo más caliente", "°C"),
+                    ("cpu_usage", "Uso de CPU", "%"),
                     ("ram_usage", "Uso de RAM", "%"), ("disk_free_gb", "Espacio libre en disco", "GB"),
-                    ("disk_used_pct", "Disco usado", "%")]:
+                    ("disk_used_pct", "Disco usado", "%"), ("disk_temp_max", "Temperatura del disco", "°C"),
+                    ("disk_life_min_pct", "Vida útil restante del disco", "%"),
+                    ("gpu_temp", "Temperatura de GPU", "°C"), ("gpu_hotspot", "Punto más caliente de la GPU", "°C"),
+                    ("gpu_load", "Uso de GPU", "%"), ("fan_max_rpm", "Ventilador del sistema más rápido", "RPM")]:
         if k in m:
             lineas.append(f"{n}: {m[k]} {u}")
     for k, n in [("cpu", "Procesador"), ("ram", "RAM instalada"),
-                 ("storage", "Almacenamiento"), ("os", "Sistema operativo")]:
+                 ("storage", "Almacenamiento"), ("gpu", "Gráficos"), ("os", "Sistema operativo")]:
         if r.get(k):
             lineas.append(f"{n}: {r[k]}")
     return "\n".join(lineas) or "Sin datos medidos."

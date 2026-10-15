@@ -3,19 +3,21 @@ import platform
 import sqlite3
 
 import PySide6
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QUrl
+from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (QApplication, QHBoxLayout, QLabel, QPushButton,
                                QVBoxLayout, QWidget)
 from app.ai.config import check_ai
 from app.db.repo import Repository
 from app.diagnosis.engine import load_rules
-from app.paths import data_dir, db_path
+from app import registro
+from app.paths import data_dir, db_path, recurso
 from app.ui.welcome import WelcomeDialog
 from app.ui.widgets import AreaDesplazable, cabecera, limpiar_layout, lista_dato_valor, panel, ruta_cortable
 from app.version import APP_NAME, VERSION
 
 TECNOLOGIAS = ("Python · PySide6 (Qt) · SQLite · psutil y WMI (lectura de hardware) · "
-               "motor de reglas propio · IA local con Ollama · ReportLab (PDF) · "
+               "motor de reglas propio · IA local opcional con llama.cpp (u Ollama) · ReportLab (PDF) · "
                "PyInstaller e Inno Setup (instalador)")
 LIMITACIONES = (
     "Las temperaturas dependen de LibreHardwareMonitor o de permisos de administrador; sin ellos "
@@ -23,7 +25,8 @@ LIMITACIONES = (
     "La salud de los discos es la que informa Windows Storage; el programa no lee SMART por su cuenta.",
     "WMI no informa la memoria gráfica de 4 GB o más.",
     "El diagnóstico por reglas solo reconoce los síntomas y datos definidos en sus reglas.",
-    "La IA local es opcional, puede tardar en equipos modestos y su texto debe revisarse.",
+    "La IA local es opcional: su paquete (1 a 2,5 GB) se descarga una vez desde la sección IA local; "
+    "puede tardar en equipos modestos y su texto debe revisarse.",
     "Sin Internet no hay recuperación de contraseña: solo se puede restaurar una copia de seguridad.",
     "La salud frente a fábrica depende de la base local de referencias: solo incluye pocos modelos "
     "documentados y lo que no está en ella aparece como «Sin referencia».",
@@ -92,6 +95,17 @@ class AcercaPage(QWidget):
         tec = QLabel(TECNOLOGIAS)
         tec.setWordWrap(True)
         v2.addWidget(tec)
+        fila_t = QHBoxLayout()
+        for texto, ruta in (("Ver licencias de terceros", recurso("assets", "LICENCIAS_TERCEROS.txt")),
+                            ("Abrir la carpeta de registros (para soporte)", None)):
+            b = QPushButton(texto)
+            b.setObjectName("Link")
+            b.setCursor(Qt.PointingHandCursor)
+            b.clicked.connect(lambda _=False, r=ruta: QDesktopServices.openUrl(
+                QUrl.fromLocalFile(str(r or registro.carpeta()))))
+            fila_t.addWidget(b)
+        fila_t.addStretch()
+        v2.addLayout(fila_t)
         lay.addWidget(p2)
 
         p3, v3 = panel("Evolución prevista")

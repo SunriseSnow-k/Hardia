@@ -104,7 +104,7 @@ class EquiposPage(QWidget):
             valor = salud["indice"] if salud else None
             self.tabla.setItem(i, COL_RENDIMIENTO, item_medida("x" * 26))
             self.tabla.setCellWidget(i, COL_RENDIMIENTO, self._rendimiento(valor, salud))
-            self.tabla.setItem(i, COL_ACCIONES, item_medida("Salud   Nueva recepción"))
+            self.tabla.setItem(i, COL_ACCIONES, item_medida("Salud     Nueva recepción    "))  # enlaces en negrita
             self.tabla.setCellWidget(i, COL_ACCIONES, self._acciones(r["serial"], r["ultimo_code"]))
         self.cuenta.setText(f"{len(self._filas)} equipo(s)")
 

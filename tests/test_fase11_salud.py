@@ -138,7 +138,7 @@ def test_discos_salud_y_lectura(refs):
     ssd, hdd = componente(r, "disco:0"), componente(r, "disco:1")
     assert ssd["estado"] == BUENO and ssd["pct"] is None and "prueba de rendimiento" in ssd["alt"]
     assert hdd["estado"] == ATENCION  # Windows Storage: Advertencia
-    assert any(k == "Horas de uso" and v.startswith("No disponible") for k, v in hdd["windows"])
+    assert any(k == "Vida útil restante" and v.startswith("No disponible") for k, v in hdd["windows"])
     bench = {"discos": [{"index": 0, "lectura_mb_s": 450.0}, {"index": 1, "lectura_mb_s": 95.0}]}
     r2 = evaluate(_scan(), refs, bench)
     ssd = componente(r2, "disco:0")

@@ -1,0 +1,4 @@
+LibreHardwareMonitorLib v0.9.6 (build net472) y sus dependencias.
+Origen: https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/releases/tag/v0.9.6 (LibreHardwareMonitor.zip)
+Licencia: MPL-2.0 (ver LICENSE-LibreHardwareMonitor.txt). Se carga con pythonnet desde app/hardware/lhm.py.
+Para la temperatura de la CPU se requiere ejecutar como administrador y el controlador PawnIO (https://pawnio.eu).

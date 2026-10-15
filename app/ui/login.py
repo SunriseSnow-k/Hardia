@@ -1,7 +1,9 @@
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (QDialog, QFrame, QHBoxLayout, QVBoxLayout, QLabel,
                                QLineEdit, QPushButton, QWidget)
 from app.db.repo import Repository
+from app.paths import recurso
 from app.ui.widgets import campo
 
 BENEFICIOS = (
@@ -31,10 +33,9 @@ class LoginDialog(QDialog):
         lv.setContentsMargins(48, 48, 48, 48)
         lv.setSpacing(14)
         lv.addStretch()
-        icon = QLabel(">_")
-        icon.setObjectName("LoginIcon")
-        icon.setAlignment(Qt.AlignCenter)
-        icon.setFixedSize(72, 64)
+        icon = QLabel()
+        icon.setPixmap(QIcon(str(recurso("assets", "icono.png"))).pixmap(72, 72))
+        icon.setFixedSize(72, 72)
         title = QLabel("Sistema Inteligente Offline")
         title.setStyleSheet("font-size:22px; font-weight:600;")
         subtitle = QLabel("Diagnóstico asistido y mantenimiento de computadoras. "

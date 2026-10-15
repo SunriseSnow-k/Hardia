@@ -6,7 +6,7 @@ from PySide6.QtCore import Qt, QThread, Signal
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
                                QFrame, QProgressBar, QListWidget, QListWidgetItem,
                                QFileDialog, QStackedWidget)
-from app.hardware import diag_file
+from app.hardware import diag_file, lhm
 from app.hardware.inventory import (CATEGORIAS, ESTADO_TEXTO, FALLO, NO_AUTORIZADO, NO_COMPATIBLE,
                                     NO_DISPONIBLE, OK)
 from app.hardware.scanner import COLECTORES_NOMBRES, run_scan, COMPONENT_NAMES
@@ -130,6 +130,14 @@ class EscaneoPage(QWidget):
                                   "desde un USB. Funciona sin Internet.")
         root.addLayout(textos)
 
+        # El resto se desplaza si la pantalla es baja (p. ej., 1366×768)
+        inner = QWidget()
+        inner.setObjectName("ScrollBody")
+        cont = QVBoxLayout(inner)
+        cont.setContentsMargins(0, 0, 0, 0)
+        cont.setSpacing(12)
+        root.addWidget(AreaDesplazable(inner), 1)
+
         # Selector de modo
         sel = QHBoxLayout()
         self.b_local = QPushButton("Este equipo")
@@ -142,7 +150,7 @@ class EscaneoPage(QWidget):
             sel.addWidget(b)
         sel.addStretch()
         self.b_local.setChecked(True)
-        root.addLayout(sel)
+        cont.addLayout(sel)
 
         self.modo = QStackedWidget()
 
@@ -167,6 +175,7 @@ class EscaneoPage(QWidget):
             "QProgressBar::chunk{background:#1f6f8b;border-radius:4px;}")
         lv.addLayout(fila)
         lv.addWidget(self.bar)
+        lv.addWidget(self._aviso_sensores())
         self.modo.addWidget(loc)
 
         # --- Modo USB ---
@@ -193,12 +202,12 @@ class EscaneoPage(QWidget):
         uv.addWidget(self.lista)
         uv.addLayout(bt)
         self.modo.addWidget(usb)
-        root.addWidget(self.modo)
+        cont.addWidget(self.modo)
         self._ajustar_modo()
 
         self.msg = QLabel("")
         self.msg.setWordWrap(True)
-        root.addWidget(self.msg)
+        cont.addWidget(self.msg)
 
         # --- Resultados: categorías a la izquierda, acciones y faltantes a la derecha ---
         cuerpo = QHBoxLayout()
@@ -240,11 +249,48 @@ class EscaneoPage(QWidget):
         nv.addStretch()
         derecha.addWidget(p_nl, 1)
         cuerpo.addLayout(derecha, 2)
-        root.addLayout(cuerpo, 1)
+        cont.addLayout(cuerpo, 1)
 
         self._preparar_filas(COMPONENT_NAMES)
         self._botones_resultado(False)
         self._mostrar_no_leido()
+
+    def _aviso_sensores(self) -> QWidget:
+        """Aviso de lo que falta para leer temperaturas, ventiladores y SMART (oculto si no falta nada)."""
+        caja = QFrame()
+        caja.setStyleSheet("QFrame#AvisoSensores{background:#fbf0d9;border:1px solid #ecd9a8;border-radius:4px;}")
+        caja.setObjectName("AvisoSensores")
+        h = QHBoxLayout(caja)
+        h.setContentsMargins(12, 8, 12, 8)
+        try:
+            falta = lhm.requisitos_sensores()
+        except Exception:
+            falta = []
+        texto = QLabel("<b>Algunos sensores no se podrán leer.</b> Para el diagnóstico completo de "
+                       "temperatura, refrigeración y discos falta: " + "; ".join(html.escape(f) for f in falta) + ".")
+        texto.setTextFormat(Qt.RichText)
+        texto.setWordWrap(True)
+        texto.setStyleSheet("color:#7a5a12;")
+        h.addWidget(texto, 1)
+        if not lhm.es_administrador():
+            b = QPushButton("Reiniciar como administrador")
+            b.setObjectName("Secondary")
+            b.clicked.connect(self._reiniciar_admin)
+            h.addWidget(b, 0, Qt.AlignVCenter)
+        caja.setVisible(bool(falta))
+        self.aviso_sensores = caja
+        return caja
+
+    def _reiniciar_admin(self):
+        from PySide6.QtWidgets import QApplication, QMessageBox
+        if QMessageBox.question(self, "Reiniciar como administrador",
+                                "El programa se cerrará y se abrirá de nuevo con permisos de administrador "
+                                "(Windows pedirá confirmación). ¿Continuar?") != QMessageBox.Yes:
+            return
+        if lhm.reiniciar_como_administrador():
+            QApplication.instance().quit()
+        else:
+            self._msg("No se pudo reiniciar como administrador (se canceló el aviso de Windows).", ok=False)
 
     # ---------- utilidades ----------
     def _msg(self, texto: str, ok: bool = True):

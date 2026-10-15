@@ -68,10 +68,14 @@ class HistorialPage(QWidget):
         b_limpiar.clicked.connect(self.limpiar)
         for w in (self.f_estado, self.f_prio, self.f_diag, self.f_metodo):
             fila.addWidget(w)
-        fila.addWidget(self.fechas)
-        fila.addWidget(b_limpiar)
         fila.addStretch()
         pv.addLayout(fila)
+        fila2 = QHBoxLayout()  # en otra fila para que la ventana quepa en pantallas de 1366 px
+        fila2.setSpacing(8)
+        fila2.addWidget(self.fechas)
+        fila2.addWidget(b_limpiar)
+        fila2.addStretch()
+        pv.addLayout(fila2)
         root.addWidget(p_filtros)
 
         self.estado = QLabel("")

@@ -1,0 +1,32 @@
+Sistema Inteligente Offline - Componentes de terceros
+======================================================
+
+El programa incluye o descarga los siguientes componentes. Cada uno conserva su propia licencia.
+
+Incluidos en el instalador
+--------------------------
+- Python (PSF License) - https://www.python.org
+- Qt for Python / PySide6 (LGPL-3.0) - https://www.qt.io/qt-for-python
+  Se distribuye como bibliotecas dinamicas en la carpeta del programa; pueden reemplazarse por
+  otra version compatible.
+- ReportLab (BSD) - https://www.reportlab.com
+- psutil (BSD-3-Clause) - https://github.com/giampaolo/psutil
+- WMI (MIT) - https://github.com/tjguk/wmi
+- pywin32 (PSF) - https://github.com/mhammond/pywin32
+- pythonnet (MIT) - https://github.com/pythonnet/pythonnet
+- LibreHardwareMonitorLib 0.9.6 y dependencias (MPL-2.0)
+  https://github.com/LibreHardwareMonitor/LibreHardwareMonitor
+  El codigo fuente esta disponible en ese repositorio. Ver LICENSE-LibreHardwareMonitor.txt.
+- Runtime de Microsoft Visual C++ (redistribuible, licencia de Microsoft)
+
+Paquete de IA opcional (se descarga solo si el usuario lo pide)
+---------------------------------------------------------------
+- llama.cpp (MIT) - https://github.com/ggml-org/llama.cpp
+- LLVM OpenMP runtime (Apache-2.0 con excepcion LLVM)
+- Qwen3-4B-Instruct-2507, cuantizado GGUF por Unsloth (Apache-2.0)
+  https://huggingface.co/Qwen/Qwen3-4B-Instruct-2507
+- Qwen2.5-1.5B-Instruct GGUF (Apache-2.0)
+  https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF
+
+Los textos completos de las licencias del motor de IA quedan junto a el en
+%APPDATA%\SistemaDiagnostico\IA\motor.

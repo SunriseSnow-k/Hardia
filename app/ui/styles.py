@@ -81,8 +81,6 @@ QPushButton#ChipBtn:checked { background: #e1f0f5; border-color: #1f6f8b;
 #LoginLeft { background: #1d2733; }
 #LoginLeft QLabel { color: white; }
 #LoginLeft QLabel#LoginMuted { color: #a9b6c4; }
-#LoginLeft QLabel#LoginIcon { border: 2px solid #5ec1df; border-radius: 8px; color: #5ec1df;
-             font-family: Consolas; font-size: 22px; font-weight: 600; padding: 14px 18px; }
 #LoginCard { background: white; border: 1px solid #d9dfe5; border-radius: 6px; }
 
 #Muted { color: #5f6b77; font-size: 12px; }

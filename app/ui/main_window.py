@@ -1,3 +1,5 @@
+import logging
+
 from PySide6.QtCore import Qt, QStringListModel, QTimer, Signal
 from PySide6.QtWidgets import (QMainWindow, QWidget, QHBoxLayout, QVBoxLayout,
                                QListWidget, QStackedWidget, QLabel, QFrame,
@@ -27,6 +29,7 @@ SECCIONES = [
 (IDX_INICIO, IDX_RECEPCION, IDX_ESCANEO, IDX_SALUD, IDX_EQUIPOS, IDX_HISTORIAL,
  IDX_REPORTES, IDX_CONOCIMIENTO, IDX_IA, IDX_CONFIG, IDX_ACERCA) = range(11)
 MAX_SUGERENCIAS = 20
+log = logging.getLogger(__name__)
 
 
 class MainWindow(QMainWindow):
@@ -116,6 +119,14 @@ class MainWindow(QMainWindow):
 
         self.actualizar_ia()
         self.sidebar.setCurrentRow(IDX_INICIO)
+
+    def mostrar(self):
+        """Abre maximizada si la pantalla es más chica que el tamaño preferido (p. ej., 1366×768)."""
+        pantalla = self.screen().availableGeometry()
+        if pantalla.width() < self.width() + 40 or pantalla.height() < self.height() + 40:
+            self.showMaximized()
+        else:
+            self.show()
 
     # ---------- Barra superior con búsqueda global ----------
     def _barra_superior(self, user_id: str) -> QFrame:
@@ -255,8 +266,8 @@ class MainWindow(QMainWindow):
         if not self._skip_backup and self.repo.get_setting("auto_backup", "1") == "1":
             try:
                 backup.auto_backup(self.repo.c)
-            except Exception:
-                pass  # una copia automática fallida no debe impedir cerrar el programa
+            except Exception:  # una copia automática fallida no debe impedir cerrar el programa
+                log.exception("Falló la copia automática al cerrar")
         super().closeEvent(event)
         if event.isAccepted():
             self.closed.emit()

@@ -1,4 +1,4 @@
-"""Lectura de hardware en Windows (psutil + WMI).
+"""Lectura de hardware en Windows (psutil + WMI + LibreHardwareMonitorLib).
 
 Cada categoría es independiente: si una falla, el resto sigue funcionando. Solo se
 registran datos verificables; lo que no se pudo obtener se guarda con su motivo:
@@ -13,6 +13,7 @@ from datetime import datetime
 
 import psutil
 
+from . import lhm
 from .diag_file import FORMAT, VERSION
 from .inventory import FALLO, NO_AUTORIZADO, NO_COMPATIBLE, NO_DISPONIBLE, OK, fmt_bytes
 
@@ -128,6 +129,167 @@ def _faltante(campo, motivo):
     return {"campo": campo, "motivo": motivo or NO_DISPONIBLE}
 
 
+# ---------------- sensores (LibreHardwareMonitor) ----------------
+T_MIN, T_MAX = 1.0, 125.0  # fuera de este rango la lectura no es válida (0 °C = sensor sin permisos)
+_NOMBRES_TEMP_CPU = ("CPU Package", "Core (Tctl/Tdie)", "Core (Tctl)", "Core (Tdie)", "Tdie", "Tctl",
+                     "Core Max", "Core Average")
+
+
+def _norm(t) -> str:
+    return re.sub(r"[^a-z0-9]+", " ", str(t or "").lower()).strip()
+
+
+def _de_wmi(env):
+    """Lecturas del WMI que publica LibreHardwareMonitor cuando está abierto como administrador."""
+    sensores, err = _consulta(env, "Sensor", NS_LHM)
+    hardware = _consulta(env, "Hardware", NS_LHM)[0] if sensores else []
+    nombres = {str(_g(h, "Identifier")): (limpio(_g(h, "Name")), str(_g(h, "HardwareType", "") or ""))
+               for h in hardware}
+    salida = []
+    for x in sensores:
+        valor = _num(_g(x, "Value"))
+        if valor is None:
+            continue
+        padre = str(_g(x, "Parent", "") or "")
+        dispositivo, tipo_hw = nombres.get(padre, ("", ""))
+        nombre = limpio(_g(x, "Name"))
+        salida.append({"hw": lhm.categoria(tipo_hw, _g(x, "Identifier", "") or padre, nombre),
+                       "device": dispositivo, "type": str(_g(x, "SensorType", "")), "name": nombre,
+                       "value": valor})
+    return salida, err
+
+
+def _temp_valida(v) -> bool:
+    return v is not None and T_MIN <= v <= T_MAX
+
+
+def _hay_temperaturas(lecturas) -> bool:
+    return any(l["type"] == "Temperature" and _temp_valida(l["value"]) for l in lecturas)
+
+
+def _leer_lhm(env) -> dict:
+    """{"lecturas", "via", "error"}: primero la biblioteca incluida y, si no da temperaturas,
+    el WMI de LibreHardwareMonitor abierto (que sí puede estar como administrador)."""
+    lecturas, via, error = [], None, None
+    leer = getattr(env, "lhm", None)
+    if leer is not None:
+        try:
+            lecturas, via = list(leer() or []), "biblioteca"
+        except Exception as e:
+            error = clasificar_error(e)
+    if not _hay_temperaturas(lecturas):
+        de_wmi, err = _de_wmi(env)
+        if _hay_temperaturas(de_wmi) or (de_wmi and not lecturas):
+            lecturas, via, error = de_wmi, "WMI", None
+        elif not lecturas:
+            error = err or error
+    return {"lecturas": lecturas, "via": via, "error": error}
+
+
+def _lhm(env) -> dict:
+    """Lectura de LHM del escaneo en curso (se hace una vez y la comparten los colectores)."""
+    cache = getattr(env, "_lhm_cache", None)
+    return cache if cache is not None else _leer_lhm(env)
+
+
+def _de(lecturas, hw=None, tipo=None, device=None):
+    return [l for l in lecturas if (hw is None or l["hw"] == hw) and (tipo is None or l["type"] == tipo)
+            and (device is None or l["device"] == device)]
+
+
+def _buscar(lecturas, *nombres):
+    """Valor del primer sensor cuyo nombre coincide, en el orden de preferencia dado."""
+    for n in nombres:
+        for l in lecturas:
+            if _norm(l["name"]) == _norm(n):
+                return l["value"]
+    return None
+
+
+def _redondear(d: dict) -> dict:
+    return {k: (round(v, 1) if isinstance(v, float) else v) for k, v in d.items()}
+
+
+def _cpu_sensores(lecturas) -> dict:
+    cpu = _de(lecturas, "cpu")
+    temps = [l for l in _de(cpu, tipo="Temperature") if _temp_valida(l["value"])]
+    temp = _buscar(temps, *_NOMBRES_TEMP_CPU)
+    if temp is None and temps:
+        temp = max(l["value"] for l in temps)
+    nucleos = [l["value"] for l in temps if "#" in l["name"]]
+    potencia = _buscar(_de(cpu, tipo="Power"), "CPU Package", "Package")
+    reloj = _buscar(_de(cpu, tipo="Clock"), "Cores (Average)", "Cores (Average Effective)")
+    return _redondear({"device": cpu[0]["device"] if cpu else "", "temp_c": temp,
+                       "temp_max_core_c": max(nucleos) if nucleos else None,
+                       "load_pct": _buscar(_de(cpu, tipo="Load"), "CPU Total"),
+                       "power_w": potencia or None, "clock_mhz": reloj or None})
+
+
+def _gpu_sensores(lecturas) -> list[dict]:
+    salida = []
+    for disp in dict.fromkeys(l["device"] for l in _de(lecturas, "gpu")):
+        g = _de(lecturas, "gpu", device=disp)
+        temps = [l for l in _de(g, tipo="Temperature") if _temp_valida(l["value"])]
+        nucleo = [l for l in temps if "hot spot" not in l["name"].lower()]
+        temp = _buscar(temps, "GPU Core")
+        if temp is None and nucleo:
+            temp = max(l["value"] for l in nucleo)
+        ventiladores = [l["value"] for l in _de(g, tipo="Fan") if 0 <= l["value"] < 20000]
+        salida.append(_redondear({
+            "device": disp, "temp_c": temp, "hotspot_c": _buscar(temps, "GPU Hot Spot"),
+            "load_pct": _buscar(_de(g, tipo="Load"), "GPU Core", "D3D 3D"),
+            "fan_rpm": max(ventiladores) if ventiladores else None,
+            "mem_used_mb": _buscar(g, "GPU Memory Used"), "mem_total_mb": _buscar(g, "GPU Memory Total")}))
+    return salida
+
+
+def _disco_sensores(lecturas) -> list[dict]:
+    salida = []
+    for disp in dict.fromkeys(l["device"] for l in _de(lecturas, "storage")):
+        d = _de(lecturas, "storage", device=disp)
+        temps = [l for l in _de(d, tipo="Temperature") if _temp_valida(l["value"])]
+        temp = _buscar(temps, "Temperature", "Composite Temperature")
+        if temp is None and temps:
+            temp = max(l["value"] for l in temps)
+        niveles = _de(d, tipo="Level")
+        vida = _buscar(niveles, "Remaining Life", "Life Remaining")
+        usado = _buscar(niveles, "Percentage Used")  # NVMe: % de la vida nominal ya consumida
+        if vida is None and usado is not None:
+            vida = max(0.0, 100.0 - usado)
+        salida.append(_redondear({
+            "device": disp, "temp_c": temp, "life_pct": vida,
+            "spare_pct": _buscar(niveles, "Available Spare"),
+            "written_gb": _buscar(_de(d, tipo="Data"), "Data Written", "Total Bytes Written", "Host Writes")}))
+    return salida
+
+
+def _parecido(a, b) -> bool:
+    a, b = _norm(a), _norm(b)
+    return bool(a and b) and (a == b or a in b or b in a)
+
+
+def _que_falta_para_cpu(env) -> str:
+    """Texto para el técnico: qué hace falta para leer la temperatura real de la CPU."""
+    falta = []
+    if _sin_permisos(env):
+        falta.append("ejecutar el programa como administrador")
+    pawnio = getattr(env, "pawnio", None)
+    try:
+        if pawnio is not None and pawnio() is False:
+            falta.append("instalar el controlador PawnIO (pawnio.eu)")
+    except Exception:
+        pass
+    return "Para leer la temperatura de la CPU: " + " e ".join(falta) if falta else ""
+
+
+def _sin_permisos(env) -> bool:
+    admin = getattr(env, "es_admin", None)
+    try:
+        return admin is not None and not admin()
+    except Exception:
+        return False
+
+
 # ---------------- colectores ----------------
 def _identidad(env):
     cs, e1 = _consulta(env, "Win32_ComputerSystem")
@@ -175,7 +337,11 @@ def _cpu(env):
         faltan = [_faltante(c, err) for c in ("Fabricante", "Frecuencia máxima declarada")]
     if not d.get("name"):
         return _res(err or NO_DISPONIBLE, "No se pudo identificar el procesador")
+    sen = _cpu_sensores(_lhm(env)["lecturas"])
+    d.update({k: sen[k] for k in ("temp_c", "temp_max_core_c", "power_w", "clock_mhz") if sen.get(k) is not None})
     detalle = f'{d["name"]} · {d["cores"]} núcleos / {d["threads"]} hilos · {uso:.0f} % de uso'
+    if d.get("temp_c") is not None:
+        detalle += f' · {d["temp_c"]:.0f} °C'
     return _res(OK, detalle, d, faltan, {"cpu": d["name"]}, {"cpu_usage": uso})
 
 
@@ -252,7 +418,19 @@ def _almacenamiento(env):
                             "used_pct": u.percent})
     if not fisicas and not logicas:
         return _res(e1 or NO_DISPONIBLE, "No se detectaron unidades de almacenamiento")
+    sen_discos = _disco_sensores(_lhm(env)["lecturas"])
+    internos = [f for f in fisicas if not f["external"]]
+    for f in fisicas:
+        s = next((x for x in sen_discos if _parecido(x["device"], f["model"])), None)
+        if s is None and len(sen_discos) == 1 and internos == [f]:
+            s = sen_discos[0]
+        if s:
+            f.update({k: s[k] for k in ("temp_c", "life_pct", "spare_pct", "written_gb")})
+            f["sensor_source"] = lhm.FUENTE
     faltan = []
+    if fisicas and all(f.get("temp_c") is None and f.get("life_pct") is None for f in fisicas):
+        faltan.append(_faltante("Temperatura y vida útil del disco (SMART)",
+                                NO_AUTORIZADO if _sin_permisos(env) else NO_DISPONIBLE))
     if fisicas and any(not f["health"] for f in fisicas):
         faltan.append(_faltante("Estado de salud del disco", e2))
     if fisicas and any(not f["media"] for f in fisicas):
@@ -262,12 +440,21 @@ def _almacenamiento(env):
     metricas = {}
     if vol:
         metricas = {"disk_free_gb": round(vol["free_bytes"] / 1e9, 1), "disk_used_pct": vol["used_pct"]}
+    t_discos = [f["temp_c"] for f in fisicas if f.get("temp_c") is not None]
+    vidas = [f["life_pct"] for f in fisicas if f.get("life_pct") is not None]
+    if t_discos:
+        metricas["disk_temp_max"] = max(t_discos)
+    if vidas:
+        metricas["disk_life_min_pct"] = min(vidas)
+    if any(f["health"] in ("Advertencia", "No saludable") for f in fisicas):
+        metricas["disk_health_warning"] = 1
     principal = min((f for f in fisicas if not f["external"]), key=lambda f: _num(f["index"], int) or 0,
                     default=None)
     resumen = {}
     if principal and principal["size_bytes"]:
         resumen = {"storage": f'{principal["media"] or "Disco"} {fmt_bytes(principal["size_bytes"])}'}
-    alerta = any(f["health"] in ("Advertencia", "No saludable") for f in fisicas)
+    alerta = (any(f["health"] in ("Advertencia", "No saludable") for f in fisicas)
+              or any(v < 20 for v in vidas) or any(t >= 60 for t in t_discos))
     partes = [f'{f["media"] or "Disco"} {fmt_bytes(f["size_bytes"])}' for f in fisicas if f["size_bytes"]]
     detalle = f'{len(fisicas)} unidad(es): ' + ", ".join(partes) if partes else f"{len(logicas)} volumen(es)"
     if vol:
@@ -275,6 +462,10 @@ def _almacenamiento(env):
     saludes = {f["health"] for f in fisicas if f["health"]}
     if saludes:
         detalle += " · Salud: " + ", ".join(sorted(saludes))
+    if t_discos:
+        detalle += f" · {max(t_discos):.0f} °C"
+    if vidas:
+        detalle += f" · vida útil restante {min(vidas):.0f} %"
     return _res(OK, detalle, {"physical": fisicas, "logical": logicas}, faltan, resumen, metricas, alerta)
 
 
@@ -291,11 +482,32 @@ def _graficos(env):
             "vram_gb": round(ram / 1024 ** 3, 1) if ram and ram < 4294967295 else None,
             "driver_version": limpio(_g(g, "DriverVersion"))})
     adaptadores = [a for a in adaptadores if a["name"]]
+    sen_gpus = _gpu_sensores(_lhm(env)["lecturas"])
+    for a in adaptadores:
+        s = next((x for x in sen_gpus if _parecido(x["device"], a["name"])), None)
+        if s is None and len(sen_gpus) == 1 and len(adaptadores) == 1:
+            s = sen_gpus[0]
+        if s:
+            a.update({k: s[k] for k in ("temp_c", "hotspot_c", "load_pct", "fan_rpm", "mem_used_mb",
+                                        "mem_total_mb")})
+            a["sensor_source"] = lhm.FUENTE
+            if not a["vram_gb"] and s.get("mem_total_mb"):
+                a["vram_gb"] = round(s["mem_total_mb"] / 1024, 1)
     faltan = ([_faltante("Memoria gráfica (WMI no la informa o supera los 4 GB)", NO_DISPONIBLE)]
               if any(not a["vram_gb"] for a in adaptadores) else [])
-    nombres = " · ".join(a["name"] for a in adaptadores)
-    return _res(OK, nombres or "Sin nombre", {"adapters": adaptadores}, faltan,
-                {"gpu": adaptadores[0]["name"]} if adaptadores else {})
+    metricas = {}
+    for clave, campo in (("gpu_temp", "temp_c"), ("gpu_hotspot", "hotspot_c"), ("gpu_load", "load_pct")):
+        valores = [a[campo] for a in adaptadores if a.get(campo) is not None]
+        if valores:
+            metricas[clave] = max(valores)
+    partes = []
+    for a in adaptadores:
+        extra = [f'{a["temp_c"]:.0f} °C' if a.get("temp_c") is not None else "",
+                 f'{a["load_pct"]:.0f} % de uso' if a.get("load_pct") is not None else ""]
+        partes.append(a["name"] + "".join(f" · {e}" for e in extra if e))
+    return _res(OK, " | ".join(partes) or "Sin nombre", {"adapters": adaptadores}, faltan,
+                {"gpu": adaptadores[0]["name"]} if adaptadores else {}, metricas,
+                alerta=metricas.get("gpu_temp", 0) >= 90)
 
 
 def _placa(env):
@@ -401,23 +613,21 @@ def _otros(env):
 
 
 def _sensores(env):
-    temps, ventiladores, errores = [], [], []
-    sensores, e1 = _consulta(env, "Sensor", NS_LHM)
-    cpu_temp, fuente_cpu = None, None
-    for s in sensores:
-        tipo, valor = str(_g(s, "SensorType", "")), _num(_g(s, "Value"))
-        nombre = limpio(_g(s, "Name"))
-        if valor is None:
-            continue
-        if tipo == "Temperature" and 0 < valor < 120:
-            temps.append({"name": nombre, "value": valor, "source": "LibreHardwareMonitor"})
-        elif tipo == "Fan" and 0 <= valor < 20000:
-            ventiladores.append({"name": nombre, "rpm": valor})
-    candidatos = [t["value"] for t in temps if "cpu" in t["name"].lower()]
-    if candidatos:
-        cpu_temp, fuente_cpu = max(candidatos), "LibreHardwareMonitor"
-    if e1:
-        errores.append(e1)
+    """Temperaturas y ventiladores: LibreHardwareMonitor (biblioteca o WMI) y, si no hay, ACPI."""
+    lec = _lhm(env)
+    lecturas = lec["lecturas"]
+    temps = [{"name": l["name"], "value": round(l["value"], 1), "source": lhm.FUENTE, "hw": l["hw"],
+              "device": l["device"]}
+             for l in lecturas if l["type"] == "Temperature" and _temp_valida(l["value"])]
+    ventiladores = [{"name": l["name"], "rpm": l["value"], "hw": l["hw"], "device": l["device"]}
+                    for l in lecturas if l["type"] == "Fan" and 0 <= l["value"] < 20000]
+    cpu = _cpu_sensores(lecturas)
+    cpu_temp, fuente_cpu = (cpu["temp_c"], lhm.FUENTE) if cpu["temp_c"] is not None else (None, None)
+    if cpu_temp is None:  # lecturas sin categoría: se reconoce la CPU por el nombre del sensor
+        candidatos = [t["value"] for t in temps if t["hw"] == "other" and "cpu" in t["name"].lower()]
+        if candidatos:
+            cpu_temp, fuente_cpu = max(candidatos), lhm.FUENTE
+    errores = [lec["error"]] if lec["error"] else []
     if not temps:
         zonas, e2 = _consulta(env, "MSAcpi_ThermalZoneTemperature", NS_WMI)
         for z in zonas:
@@ -426,24 +636,42 @@ def _sensores(env):
             if valor is not None and 0 < valor < 120:
                 temps.append({"name": limpio(_g(z, "InstanceName")) or "Zona térmica",
                               "value": round(valor, 1), "source": "ACPI (no es necesariamente la CPU)"})
-        if temps:
+        if temps and cpu_temp is None:
             cpu_temp, fuente_cpu = max(t["value"] for t in temps), "ACPI"
         if e2:
             errores.append(e2)
+    sin_permisos = _sin_permisos(env)
+    requisito = _que_falta_para_cpu(env) if fuente_cpu != lhm.FUENTE else ""
     if not temps and not ventiladores:
-        estado = (NO_AUTORIZADO if NO_AUTORIZADO in errores else
+        estado = (NO_AUTORIZADO if NO_AUTORIZADO in errores or sin_permisos else
                   FALLO if FALLO in errores and NO_DISPONIBLE not in errores else NO_DISPONIBLE)
-        return _res(estado, "No disponible: requiere permisos de administrador o LibreHardwareMonitor")
+        return _res(estado, "No disponible. " + (requisito or "El equipo no expone sensores de temperatura"))
+    faltan = []
+    if fuente_cpu != lhm.FUENTE:
+        faltan.append(_faltante("Temperatura real de la CPU", NO_AUTORIZADO if sin_permisos else NO_DISPONIBLE))
     partes = []
     if cpu_temp is not None:
         partes.append(f"CPU {cpu_temp:.0f} °C ({fuente_cpu})")
     elif temps:
         partes.append(f"{len(temps)} sensor(es) de temperatura")
+    for cat, nombre in (("gpu", "GPU"), ("storage", "Disco")):
+        v = [t["value"] for t in temps if t.get("hw") == cat]
+        if v:
+            partes.append(f"{nombre} {max(v):.0f} °C")
     if ventiladores:
         partes.append(f"{len(ventiladores)} ventilador(es)")
+    if requisito:
+        partes.append(requisito)
     metricas = {"cpu_temp": round(cpu_temp, 1)} if cpu_temp is not None else {}
-    return _res(OK, " · ".join(partes), {"temperatures": temps, "fans": ventiladores,
-                                         "cpu_temp_source": fuente_cpu}, [], None, metricas)
+    if cpu.get("temp_max_core_c") is not None:
+        metricas["cpu_temp_max_core"] = cpu["temp_max_core_c"]
+    # Ventiladores del sistema (placa, refrigeración líquida); los de la GPU van aparte
+    sistema = [f["rpm"] for f in ventiladores if f.get("hw") != "gpu"]
+    if sistema:
+        metricas["fan_max_rpm"] = max(sistema)
+    alerta = fuente_cpu == lhm.FUENTE and cpu_temp >= 90
+    datos = {"temperatures": temps, "fans": ventiladores, "cpu_temp_source": fuente_cpu, "reader": lec["via"]}
+    return _res(OK, " · ".join(partes), datos, faltan, None, metricas, alerta)
 
 
 _FUNCIONES = {"identity": _identidad, "cpu": _cpu, "memory": _memoria, "storage": _almacenamiento,
@@ -457,6 +685,7 @@ class _Entorno:
 
     def __init__(self, c, ns):
         self.c, self._ns, self.psutil = c, ns, psutil
+        self.lector = None  # lhm.Lector abierto, para lecturas repetidas
 
     def ns(self, nombre):
         if self._ns is None:
@@ -474,6 +703,17 @@ class _Entorno:
     @staticmethod
     def processor():
         return platform.processor() or "Procesador"
+
+    def lhm(self):
+        return self.lector.leer() if self.lector is not None else lhm.leer_sensores()
+
+    @staticmethod
+    def es_admin():
+        return lhm.es_administrador()
+
+    @staticmethod
+    def pawnio():
+        return lhm.pawnio_instalado()
 
 
 def _crear_entorno():
@@ -495,6 +735,20 @@ def _escanear(progress, env) -> dict:
     """Lee todas las categorías. Los objetos WMI viven solo dentro de esta función."""
     comps, metricas, inventario, disp = [], {}, {}, {}
     resumen = {"description": "", "serial": "", "cpu": "", "ram": "", "storage": "", "os": "", "gpu": ""}
+    env._lhm_cache = _leer_lhm(env)  # una sola lectura de sensores, compartida por los colectores
+    try:
+        _recorrer(progress, env, comps, metricas, inventario, disp, resumen)
+    finally:
+        env._lhm_cache = None
+    if not resumen["description"]:
+        resumen["description"] = env.hostname()
+    return {"format": FORMAT, "version": VERSION,
+            "scanned_at": datetime.now().isoformat(timespec="seconds"),
+            "host": env.hostname(), "summary": resumen, "components": comps, "metrics": metricas,
+            "inventory": inventario, "availability": disp}
+
+
+def _recorrer(progress, env, comps, metricas, inventario, disp, resumen):
     for i, (nombre, clave) in enumerate(COLECTORES_NOMBRES):
         try:
             r = _FUNCIONES[clave](env)
@@ -512,12 +766,6 @@ def _escanear(progress, env) -> dict:
         comps.append({"name": nombre, "detail": detalle, "status": estado})
         if progress:
             progress(i, nombre, detalle, estado)
-    if not resumen["description"]:
-        resumen["description"] = env.hostname()
-    return {"format": FORMAT, "version": VERSION,
-            "scanned_at": datetime.now().isoformat(timespec="seconds"),
-            "host": env.hostname(), "summary": resumen, "components": comps, "metrics": metricas,
-            "inventory": inventario, "availability": disp}
 
 
 def read_cpu_temperature(env=None) -> tuple[float | None, str | None]:
@@ -545,7 +793,7 @@ def read_cpu_temperature(env=None) -> tuple[float | None, str | None]:
 
 
 class LectorTemperatura:
-    """Lecturas repetidas de temperatura desde un hilo: abre WMI una sola vez.
+    """Lecturas repetidas de temperatura desde un hilo: abre WMI y LibreHardwareMonitor una sola vez.
     Uso: with LectorTemperatura() as lt: temp, fuente = lt.leer()"""
 
     def __init__(self, env=None):
@@ -557,6 +805,10 @@ class LectorTemperatura:
             if pythoncom:
                 pythoncom.CoInitialize()
             self.env = _crear_entorno()
+            try:
+                self.env.lector = lhm.Lector().__enter__()
+            except Exception:
+                self.env.lector = None  # sin biblioteca: WMI de LHM o ACPI
         return self
 
     def leer(self) -> tuple[float | None, str | None]:
@@ -564,6 +816,11 @@ class LectorTemperatura:
 
     def __exit__(self, *exc):
         if self._env_dado is None:
+            if self.env is not None and self.env.lector is not None:
+                try:
+                    self.env.lector.__exit__(None, None, None)
+                except Exception:
+                    pass
             self.env = None
             gc.collect()
             if pythoncom:

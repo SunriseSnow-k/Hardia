@@ -133,17 +133,37 @@ def test_prompt_historial_y_cliente():
     assert "Luis Paredes" in c[1]["content"]
 
 
-def test_config_guardar_y_cargar(repo):
-    assert ia_config.load(repo) == {"enabled": True, "model": "llama3.2:3b", "mode": "rapido"}
-    ia_config.save(repo, False, "qwen2.5:3b", "completo")
-    assert ia_config.load(repo) == {"enabled": False, "model": "qwen2.5:3b", "mode": "completo"}
+def test_config_guardar_y_cargar(repo, monkeypatch, tmp_path):
+    monkeypatch.setenv("APPDATA", str(tmp_path / "appdata"))
+    # Por defecto: paquete de IA integrado con el modelo recomendado
+    assert ia_config.load(repo) == {"enabled": True, "engine": "paquete", "model": "qwen3-4b",
+                                    "mode": "rapido"}
+    ia_config.save(repo, False, "qwen2.5:3b", "completo", engine="ollama")
+    assert ia_config.load(repo) == {"enabled": False, "engine": "ollama", "model": "qwen2.5:3b",
+                                    "mode": "completo"}
     ia_config.save(repo, True, "", "raro")
     assert ia_config.load(repo)["model"] == "llama3.2:3b" and ia_config.load(repo)["mode"] == "rapido"
+    # Cada motor recuerda su modelo; un nombre que no es del paquete se corrige
+    ia_config.save(repo, True, "qwen2.5-1.5b", "rapido", engine="paquete")
+    assert ia_config.load(repo)["model"] == "qwen2.5-1.5b"
+    ia_config.save(repo, True, "no-existe", "rapido", engine="paquete")
+    assert ia_config.load(repo)["model"] == "qwen3-4b"
+    ia_config.save(repo, True, "llama3.2:1b", "rapido", engine="ollama")
+    ia_config.save(repo, True, "qwen2.5-1.5b", "rapido", engine="paquete")
+    assert repo.get_setting("ia_model") == "llama3.2:1b"
+
+
+def test_config_instalacion_anterior_sigue_con_ollama(repo):
+    repo.set_setting("ia_model", "llama3.2:1b")  # guardado antes de existir el paquete
+    cfg = ia_config.load(repo)
+    assert cfg["engine"] == "ollama" and cfg["model"] == "llama3.2:1b"
 
 
 def test_check_ai(repo, monkeypatch):
     def sin_ollama():
         raise oc.OllamaError("x")
+
+    repo.set_setting("ia_engine", "ollama")
 
     monkeypatch.setattr(ia_config, "list_models", sin_ollama)
     ok, _, msg = ia_config.check_ai(repo)

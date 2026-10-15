@@ -12,7 +12,7 @@ from app.paths import reports_dir
 from app.reports.service import KINDS, generate_report
 from app.ui.case_dialog import CaseDialog
 from app.ui.search_widgets import AsyncSearch, DateRangeFilter, PagerBar
-from app.ui.widgets import cabecera, fecha_corta, muted, panel
+from app.ui.widgets import AreaDesplazable, cabecera, fecha_corta, muted, panel
 
 COLUMNAS = ["Código", "Cliente", "Equipo", "Serie", "Tipo", "Fecha", "Archivo"]
 MAX_CASOS_COMBO = 50
@@ -74,13 +74,21 @@ class ReportesPage(QWidget):
         self._timer_caso.setInterval(300)
         self._timer_caso.timeout.connect(self._cargar_casos)
 
-        root = QVBoxLayout(self)
-        root.setContentsMargins(26, 22, 26, 22)
-        root.setSpacing(12)
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(26, 22, 26, 22)
+        outer.setSpacing(8)
         textos, _t, _s = cabecera("Reportes",
                                   "Genere el reporte técnico o el informe para el cliente en PDF y busque "
                                   "los reportes ya generados.")
-        root.addLayout(textos)
+        outer.addLayout(textos)
+
+        # Contenido desplazable: sin esto, en ventanas bajas la tabla aplasta el panel de generar
+        inner = QWidget()
+        inner.setObjectName("ScrollBody")
+        root = QVBoxLayout(inner)
+        root.setContentsMargins(0, 4, 0, 0)
+        root.setSpacing(12)
+        outer.addWidget(AreaDesplazable(inner), 1)
 
         # --- Generar ---
         gen, gv = panel("Generar reporte")
@@ -145,7 +153,7 @@ class ReportesPage(QWidget):
         self.tabla.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.tabla.setSelectionMode(QAbstractItemView.SingleSelection)
         self.tabla.setShowGrid(False)
-        self.tabla.setMinimumHeight(180)
+        self.tabla.setMinimumHeight(260)
         self.tabla.verticalHeader().setVisible(False)
         self.tabla.verticalHeader().setDefaultSectionSize(38)
         self.tabla.horizontalHeader().setDefaultAlignment(Qt.AlignLeft | Qt.AlignVCenter)
