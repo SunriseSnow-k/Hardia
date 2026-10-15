@@ -1,25 +1,36 @@
 import logging
 
-from PySide6.QtCore import Qt, QStringListModel, QTimer, Signal
-from PySide6.QtWidgets import (QMainWindow, QWidget, QHBoxLayout, QVBoxLayout,
-                               QListWidget, QStackedWidget, QLabel, QFrame,
-                               QLineEdit, QCompleter, QPushButton)
+from PySide6.QtCore import QStringListModel, Qt, QTimer, Signal
+from PySide6.QtWidgets import (
+    QCompleter,
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QListWidget,
+    QMainWindow,
+    QPushButton,
+    QStackedWidget,
+    QVBoxLayout,
+    QWidget,
+)
+
 from app import backup
 from app.ai.config import check_ai
 from app.db.repo import Repository
 from app.db.search_repo import SearchQueries
 from app.ui.case_dialog import CaseDialog
+from app.ui.pages.acerca import AcercaPage
+from app.ui.pages.configuracion import ConfiguracionPage
+from app.ui.pages.conocimiento import ConocimientoPage
+from app.ui.pages.equipos import EquiposPage
+from app.ui.pages.escaneo import EscaneoPage
+from app.ui.pages.historial import HistorialPage
+from app.ui.pages.ia_local import IaLocalPage
 from app.ui.pages.inicio import InicioPage
 from app.ui.pages.recepcion import RecepcionPage
-from app.ui.pages.escaneo import EscaneoPage
-from app.ui.pages.salud import SaludPage
-from app.ui.pages.equipos import EquiposPage
-from app.ui.pages.historial import HistorialPage
 from app.ui.pages.reportes import ReportesPage
-from app.ui.pages.conocimiento import ConocimientoPage
-from app.ui.pages.ia_local import IaLocalPage
-from app.ui.pages.configuracion import ConfiguracionPage
-from app.ui.pages.acerca import AcercaPage
+from app.ui.pages.salud import SaludPage
 
 SECCIONES = [
     "Inicio", "Recepción de equipo", "Escanear equipo", "Salud del equipo", "Equipos",

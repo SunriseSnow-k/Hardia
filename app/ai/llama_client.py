@@ -6,7 +6,7 @@ import http.client
 import json
 
 from . import paquete
-from .ollama_client import AiError, ChatStream, TIMEOUT_RESPUESTA
+from .ollama_client import TIMEOUT_RESPUESTA, AiError, ChatStream
 
 
 class PaqueteStream(ChatStream):

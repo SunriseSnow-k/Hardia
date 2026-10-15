@@ -37,6 +37,7 @@ def test_primera_cuenta_es_admin_y_las_demas_tecnicos(repo):
 
 def test_migracion_hace_admin_al_tecnico_mas_antiguo(tmp_path):
     import sqlite3
+
     from tests.test_fase15_datos import _base_version_2
     ruta = tmp_path / "v2.db"
     _base_version_2(ruta)
@@ -174,6 +175,7 @@ def test_configuracion_para_tecnico_oculta_administracion(ui):
 
 def test_configuracion_para_admin(ui, monkeypatch):
     from PySide6.QtWidgets import QInputDialog
+
     from app.ui.pages.configuracion import ConfiguracionPage
     page = ConfiguracionPage(ui, "ADMIN-1")
     assert not page.admin_box.isHidden() and not page.p_audit.isHidden() and page.b_restaurar.isEnabled()

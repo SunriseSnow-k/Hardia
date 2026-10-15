@@ -13,8 +13,6 @@ import sqlite3
 from datetime import date, datetime, timedelta
 from math import ceil
 
-from .repo import Repository
-
 PAGE_SIZE = 50
 MAX_PALABRAS = 8
 _ESC = "ESCAPE '\\'"

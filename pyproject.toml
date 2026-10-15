@@ -1,0 +1,44 @@
+# Configuración de las herramientas de calidad. Ejecutar todo con:
+#   .\calidad.ps1        (o por separado: ruff check . / mypy / pytest --cov)
+
+[tool.ruff]
+line-length = 130  # el código usa ~120; margen para cadenas de texto largas
+target-version = "py313"
+extend-exclude = ["build", "dist", ".venv"]
+
+[tool.ruff.lint]
+# E/W estilo, F errores (nombres sin definir, importaciones sin usar), B errores probables,
+# I orden de importaciones, UP sintaxis moderna, SIM simplificaciones, S seguridad (bandit).
+select = ["E", "W", "F", "B", "I", "UP", "SIM", "S"]
+ignore = [
+    "E741",  # nombres como `l` para layouts: convención del proyecto en la interfaz
+    "S101",  # assert en las pruebas
+    "S608",  # SQL armado con f-string: se revisa a mano (solo nombres internos, nunca datos del usuario)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S", "B011"]
+
+[tool.mypy]
+python_version = "3.13"
+files = ["app"]
+# Deuda pendiente: la interfaz Qt (app/ui y main.py) usa los nombres cortos de los enums de Qt
+# (Qt.UserRole en lugar de Qt.ItemDataRole.UserRole), que los tipos de PySide6 no reconocen.
+# Se irá incorporando al migrar cada pantalla.
+exclude = ["app/ui/"]
+ignore_missing_imports = true
+check_untyped_defs = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["app"]
+omit = ["app/vendor/*"]
+
+[tool.coverage.report]
+fail_under = 80  # hoy: 85 %. Subirlo a medida que se agreguen pruebas; nunca bajarlo
+show_missing = false
+skip_covered = true

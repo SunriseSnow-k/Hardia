@@ -1,14 +1,23 @@
 import html
 
 from PySide6.QtCore import Qt, QTimer, Signal
-from PySide6.QtWidgets import (QAbstractItemView, QHBoxLayout, QHeaderView, QLineEdit,
-                               QPushButton, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (
+    QAbstractItemView,
+    QHBoxLayout,
+    QHeaderView,
+    QLineEdit,
+    QPushButton,
+    QTableWidget,
+    QTableWidgetItem,
+    QVBoxLayout,
+    QWidget,
+)
+
 from app.db.equipment_repo import EquipmentRepository
 from app.db.health_repo import HealthRepository
 from app.db.repo import Repository
 from app.health import estado_por_pct
-from app.ui.widgets import (BarraPorcentaje, cabecera, celda, color_estado, fecha_corta, item_medida,
-                            muted, panel)
+from app.ui.widgets import BarraPorcentaje, cabecera, celda, color_estado, fecha_corta, item_medida, muted, panel
 
 COLUMNAS = ["Equipo", "Serie", "Cliente", "Casos", "Último caso", "Rendimiento", "Acciones"]
 COL_RENDIMIENTO, COL_ACCIONES = 5, 6

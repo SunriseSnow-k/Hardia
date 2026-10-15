@@ -4,18 +4,24 @@ Cada categoría es independiente: si una falla, el resto sigue funcionando. Solo
 registran datos verificables; lo que no se pudo obtener se guarda con su motivo:
 no disponible, no aplica, sin permisos o fallo de detección.
 """
+import contextlib
 import gc
+import logging
 import os
 import platform
 import re
 import socket
+from collections.abc import Callable
 from datetime import datetime
+from typing import Any
 
 import psutil
 
 from . import lhm
 from .diag_file import FORMAT, VERSION
 from .inventory import FALLO, NO_AUTORIZADO, NO_COMPATIBLE, NO_DISPONIBLE, OK, fmt_bytes
+
+log = logging.getLogger(__name__)
 
 try:
     import wmi
@@ -277,7 +283,7 @@ def _que_falta_para_cpu(env) -> str:
     try:
         if pawnio is not None and pawnio() is False:
             falta.append("instalar el controlador PawnIO (pawnio.eu)")
-    except Exception:
+    except Exception:  # noqa: S110 (comprobación opcional; si falla solo se omite la sugerencia)
         pass
     return "Para leer la temperatura de la CPU: " + " e ".join(falta) if falta else ""
 
@@ -435,7 +441,7 @@ def _almacenamiento(env):
         faltan.append(_faltante("Estado de salud del disco", e2))
     if fisicas and any(not f["media"] for f in fisicas):
         faltan.append(_faltante("Tipo de unidad (SSD/HDD)", e2))
-    sistema = os.environ.get("SystemDrive", "C:").upper()
+    sistema = os.environ.get("SYSTEMDRIVE", "C:").upper()
     vol = next((v for v in logicas if v["drive"].upper().startswith(sistema)), logicas[0] if logicas else None)
     metricas = {}
     if vol:
@@ -473,7 +479,7 @@ def _graficos(env):
     gpus, err = _consulta(env, "Win32_VideoController")
     if not gpus:
         return _res(err or NO_DISPONIBLE, "No se detectaron adaptadores gráficos")
-    adaptadores = []
+    adaptadores: list[dict[str, Any]] = []
     for g in gpus:
         ram = _num(_g(g, "AdapterRAM"), int)
         adaptadores.append({
@@ -495,7 +501,7 @@ def _graficos(env):
                 a["vram_gb"] = round(s["mem_total_mb"] / 1024, 1)
     faltan = ([_faltante("Memoria gráfica (WMI no la informa o supera los 4 GB)", NO_DISPONIBLE)]
               if any(not a["vram_gb"] for a in adaptadores) else [])
-    metricas = {}
+    metricas: dict[str, float] = {}
     for clave, campo in (("gpu_temp", "temp_c"), ("gpu_hotspot", "hotspot_c"), ("gpu_load", "load_pct")):
         valores = [a[campo] for a in adaptadores if a.get(campo) is not None]
         if valores:
@@ -669,7 +675,7 @@ def _sensores(env):
     sistema = [f["rpm"] for f in ventiladores if f.get("hw") != "gpu"]
     if sistema:
         metricas["fan_max_rpm"] = max(sistema)
-    alerta = fuente_cpu == lhm.FUENTE and cpu_temp >= 90
+    alerta = fuente_cpu == lhm.FUENTE and cpu_temp is not None and cpu_temp >= 90
     datos = {"temperatures": temps, "fans": ventiladores, "cpu_temp_source": fuente_cpu, "reader": lec["via"]}
     return _res(OK, " · ".join(partes), datos, faltan, None, metricas, alerta)
 
@@ -717,11 +723,14 @@ class _Entorno:
 
 
 def _crear_entorno():
-    c = ns = None
+    c: Any = None
+    ns: Callable[[str], Any] | None = None
     if wmi:
         try:
             c = wmi.WMI()
-            ns = lambda nombre: wmi.WMI(namespace=nombre)
+
+            def ns(nombre):
+                return wmi.WMI(namespace=nombre)
         except Exception:
             c = ns = None
     return _Entorno(c, ns)
@@ -733,7 +742,10 @@ _ESTADO_COMPONENTE = {OK: "ok", NO_COMPATIBLE: "ok", NO_DISPONIBLE: "warn",
 
 def _escanear(progress, env) -> dict:
     """Lee todas las categorías. Los objetos WMI viven solo dentro de esta función."""
-    comps, metricas, inventario, disp = [], {}, {}, {}
+    comps: list[dict] = []
+    metricas: dict[str, Any] = {}
+    inventario: dict[str, Any] = {}
+    disp: dict[str, Any] = {}
     resumen = {"description": "", "serial": "", "cpu": "", "ram": "", "storage": "", "os": "", "gpu": ""}
     env._lhm_cache = _leer_lhm(env)  # una sola lectura de sensores, compartida por los colectores
     try:
@@ -817,10 +829,8 @@ class LectorTemperatura:
     def __exit__(self, *exc):
         if self._env_dado is None:
             if self.env is not None and self.env.lector is not None:
-                try:
+                with contextlib.suppress(Exception):
                     self.env.lector.__exit__(None, None, None)
-                except Exception:
-                    pass
             self.env = None
             gc.collect()
             if pythoncom:
@@ -837,7 +847,8 @@ def local_identifiers(env=None) -> list[tuple[str, str]]:
         for clave, fn in (("identity", _identidad), ("motherboard", _placa), ("network", _red)):
             try:
                 r = fn(e)
-            except Exception:
+            except Exception:  # cada colector es independiente: el resto del inventario se conserva
+                log.debug("Inventario: falló %s", clave, exc_info=True)
                 continue
             if r["status"] == OK:
                 inv[clave] = r["data"]

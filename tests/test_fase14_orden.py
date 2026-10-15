@@ -124,6 +124,7 @@ def test_recepcion_sin_imprimir_y_preferencia_recordada(ui_repo, _sin_abrir_arch
 
 def test_recepcion_rechaza_fecha_pasada(ui_repo):
     from PySide6.QtCore import QDate
+
     from app.ui.pages.recepcion import RecepcionPage
     page = RecepcionPage(ui_repo)
     _llenar(page)

@@ -15,6 +15,11 @@ from .repo import Repository
 ORIGENES = {"local_scan": "Escaneo local", "imported_file": "Archivo importado", "legacy": "Migrado"}
 
 
+def _resumen(scan: dict) -> dict:
+    r = scan.get("summary")
+    return r if isinstance(r, dict) else {}
+
+
 class HardwareRepository:
     def __init__(self, repo: Repository):
         self.repo = repo
@@ -84,15 +89,15 @@ class HardwareRepository:
         equipment_id = self._equipment_of_case(case_code)
         if equipment_id is None:
             raise ValueError(f"No existe el caso {case_code}.")
-        inv = scan.get("inventory") if isinstance(scan.get("inventory"), dict) else {}
-        ident = inv.get("identity") if isinstance(inv.get("identity"), dict) else {}
-        prov = scan.get("provenance") if isinstance(scan.get("provenance"), dict) else {}
+        inv: dict = scan["inventory"] if isinstance(scan.get("inventory"), dict) else {}
+        ident: dict = inv["identity"] if isinstance(inv.get("identity"), dict) else {}
+        prov: dict = scan["provenance"] if isinstance(scan.get("provenance"), dict) else {}
         cur = self.c.execute(
             "INSERT INTO hardware_captures(case_code, equipment_id, captured_at, source, source_file, "
             "schema_version, host, manufacturer, model, serial, uuid, payload) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
             (case_code, equipment_id, str(scan.get("scanned_at") or ""), prov.get("how", "local_scan"),
              prov.get("file"), int(scan.get("version") or 1), scan.get("host"), ident.get("manufacturer"),
-             ident.get("model"), ident.get("serial") or (scan.get("summary") or {}).get("serial"),
+             ident.get("model"), ident.get("serial") or _resumen(scan).get("serial"),
              ident.get("uuid"), json.dumps(scan, ensure_ascii=False)))
         self.c.commit()
         self.repo.save_scan(case_code, scan)
@@ -143,7 +148,7 @@ class HardwareRepository:
                 continue
             if not isinstance(scan, dict):
                 continue
-            resumen = scan.get("summary") if isinstance(scan.get("summary"), dict) else {}
+            resumen = _resumen(scan)
             self.c.execute(
                 "INSERT INTO hardware_captures(case_code, equipment_id, captured_at, source, schema_version, "
                 "host, serial, payload) VALUES (?,?,?,?,?,?,?,?)",

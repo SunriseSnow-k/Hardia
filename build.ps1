@@ -1,5 +1,5 @@
 # Genera el instalador de Sistema Inteligente Offline en un solo paso:
-#   1. pruebas (pytest)   2. programa (PyInstaller)   3. instalador (Inno Setup)
+#   1. calidad (ruff, mypy, pruebas con cobertura)   2. programa (PyInstaller)   3. instalador (Inno Setup)
 # Uso:  .\build.ps1            (todo)
 #       .\build.ps1 -SinPruebas
 # Resultado: dist\instalador\SistemaDiagnostico-Setup-<version>.exe
@@ -14,9 +14,8 @@ $version = (Select-String -Path "app\version.py" -Pattern 'VERSION\s*=\s*"([^"]+
 Write-Host "== Sistema Inteligente Offline $version ==" -ForegroundColor Cyan
 
 if (-not $SinPruebas) {
-    Write-Host "-- Pruebas" -ForegroundColor Cyan
-    & $py -m pytest -q -p no:cacheprovider
-    if ($LASTEXITCODE -ne 0) { throw "Las pruebas fallaron: no se genera el instalador." }
+    Write-Host "-- Calidad" -ForegroundColor Cyan
+    & (Join-Path $PSScriptRoot "calidad.ps1")  # lanza un error (y no se genera el instalador) si algo falla
 }
 
 Write-Host "-- Programa (PyInstaller)" -ForegroundColor Cyan

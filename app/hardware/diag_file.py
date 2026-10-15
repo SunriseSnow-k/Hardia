@@ -1,4 +1,5 @@
 """Archivo .diag: guarda e importa un escaneo (para llevarlo en un USB)."""
+import contextlib
 import json
 import re
 from pathlib import Path
@@ -55,8 +56,6 @@ def find_usb_scans() -> list[Path]:
     """Archivos .diag en la raíz de las unidades USB conectadas."""
     archivos: list[Path] = []
     for unidad in removable_drives():
-        try:
+        with contextlib.suppress(OSError):
             archivos += sorted(unidad.glob("*.diag"))
-        except OSError:
-            pass
     return archivos

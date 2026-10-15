@@ -3,7 +3,7 @@ import json
 import pytest
 
 from app.hardware import diag_file
-from app.hardware.scanner import run_scan, COMPONENT_NAMES
+from app.hardware.scanner import COMPONENT_NAMES, run_scan
 
 
 def _ejemplo():

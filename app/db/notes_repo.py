@@ -4,6 +4,7 @@ Las notas no se editan ni se borran desde el programa: quedan como registro del 
 """
 import sqlite3
 
+from .database import ultimo_id
 from .repo import Repository
 
 TIPOS = {
@@ -34,7 +35,7 @@ class NotesRepository:
             (case_code, kind, texto, (author or "").strip().upper()),
         )
         self.c.commit()
-        return cur.lastrowid
+        return ultimo_id(cur)
 
     def for_case(self, case_code: str, kinds=None) -> list[sqlite3.Row]:
         """Notas del caso en orden cronológico (la más antigua primero)."""

@@ -1,24 +1,38 @@
 import shutil
-from pathlib import Path
 import sqlite3
 from datetime import datetime
+from pathlib import Path
 
 from PySide6.QtCore import Qt, QUrl, Signal
 from PySide6.QtGui import QDesktopServices
-from PySide6.QtWidgets import (QCheckBox, QComboBox, QFileDialog, QGridLayout, QHBoxLayout, QInputDialog,
-                               QLabel, QLineEdit, QListWidget, QListWidgetItem, QMessageBox, QPlainTextEdit,
-                               QPushButton, QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (
+    QCheckBox,
+    QComboBox,
+    QFileDialog,
+    QGridLayout,
+    QHBoxLayout,
+    QInputDialog,
+    QLabel,
+    QLineEdit,
+    QListWidget,
+    QListWidgetItem,
+    QMessageBox,
+    QPlainTextEdit,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
+)
+
 from app import backup
+from app.db.audit_repo import ACCIONES, AuditRepository
 from app.db.orders_repo import TERMINOS_PREDETERMINADOS
 from app.db.repo import Repository
-from app.db.audit_repo import ACCIONES, AuditRepository
 from app.db.users_repo import ROLES, UsersRepository
 from app.hardware.diag_file import removable_drives
 from app.health.references import PAQUETE, load_references, ruta_activa, ruta_taller
 from app.paths import backups_dir, data_dir, reports_dir
 from app.servicios import cuentas
-from app.ui.widgets import (AreaDesplazable, cabecera, limpiar_layout, lista_dato_valor, muted, panel,
-                            ruta_cortable)
+from app.ui.widgets import AreaDesplazable, cabecera, limpiar_layout, lista_dato_valor, muted, panel, ruta_cortable
 
 
 def _abrir(ruta):

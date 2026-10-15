@@ -7,6 +7,7 @@ import sqlite3
 
 from app.health import evaluate, load_references
 
+from .database import ultimo_id
 from .hardware_repo import HardwareRepository
 from .repo import Repository
 
@@ -33,7 +34,7 @@ class HealthRepository:
             "INSERT INTO health_results(case_code, capture_id, benchmark_id, indice, payload) VALUES (?,?,?,?,?)",
             (case_code, capture_id, benchmark_id, (result.get("indice") or {}).get("valor"), texto))
         self.c.commit()
-        return cur.lastrowid
+        return ultimo_id(cur)
 
     @staticmethod
     def _fila(row) -> dict | None:
@@ -69,7 +70,7 @@ class HealthRepository:
         cur = self.c.execute("INSERT INTO health_benchmarks(case_code, capture_id, payload) VALUES (?,?,?)",
                              (case_code, capture_id, _json(benchmark)))
         self.c.commit()
-        return cur.lastrowid
+        return ultimo_id(cur)
 
     def latest_benchmark(self, case_code: str, capture_id=None) -> tuple[int, dict] | None:
         r = self.c.execute(
@@ -104,6 +105,8 @@ class HealthRepository:
         salida = []
         for fila in reversed(self.hw.captures_for_equipment(equipment_id)):
             cap = self.hw.get_capture(fila["id"])
+            if cap is None:  # borrada entre la consulta y la lectura
+                continue
             bench = self.latest_benchmark(fila["case_code"], fila["id"])
             salida.append({"case_code": fila["case_code"], "captured_at": fila["captured_at"],
                            "capture_id": fila["id"],

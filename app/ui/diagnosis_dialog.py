@@ -2,9 +2,10 @@ import html
 import re
 
 from PySide6.QtCore import Qt, QTimer
-from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, QGridLayout,
-                               QPushButton, QFrame, QWidget)
-from app.ai import config as ia_config, prompts
+from PySide6.QtWidgets import QDialog, QFrame, QGridLayout, QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
+
+from app.ai import config as ia_config
+from app.ai import prompts
 from app.db.health_repo import HealthRepository
 from app.db.repo import Repository
 from app.diagnosis.engine import diagnose

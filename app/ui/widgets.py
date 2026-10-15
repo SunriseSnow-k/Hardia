@@ -5,11 +5,19 @@ from datetime import datetime
 
 from PySide6.QtCore import QEvent, QRectF, QSize, Qt, QTimer
 from PySide6.QtGui import QColor, QFont, QFontMetrics, QPainter
-from PySide6.QtWidgets import (QFrame, QGridLayout, QHBoxLayout, QLabel, QScrollArea, QSizePolicy,
-                               QTableWidgetItem, QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (
+    QFrame,
+    QGridLayout,
+    QHBoxLayout,
+    QLabel,
+    QScrollArea,
+    QSizePolicy,
+    QTableWidgetItem,
+    QVBoxLayout,
+    QWidget,
+)
 
-from app.ui.styles import (ACCENT, MUTED, NEUTRAL_COLORS, PRIORITY_COLORS, STATUS_COLORS,
-                           TRACK)
+from app.ui.styles import ACCENT, MUTED, NEUTRAL_COLORS, PRIORITY_COLORS, STATUS_COLORS, TRACK
 
 _DIAS = ("lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo")
 _MESES = ("enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto",
@@ -179,7 +187,7 @@ class IndicadorEtapas(QWidget):
         lay.setContentsMargins(0, 0, 0, 0)
         lay.setSpacing(6)
         self._labels = []
-        for i, e in enumerate(self.etapas):
+        for i in range(len(self.etapas)):
             if i:
                 flecha = QLabel("→")
                 flecha.setObjectName("Muted")
@@ -192,7 +200,7 @@ class IndicadorEtapas(QWidget):
 
     def set_actual(self, actual: str):
         idx = self.etapas.index(actual) if actual in self.etapas else -1
-        for i, (lbl, e) in enumerate(zip(self._labels, self.etapas)):
+        for i, (lbl, e) in enumerate(zip(self._labels, self.etapas, strict=True)):
             if i < idx:
                 lbl.setText(f"✓ {e}")
                 lbl.setStyleSheet("color:#2f855a; font-size:13px;")

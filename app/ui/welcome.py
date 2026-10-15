@@ -1,8 +1,8 @@
 import html
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import (QDialog, QHBoxLayout, QLabel, QLineEdit, QPushButton,
-                               QStackedWidget, QVBoxLayout, QWidget)
+from PySide6.QtWidgets import QDialog, QHBoxLayout, QLabel, QLineEdit, QPushButton, QStackedWidget, QVBoxLayout, QWidget
+
 from app.ai.config import check_ai, nombre_modelo
 from app.db.repo import Repository
 from app.paths import data_dir

@@ -40,7 +40,7 @@ class UsersRepository:
 
     def password_ok(self, tech_id: str, password: str) -> bool:
         u = self.get(tech_id)
-        return bool(u) and verify_password(password, u["pw_hash"], u["salt"])
+        return u is not None and verify_password(password, u["pw_hash"], u["salt"])
 
     def set_password(self, tech_id: str, nueva: str) -> None:
         validar_password(nueva)

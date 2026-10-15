@@ -2,7 +2,7 @@ import pytest
 
 from app.db.database import Database
 from app.db.repo import Repository
-from app.diagnosis.engine import diagnose, load_rules, normalizar, OPERADORES
+from app.diagnosis.engine import OPERADORES, diagnose, load_rules, normalizar
 
 SCAN_CALOR = {
     "summary": {"ram": "16 GB", "storage": "SSD 512 GB"},

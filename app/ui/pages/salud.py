@@ -6,10 +6,27 @@ import html
 
 from PySide6.QtCore import QEventLoop, Qt, QTimer, Signal
 from PySide6.QtGui import QColor
-from PySide6.QtWidgets import (QAbstractItemView, QApplication, QComboBox, QDialog, QFrame, QGridLayout,
-                               QHBoxLayout, QHeaderView, QInputDialog, QLabel, QLineEdit, QMessageBox,
-                               QProgressDialog, QPushButton, QTableWidget, QTableWidgetItem, QVBoxLayout,
-                               QWidget)
+from PySide6.QtWidgets import (
+    QAbstractItemView,
+    QApplication,
+    QComboBox,
+    QDialog,
+    QFrame,
+    QGridLayout,
+    QHBoxLayout,
+    QHeaderView,
+    QInputDialog,
+    QLabel,
+    QLineEdit,
+    QMessageBox,
+    QProgressDialog,
+    QPushButton,
+    QTableWidget,
+    QTableWidgetItem,
+    QVBoxLayout,
+    QWidget,
+)
+
 from app.db.hardware_repo import HardwareRepository
 from app.db.health_repo import HealthRepository
 from app.db.notes_repo import NotesRepository
@@ -19,8 +36,20 @@ from app.hardware.inventory import FUERTES, identifiers_from_scan
 from app.hardware.scanner import COMPONENT_NAMES, local_identifiers
 from app.health import ATENCION, BUENO, REVISAR, SIN_REF, componente, evaluate, load_references
 from app.ui.inventory_dialog import InventoryDialog
-from app.ui.widgets import (AreaDesplazable, BarraPorcentaje, ChipEstado, ajustar_alto_tabla, cabecera, celda,
-                            color_estado, fecha_corta, item_medida, muted, panel, vaciar_tabla)
+from app.ui.widgets import (
+    AreaDesplazable,
+    BarraPorcentaje,
+    ChipEstado,
+    ajustar_alto_tabla,
+    cabecera,
+    celda,
+    color_estado,
+    fecha_corta,
+    item_medida,
+    muted,
+    panel,
+    vaciar_tabla,
+)
 
 MAX_CASOS_COMBO = 50
 COLUMNAS = ["Componente", "Estado", "Medido ahora", "De fábrica", "Respecto a fábrica", "Fuente del dato", ""]

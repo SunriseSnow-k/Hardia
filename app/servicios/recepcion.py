@@ -50,7 +50,7 @@ def validar(d: DatosRecepcion) -> str:
         try:
             fecha = date.fromisoformat(d.fecha_estimada)
         except ValueError:
-            raise ValueError("La fecha estimada de entrega no es válida.")
+            raise ValueError("La fecha estimada de entrega no es válida.") from None
         if fecha < date.today():
             raise ValueError("La fecha estimada de entrega no puede ser anterior a hoy.")
     return documento
@@ -75,7 +75,7 @@ def registrar(repo: Repository, d: DatosRecepcion, hw: dict | None = None) -> Re
             opcional("guardar el documento", lambda: ClientsRepository(repo).set_doc_for_case(code, documento))
         if hw:
             def captura():
-                r = hw.get("summary") if isinstance(hw.get("summary"), dict) else {}
+                r: dict = hw["summary"] if isinstance(hw.get("summary"), dict) else {}
                 cid = repo.add_client(d.cliente.strip(), d.telefono.strip())
                 repo.upsert_equipment(d.serie, d.equipo.strip(), cid, cpu=r.get("cpu", ""), ram=r.get("ram", ""),
                                       storage=r.get("storage", ""), os_name=r.get("os", ""))
@@ -87,6 +87,10 @@ def registrar(repo: Repository, d: DatosRecepcion, hw: dict | None = None) -> Re
                               "y no se reasignaron; revise que la serie sea la correcta.")
             if res:  # deja guardado el índice de salud para Equipos, Caso y futuros reingresos
                 opcional("evaluar la salud del equipo", lambda: HealthRepository(repo).evaluate_case(code))
-        orden = opcional("guardar la orden de servicio", lambda: OrdersRepository(repo).save(
-            code, d.accesorios, d.estado_fisico, d.observaciones, d.fecha_estimada, d.tecnico) or True)
+        def orden_de_servicio() -> bool:
+            OrdersRepository(repo).save(code, d.accesorios, d.estado_fisico, d.observaciones,
+                                        d.fecha_estimada, d.tecnico)
+            return True
+
+        orden = opcional("guardar la orden de servicio", orden_de_servicio)
     return ResultadoRecepcion(code, avisos, orden_guardada=bool(orden))

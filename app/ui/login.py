@@ -1,7 +1,7 @@
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import (QDialog, QFrame, QHBoxLayout, QVBoxLayout, QLabel,
-                               QLineEdit, QPushButton, QWidget)
+from PySide6.QtWidgets import QDialog, QFrame, QHBoxLayout, QLabel, QLineEdit, QPushButton, QVBoxLayout, QWidget
+
 from app.db.repo import Repository
 from app.paths import recurso
 from app.servicios import cuentas

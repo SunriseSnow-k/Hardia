@@ -3,13 +3,23 @@ from datetime import datetime
 from pathlib import Path
 
 from PySide6.QtCore import Qt, QThread, Signal
-from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-                               QFrame, QProgressBar, QListWidget, QListWidgetItem,
-                               QFileDialog, QStackedWidget)
+from PySide6.QtWidgets import (
+    QFileDialog,
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QListWidget,
+    QListWidgetItem,
+    QProgressBar,
+    QPushButton,
+    QStackedWidget,
+    QVBoxLayout,
+    QWidget,
+)
+
 from app.hardware import diag_file, lhm
-from app.hardware.inventory import (CATEGORIAS, ESTADO_TEXTO, FALLO, NO_AUTORIZADO, NO_COMPATIBLE,
-                                    NO_DISPONIBLE, OK)
-from app.hardware.scanner import COLECTORES_NOMBRES, run_scan, COMPONENT_NAMES
+from app.hardware.inventory import CATEGORIAS, ESTADO_TEXTO, FALLO, NO_AUTORIZADO, NO_COMPATIBLE, NO_DISPONIBLE, OK
+from app.hardware.scanner import COLECTORES_NOMBRES, COMPONENT_NAMES, run_scan
 from app.ui.inventory_dialog import InventoryDialog
 from app.ui.widgets import AreaDesplazable, ChipEstado, cabecera, fecha_corta, muted, panel
 

@@ -315,6 +315,7 @@ def test_recursos_incluidos():
 def test_registro_guarda_errores_no_controlados(monkeypatch):
     import logging
     import sys
+
     from app import registro
     monkeypatch.setattr(sys, "excepthook", sys.excepthook)
     monkeypatch.setattr(threading, "excepthook", threading.excepthook)

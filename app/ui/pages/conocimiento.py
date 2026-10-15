@@ -1,8 +1,17 @@
 import html
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
-                               QPushButton, QListWidget, QListWidgetItem)
+from PySide6.QtWidgets import (
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QListWidget,
+    QListWidgetItem,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
+)
+
 from app.diagnosis.engine import load_rules, normalizar
 from app.reports.pdf import implication
 from app.ui.styles import ACCENT

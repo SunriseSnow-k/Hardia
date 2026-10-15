@@ -1,4 +1,5 @@
 """Cliente mínimo de Ollama. Solo habla con 127.0.0.1 (nada sale a Internet)."""
+import contextlib
 import http.client
 import json
 import queue
@@ -77,10 +78,8 @@ class ChatStream:
         self.cancelled = True
         sock = self._sock
         if sock is not None:
-            try:
+            with contextlib.suppress(OSError):
                 sock.shutdown(socket.SHUT_RDWR)
-            except OSError:
-                pass
 
     def chunks(self):
         threading.Thread(target=self._leer, daemon=True).start()
@@ -119,7 +118,7 @@ class ChatStream:
             try:
                 if conn is not None:
                     conn.close()
-            except Exception:
+            except Exception:  # noqa: S110 (cerrar una conexión ya rota no debe ocultar el error real)
                 pass
             self._q.put(("end", None))
 

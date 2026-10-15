@@ -6,7 +6,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import pytest
 
 import app.ai.config as ia_config
-from app.ai import ollama_client as oc, prompts
+from app.ai import ollama_client as oc
+from app.ai import prompts
 from app.db.database import Database
 from app.db.repo import Repository
 from app.diagnosis.engine import diagnose, load_rules

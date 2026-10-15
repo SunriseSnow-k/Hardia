@@ -1,6 +1,7 @@
 import json
 import sqlite3
-from .database import Database, transaccional
+
+from .database import Database, transaccional, ultimo_id
 from .security import hash_password, verify_password
 
 ESTADOS = ("Recibido", "En diagnóstico", "Listo", "Entregado")
@@ -39,7 +40,7 @@ class Repository:
             )
             self.c.commit()
         except sqlite3.IntegrityError:
-            raise ValueError("Ese ID de técnico ya existe.")
+            raise ValueError("Ese ID de técnico ya existe.") from None
 
     def verify_user(self, tech_id: str, password: str) -> bool:
         row = self.c.execute(
@@ -70,7 +71,7 @@ class Repository:
             return row["id"]
         cur = self.c.execute("INSERT INTO clients(name, phone) VALUES (?,?)", (name, phone))
         self.c.commit()
-        return cur.lastrowid
+        return ultimo_id(cur)
 
     def upsert_equipment(self, serial: str, description: str, client_id: int,
                          cpu="", ram="", storage="", os_name="") -> int:
@@ -94,7 +95,7 @@ class Repository:
             (serial, description, client_id, cpu, ram, storage, os_name),
         )
         self.c.commit()
-        return cur.lastrowid
+        return ultimo_id(cur)
 
     # ---------- Casos ----------
     def create_case(self, equipment_id: int, problem: str, priority: str = "Media",

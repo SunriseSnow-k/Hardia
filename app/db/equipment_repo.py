@@ -1,8 +1,7 @@
 import sqlite3
 
-from .hardware_repo import HardwareRepository
 from .repo import Repository
-from .search_repo import MAX_PALABRAS, _CAPTURA, _ESC, _like
+from .search_repo import _CAPTURA, _ESC, MAX_PALABRAS, _like
 
 
 class EquipmentRepository:

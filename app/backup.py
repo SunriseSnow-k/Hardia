@@ -1,4 +1,5 @@
 """Copias de seguridad de la base de datos (SQLite). Todo ocurre en este equipo."""
+import contextlib
 import sqlite3
 import threading
 from datetime import datetime, timedelta
@@ -139,10 +140,8 @@ def _rotar(carpeta: Path, keep: int, nueva: Path) -> None:
                    key=lambda p: p.name)
     sobran = len(otras) - max(keep - 1, 0)
     for viejo in otras[:max(sobran, 0)]:
-        try:
+        with contextlib.suppress(OSError):
             viejo.unlink()
-        except OSError:
-            pass
 
 
 def auto_backup(conn, folder=None, min_hours: float = 20, keep: int = MAX_AUTO):

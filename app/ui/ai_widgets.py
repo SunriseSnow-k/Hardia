@@ -1,7 +1,17 @@
-from PySide6.QtCore import Signal, QTimer
+from PySide6.QtCore import QTimer, Signal
 from PySide6.QtGui import QTextCursor
-from PySide6.QtWidgets import (QFrame, QVBoxLayout, QHBoxLayout, QLabel, QPlainTextEdit,
-                               QProgressBar, QPushButton, QDialog, QApplication)
+from PySide6.QtWidgets import (
+    QApplication,
+    QDialog,
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QPlainTextEdit,
+    QProgressBar,
+    QPushButton,
+    QVBoxLayout,
+)
+
 from app.ai import config as ia_config
 from app.ai.worker import AiWorker
 

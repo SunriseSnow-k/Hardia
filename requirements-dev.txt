@@ -1,4 +1,7 @@
-# Herramientas de desarrollo: pruebas y empaquetado
+# Herramientas de desarrollo: calidad (calidad.ps1), pruebas y empaquetado
 -r requirements.txt
 pytest==9.1.1
 pyinstaller==6.22.3
+pytest-cov==7.1.0
+ruff==0.17.0
+mypy==2.4.0

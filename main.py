@@ -1,3 +1,4 @@
+import contextlib
 import ctypes
 import logging
 import multiprocessing
@@ -6,6 +7,7 @@ import sys
 from PySide6.QtCore import QLockFile, Qt
 from PySide6.QtGui import QColor, QFont, QIcon, QPainter, QPixmap
 from PySide6.QtWidgets import QApplication, QMessageBox, QSplashScreen
+
 from app import registro
 from app.paths import backups_dir, data_dir, db_path, recurso
 from app.version import APP_NAME, VERSION
@@ -26,10 +28,8 @@ def _instancia_unica() -> QLockFile | None:
 def _marcar_proceso():
     if sys.platform != "win32":
         return None
-    try:  # ícono propio en la barra de tareas (y no el de Python)
+    with contextlib.suppress(Exception):  # ícono propio en la barra de tareas (solo estética)
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("SistemaDiagnostico.App")
-    except Exception:
-        pass
     try:
         return ctypes.windll.kernel32.CreateMutexW(None, False, MUTEX)
     except Exception:
@@ -62,10 +62,8 @@ def main() -> int:
     app.setApplicationName(APP_NAME)
     app.setApplicationVersion(VERSION)
     app.setWindowIcon(QIcon(str(recurso("assets", "icono.ico"))))
-    try:  # el diseño es claro: no se usa el modo oscuro de Windows 11
+    with contextlib.suppress(AttributeError):  # diseño claro; Qt < 6.8 no tiene setColorScheme
         app.styleHints().setColorScheme(Qt.ColorScheme.Light)
-    except AttributeError:
-        pass
 
     lock = _instancia_unica()
     if lock is None:
@@ -78,8 +76,8 @@ def main() -> int:
     # Lo pesado se importa con la pantalla de carga ya visible
     from app.ai import paquete
     from app.db.database import Database
-    from app.db.migraciones import BaseMasNueva
     from app.db.hardware_repo import HardwareRepository
+    from app.db.migraciones import BaseMasNueva
     from app.db.repo import Repository
     from app.ui.login import LoginDialog
     from app.ui.main_window import MainWindow

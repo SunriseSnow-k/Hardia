@@ -1,4 +1,5 @@
 import pytest
+
 from app.db.database import Database
 from app.db.repo import Repository
 

@@ -1,8 +1,8 @@
 """Diálogo de la prueba de rendimiento: condiciones, pasos, temperatura en vivo y cancelación.
 La medición corre en un QThread (app/health/benchmark.py); la interfaz nunca se bloquea."""
 from PySide6.QtCore import Qt, QThread, Signal
-from PySide6.QtWidgets import (QCheckBox, QDialog, QFrame, QHBoxLayout, QLabel, QProgressBar,
-                               QPushButton, QVBoxLayout)
+from PySide6.QtWidgets import QCheckBox, QDialog, QFrame, QHBoxLayout, QLabel, QProgressBar, QPushButton, QVBoxLayout
+
 from app.db.health_repo import HealthRepository
 from app.hardware.scanner import LectorTemperatura
 from app.health import benchmark as bm

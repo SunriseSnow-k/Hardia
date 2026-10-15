@@ -191,7 +191,7 @@ _PIEZA = {"cpu": "CPU", "gpu": "GPU", "storage": "Disco", "motherboard": "Placa"
 
 def _sensor(s: dict) -> str:
     """'GPU · GPU Core' o solo el nombre si no se sabe de qué pieza es."""
-    pieza = _PIEZA.get(s.get("hw"))
+    pieza = _PIEZA.get(str(s.get("hw")))
     nombre = s.get("name", "?")
     return f"{pieza} · {nombre}" if pieza and not nombre.lower().startswith(pieza.lower()) else nombre
 
@@ -215,7 +215,7 @@ def _filas_heredadas(scan) -> list:
     """Escaneos antiguos (versión 1): solo existe la lista de componentes."""
     estado = {"ok": OK, "warn": NO_DISPONIBLE, "error": FALLO}
     return [_fila(c.get("name", "?"), "Detalle", c.get("detail", ""),
-                  estado.get(c.get("status"), NO_DISPONIBLE))
+                  estado.get(str(c.get("status")), NO_DISPONIBLE))
             for c in _l(_d(scan).get("components")) if isinstance(c, dict)]
 
 
@@ -287,6 +287,12 @@ def _resumen(scan: dict) -> dict:
     }
 
 
+def _fmt_cambio(area: str, v) -> str:
+    if isinstance(v, list):
+        return ", ".join(v)
+    return f"{v:g} %" if area == "Desgaste de batería" else str(v)
+
+
 def compare_captures(antes: dict, despues: dict) -> list[dict]:
     """Cambios entre dos capturas. Un dato que falta en alguna de las dos no cuenta como cambio."""
     a, b = _resumen(antes), _resumen(despues)
@@ -297,6 +303,5 @@ def compare_captures(antes: dict, despues: dict) -> list[dict]:
             continue
         if area == "Desgaste de batería" and abs(x - y) < 5:
             continue
-        fmt = lambda v: ", ".join(v) if isinstance(v, list) else (f"{v:g} %" if area == "Desgaste de batería" else str(v))
-        cambios.append({"area": area, "antes": fmt(x), "despues": fmt(y)})
+        cambios.append({"area": area, "antes": _fmt_cambio(area, x), "despues": _fmt_cambio(area, y)})
     return cambios

@@ -12,8 +12,7 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import mm
 from reportlab.pdfgen import canvas as rl_canvas
-from reportlab.platypus import (KeepTogether, Paragraph, SimpleDocTemplate,
-                                Spacer, Table, TableStyle)
+from reportlab.platypus import KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 from app.db.clients_repo import ClientsRepository
 from app.db.hardware_repo import ORIGENES, HardwareRepository
@@ -21,8 +20,15 @@ from app.db.health_repo import HealthRepository
 from app.db.notes_repo import TIPOS, TIPOS_CLIENTE, NotesRepository
 from app.db.orders_repo import OrdersRepository
 from app.diagnosis.engine import diagnose
-from app.hardware.inventory import (CATEGORIAS, ESTADO_TEXTO, OK, compare_captures,
-                                    fmt_bytes, fuente_salud, inventory_rows)
+from app.hardware.inventory import (
+    CATEGORIAS,
+    ESTADO_TEXTO,
+    OK,
+    compare_captures,
+    fmt_bytes,
+    fuente_salud,
+    inventory_rows,
+)
 from app.health import SIN_REF
 from app.health.benchmark import texto_condiciones
 
@@ -158,7 +164,7 @@ def client_summary(result: dict, max_items: int = 3) -> list[tuple[str, str]]:
 
 
 def implication(cause: dict) -> str:
-    return IMPLICACIONES.get(cause.get("id"), IMPLICACION_GENERICA)
+    return IMPLICACIONES.get(str(cause.get("id")), IMPLICACION_GENERICA)
 
 
 def _fecha(valor, largo: int = 16) -> str:
@@ -203,7 +209,7 @@ def measured_items(scan: dict | None) -> list[tuple[str, str]]:
             items.append((f'Espacio libre en {v.get("drive", "el disco")}',
                           f'{fmt_bytes(v["free_bytes"])} de {fmt_bytes(v["size_bytes"])}'))
     sen = _d(inv.get("sensors"))
-    temp = _d(scan.get("metrics")).get("cpu_temp")
+    temp = _d(_d(scan).get("metrics")).get("cpu_temp")
     if temp is not None:
         fuente = sen.get("cpu_temp_source")
         nota = "" if fuente == "LibreHardwareMonitor" else " (sensor general del equipo; valor aproximado)"

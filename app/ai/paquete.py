@@ -16,17 +16,20 @@ import sys
 import threading
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 import zipfile
 from pathlib import Path
+from typing import Any
 
 from app.paths import data_dir
 from app.version import APP_NAME, VERSION
+
 from .ollama_client import AiError
 
 log = logging.getLogger(__name__)
 
-MOTOR = {
+MOTOR: dict[str, Any] = {
     "version": "b11620",
     "url": "https://github.com/ggml-org/llama.cpp/releases/download/b11620/"
            "llama-b11620-bin-win-cpu-x64.zip",
@@ -39,7 +42,7 @@ _ARCHIVOS_MOTOR = ("llama-server.exe",)
 # Runtime de Visual C++ que pide llama.cpp; PySide6 lo trae, así no hace falta instalarlo aparte
 _RUNTIME_VC = ("msvcp140.dll", "vcruntime140.dll", "vcruntime140_1.dll")
 
-MODELOS = {
+MODELOS: dict[str, dict[str, Any]] = {
     "qwen3-4b": {
         "nombre": "Recomendado · Qwen3 4B Instruct",
         "descripcion": "Mejores respuestas en español. Conviene un equipo con 8 GB de RAM o más.",
@@ -146,6 +149,14 @@ def _sha256(path: Path, cancelado) -> str:
     return h.hexdigest()
 
 
+def _validar_url(url: str) -> None:
+    """Solo descargas https (o http hacia este mismo equipo, para las pruebas): nunca file: ni otros esquemas."""
+    p = urllib.parse.urlsplit(url)
+    if p.scheme == "https" or (p.scheme == "http" and p.hostname in ("127.0.0.1", "localhost")):
+        return
+    raise PaqueteError(f"Dirección de descarga no permitida: {url}")
+
+
 def descargar(url: str, destino: Path, sha256: str, tamano: int, progreso=None, cancelado=lambda: False):
     """Descarga a <destino>.part (se reanuda si quedó a medias), verifica el SHA-256 y renombra.
     progreso(hecho, total) se llama desde este hilo."""
@@ -165,7 +176,9 @@ def descargar(url: str, destino: Path, sha256: str, tamano: int, progreso=None, 
         if hecho:
             cabeceras["Range"] = f"bytes={hecho}-"
         try:
-            with urllib.request.urlopen(urllib.request.Request(url, headers=cabeceras), timeout=30) as resp:
+            _validar_url(url)
+            peticion = urllib.request.Request(url, headers=cabeceras)  # noqa: S310 (esquema validado arriba)
+            with urllib.request.urlopen(peticion, timeout=30) as resp:  # noqa: S310
                 if hecho and resp.status != 206:  # el servidor no reanuda: se empieza de cero
                     hecho = 0
                 with open(parcial, "ab" if hecho else "wb") as f:
@@ -198,7 +211,7 @@ def _runtime_vc() -> list[Path]:
     try:
         import PySide6
         carpetas.insert(0, Path(PySide6.__file__).parent)
-    except Exception:
+    except Exception:  # noqa: S110 (sin PySide6 se buscan las DLL en las demás carpetas)
         pass
     encontradas = []
     for dll in _RUNTIME_VC:
@@ -311,6 +324,7 @@ class Servidor:
                 self._detener()
                 self._iniciar(modelo_id)
             proc, puerto = self._proc, self.puerto
+        assert proc is not None  # _iniciar lanza PaqueteError si no puede arrancar
         limite = time.monotonic() + ESPERA_CARGA
         while time.monotonic() < limite:
             if cancelado():
@@ -335,9 +349,9 @@ class Servidor:
         args = [str(exe), "-m", str(ruta_modelo(modelo_id)), "--host", "127.0.0.1",
                 "--port", str(self.puerto), "-c", str(CONTEXTO), "-np", "1", "-t", str(_hilos()),
                 "--no-webui", "--api-key", self.clave]
-        salida = open(carpeta() / "motor.log", "wb")
+        salida = open(carpeta() / "motor.log", "wb")  # noqa: SIM115 (el proceso hijo hereda el archivo; se cierra abajo)
         try:
-            self._proc = subprocess.Popen(
+            self._proc = subprocess.Popen(  # noqa: S603 (ejecutable y argumentos propios, sin shell)
                 args, cwd=str(exe.parent), stdin=subprocess.DEVNULL, stdout=salida, stderr=subprocess.STDOUT,
                 creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
         except OSError as e:

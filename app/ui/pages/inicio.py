@@ -1,9 +1,9 @@
 from datetime import datetime
 
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-                               QPushButton, QFrame, QScrollArea)
-from app.db.repo import Repository, ESTADOS
+from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QPushButton, QScrollArea, QVBoxLayout, QWidget
+
+from app.db.repo import ESTADOS, Repository
 from app.ui.widgets import ChipEstado, cabecera, fecha_larga, limpiar_layout, tiempo_transcurrido
 
 ACTIVOS = ("Recibido", "En diagnóstico", "Listo")
@@ -16,7 +16,8 @@ def _clear(layout):
 def _texto_tiempo(row) -> str:
     """'Ingresó hace 40 min' o 'Reingreso · ingresó hace 2 h'."""
     hace = tiempo_transcurrido(row["created_at"])
-    reingreso = bool(row["reingreso"]) if "reingreso" in row.keys() else False
+    # sqlite3.Row: `in row` busca entre los valores, no entre las columnas; por eso se usa keys()
+    reingreso = bool(row["reingreso"]) if "reingreso" in row.keys() else False  # noqa: SIM118
     if reingreso:
         return f"Reingreso · ingresó {hace}" if hace else "Reingreso"
     return f"Ingresó {hace}" if hace else ""

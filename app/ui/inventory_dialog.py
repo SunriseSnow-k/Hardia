@@ -1,8 +1,7 @@
 from PySide6.QtGui import QBrush, QColor
-from PySide6.QtWidgets import (QDialog, QHBoxLayout, QLabel, QPushButton, QTreeWidget,
-                               QTreeWidgetItem, QVBoxLayout)
-from app.hardware.inventory import (ESTADO_TEXTO, FALLO, NO_AUTORIZADO, NO_COMPATIBLE,
-                                    NO_DISPONIBLE, OK, inventory_rows)
+from PySide6.QtWidgets import QDialog, QHBoxLayout, QLabel, QPushButton, QTreeWidget, QTreeWidgetItem, QVBoxLayout
+
+from app.hardware.inventory import ESTADO_TEXTO, FALLO, NO_AUTORIZADO, NO_COMPATIBLE, NO_DISPONIBLE, OK, inventory_rows
 
 _COLOR = {NO_COMPATIBLE: "#5f6b77", NO_DISPONIBLE: "#b7791f", NO_AUTORIZADO: "#b7791f", FALLO: "#c0392b"}
 

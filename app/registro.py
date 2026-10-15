@@ -2,6 +2,7 @@
 
 Los errores no controlados quedan en el registro y se muestran en un aviso con los detalles
 para copiarlos, en lugar de cerrar el programa sin explicación."""
+import contextlib
 import logging
 import sys
 import threading
@@ -45,10 +46,8 @@ def _excepthook(tipo, valor, tb):
         sys.__excepthook__(tipo, valor, tb)
         return
     log.critical("Error no controlado", exc_info=(tipo, valor, tb))
-    try:
+    with contextlib.suppress(Exception):  # el aviso nunca debe provocar otro error
         _avisar("".join(traceback.format_exception(tipo, valor, tb)), f"{tipo.__name__}: {valor}")
-    except Exception:
-        pass  # el aviso nunca debe provocar otro error
 
 
 def _avisar(detalle: str, resumen: str):
@@ -58,7 +57,7 @@ def _avisar(detalle: str, resumen: str):
     if app is None or QThread.currentThread() is not app.thread():
         return  # fuera del hilo de la interfaz solo se registra
     caja = QMessageBox()
-    caja.setIcon(QMessageBox.Warning)
+    caja.setIcon(QMessageBox.Icon.Warning)
     caja.setWindowTitle("Ocurrió un error")
     caja.setText("Ocurrió un error inesperado. El programa puede seguir funcionando; si el problema "
                  "se repite, envíe al soporte el archivo de registro:")

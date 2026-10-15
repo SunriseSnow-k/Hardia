@@ -8,7 +8,7 @@ import pytest
 from app import backup
 from app.db import migraciones
 from app.db.database import Database
-from app.db.migraciones import BaseMasNueva, VERSION_ACTUAL
+from app.db.migraciones import VERSION_ACTUAL, BaseMasNueva
 from app.db.orders_repo import OrdersRepository
 from app.db.repo import Repository
 from app.servicios import recepcion
@@ -48,11 +48,10 @@ def test_transaccion_confirma_al_final(repo, tmp_path):
 
 
 def test_transaccion_deshace_todo_si_falla(repo):
-    with pytest.raises(RuntimeError):
-        with repo.transaccion():
-            repo.set_setting("a", "1")
-            repo.add_client("Ana", "1")
-            raise RuntimeError("corte")
+    with pytest.raises(RuntimeError), repo.transaccion():
+        repo.set_setting("a", "1")
+        repo.add_client("Ana", "1")
+        raise RuntimeError("corte")
     assert _contar(repo, "settings") == 0 and _contar(repo, "clients") == 0
     assert not repo.c.en_transaccion
 
@@ -60,10 +59,9 @@ def test_transaccion_deshace_todo_si_falla(repo):
 def test_transaccion_anidada_deshace_solo_el_paso(repo):
     with repo.transaccion():
         repo.set_setting("externo", "1")
-        with pytest.raises(ValueError):
-            with repo.transaccion():
-                repo.set_setting("interno", "1")
-                raise ValueError("paso opcional")
+        with pytest.raises(ValueError), repo.transaccion():
+            repo.set_setting("interno", "1")
+            raise ValueError("paso opcional")
     assert repo.get_setting("externo") == "1" and repo.get_setting("interno") == ""
 
 

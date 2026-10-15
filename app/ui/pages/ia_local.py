@@ -3,10 +3,24 @@ import logging
 import time
 
 from PySide6.QtCore import Qt, QThread, Signal
-from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel, QPushButton,
-                               QCheckBox, QComboBox, QLineEdit, QFrame, QProgressBar, QMessageBox)
-from app.ai import config as ia_config, paquete, prompts
-from app.ai.ollama_client import TIMEOUT_RESPUESTA, list_models, has_model, OllamaError
+from PySide6.QtWidgets import (
+    QCheckBox,
+    QComboBox,
+    QFrame,
+    QGridLayout,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QMessageBox,
+    QProgressBar,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
+)
+
+from app.ai import config as ia_config
+from app.ai import paquete, prompts
+from app.ai.ollama_client import TIMEOUT_RESPUESTA, OllamaError, has_model, list_models
 from app.db.repo import Repository
 from app.diagnosis.engine import load_rules
 from app.ui.ai_widgets import AiStreamPanel

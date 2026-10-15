@@ -2,21 +2,41 @@ from pathlib import Path
 
 from PySide6.QtCore import Qt, QUrl
 from PySide6.QtGui import QDesktopServices
-from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, QComboBox,
-                               QPushButton, QListWidget, QListWidgetItem, QMessageBox,
-                               QPlainTextEdit, QWidget)
+from PySide6.QtWidgets import (
+    QComboBox,
+    QDialog,
+    QHBoxLayout,
+    QLabel,
+    QListWidget,
+    QListWidgetItem,
+    QMessageBox,
+    QPlainTextEdit,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
+)
+
 from app.ai import prompts
 from app.db.clients_repo import ClientsRepository
 from app.db.health_repo import HealthRepository
 from app.db.notes_repo import MAX_TEXTO, TIPOS, NotesRepository
-from app.db.repo import Repository, ESTADOS
+from app.db.repo import ESTADOS, Repository
 from app.db.reports_repo import ReportsRepository
 from app.diagnosis.engine import diagnose
 from app.reports.service import KINDS, generate_report
 from app.ui.ai_widgets import AiDialog
 from app.ui.diagnosis_dialog import DiagnosisDialog
-from app.ui.widgets import (AreaDesplazable, BarraPorcentaje, ChipEstado, IndicadorEtapas, color_estado,
-                            fecha_corta, limpiar_layout, muted, panel)
+from app.ui.widgets import (
+    AreaDesplazable,
+    BarraPorcentaje,
+    ChipEstado,
+    IndicadorEtapas,
+    color_estado,
+    fecha_corta,
+    limpiar_layout,
+    muted,
+    panel,
+)
 
 
 class CaseDialog(QDialog):

@@ -17,6 +17,7 @@ import os
 import time
 from datetime import datetime
 from statistics import mean
+from typing import Any
 
 import psutil
 
@@ -240,7 +241,7 @@ def ejecutar(discos: list[dict], cancelado=lambda: False, al_paso=None, al_muest
              duracion_disco: float = DURACION_DISCO, procesos: int | None = None,
              cond: dict | None = None) -> dict:
     """CPU y luego cada disco. `discos`: [{index, model}] de la captura del caso."""
-    res = {"version": VERSION, "fecha": datetime.now().isoformat(timespec="seconds"),
+    res: dict[str, Any] = {"version": VERSION, "fecha": datetime.now().isoformat(timespec="seconds"),
            "condiciones": cond if cond is not None else condiciones(),
            "cpu": None, "discos": [], "cancelado": False,
            "parametros": {"duracion_cpu_s": duracion_cpu, "duracion_disco_s": duracion_disco,

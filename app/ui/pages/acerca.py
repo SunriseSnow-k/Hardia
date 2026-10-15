@@ -5,12 +5,12 @@ import sqlite3
 import PySide6
 from PySide6.QtCore import Qt, QUrl
 from PySide6.QtGui import QDesktopServices
-from PySide6.QtWidgets import (QApplication, QHBoxLayout, QLabel, QPushButton,
-                               QVBoxLayout, QWidget)
+from PySide6.QtWidgets import QApplication, QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
+
+from app import registro
 from app.ai.config import check_ai
 from app.db.repo import Repository
 from app.diagnosis.engine import load_rules
-from app import registro
 from app.paths import data_dir, db_path, recurso
 from app.ui.welcome import WelcomeDialog
 from app.ui.widgets import AreaDesplazable, cabecera, limpiar_layout, lista_dato_valor, panel, ruta_cortable

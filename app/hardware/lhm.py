@@ -8,11 +8,14 @@ leer la temperatura de la CPU ni el SMART de los discos: esos valores llegan vac
 Este módulo solo devuelve lecturas normalizadas; su interpretación está en scanner._sensores.
 """
 import ctypes
+import logging
 import os
 import sys
 import threading
 import time
 from pathlib import Path
+
+log = logging.getLogger(__name__)
 
 DLL = "LibreHardwareMonitorLib.dll"
 FUENTE = "LibreHardwareMonitor"
@@ -28,7 +31,7 @@ _PREFIJO = (("cpu", "cpu"), ("gpu", "gpu"), ("nvidia", "gpu"), ("ati", "gpu"), (
             ("ec", "motherboard"), ("cooler", "cooler"), ("ram", "memory"), ("memory", "memory"))
 
 _lock = threading.Lock()
-_cargada = None  # True / mensaje de error
+_cargada: bool | str | None = None  # True / mensaje de error
 
 
 def carpeta() -> Path:
@@ -109,7 +112,7 @@ def _cargar():
             try:
                 import clr  # pythonnet
             except Exception as e:
-                raise RuntimeError(f"No disponible: falta pythonnet ({type(e).__name__})")
+                raise RuntimeError(f"No disponible: falta pythonnet ({type(e).__name__})") from e
             if str(dll.parent) not in sys.path:
                 sys.path.append(str(dll.parent))
             _resolver_dependencias(dll.parent)
@@ -119,7 +122,7 @@ def _cargar():
             raise
         except Exception as e:
             _cargada = f"Fallo al cargar {DLL}: {e}"
-            raise RuntimeError(_cargada)
+            raise RuntimeError(_cargada) from e
         _cargada = True
 
 
@@ -180,10 +183,12 @@ class Lector:
             hw.Update()
             for sub in hw.SubHardware:
                 rec(sub)
+        assert self._pc is not None, "Lector usado fuera de su bloque with"
         for hw in self._pc.Hardware:
             try:
                 rec(hw)
-            except Exception:
+            except Exception:  # un componente ilegible no impide leer los demás
+                log.debug("LHM: no se pudo leer %s", hw, exc_info=True)
                 continue
 
     def leer(self, actualizar: bool = True) -> list[dict]:
@@ -200,10 +205,12 @@ class Lector:
                                    "name": str(s.Name), "value": valor})
             for sub in hw.SubHardware:
                 rec(sub, cat)
+        assert self._pc is not None, "Lector usado fuera de su bloque with"
         for hw in self._pc.Hardware:
             try:
                 rec(hw, categoria(str(hw.HardwareType)))
-            except Exception:
+            except Exception:  # un componente ilegible no impide leer los demás
+                log.debug("LHM: no se pudo leer %s", hw, exc_info=True)
                 continue
         return salida
 

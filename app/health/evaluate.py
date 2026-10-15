@@ -123,7 +123,7 @@ def estado_por_margen(margen: float | None) -> str:
 
 def peor(*estados: str) -> str:
     validos = [e for e in estados if e and e != SIN_REF]
-    return min(validos, key=GRAVEDAD.get) if validos else SIN_REF
+    return min(validos, key=lambda e: GRAVEDAD.get(e, 0)) if validos else SIN_REF
 
 
 def _comp(clave, nombre, modelo="", estado=SIN_REF, medido=("No disponible", ""),
@@ -159,12 +159,12 @@ def _bateria(inv, disp) -> dict | None:
     windows.append(("Ciclos de carga", "No disponible: esta versión no los lee"))
     fuente = "Windows (BatteryStaticData y BatteryFullChargedCapacity)"
     if not b:
-        motivo = ESTADO_TEXTO.get(a.get("status"), "No disponible")
+        motivo = ESTADO_TEXTO.get(str(a.get("status")), "No disponible")
         return _comp("bateria", "Batería", alt=f"Sin referencia: {motivo.lower()}", fuente=fuente,
                      windows=windows)
     diseno, actual = b.get("design_mwh"), b.get("full_mwh")
     if not (diseno and actual):
-        motivo = next((ESTADO_TEXTO.get(f.get("motivo"), "No disponible") for f in _l(a.get("faltantes"))
+        motivo = next((ESTADO_TEXTO.get(str(f.get("motivo")), "No disponible") for f in _l(a.get("faltantes"))
                        if isinstance(f, dict) and "batería" in str(f.get("campo", "")).lower()),
                       "No disponible")
         return _comp("bateria", "Batería", alt=f"Sin referencia: Windows no informó la capacidad ({motivo.lower()})",
@@ -199,7 +199,7 @@ def _memoria(inv) -> dict | None:
     if not pares:
         motivo = ("la captura no incluye la velocidad nominal y la configurada de los módulos"
                   if modulos else "Windows no informó los módulos de memoria")
-        leidas = sorted({m.get("configured_mhz") or m.get("speed_mhz") for m in modulos
+        leidas = sorted({int(m.get("configured_mhz") or m.get("speed_mhz") or 0) for m in modulos
                          if m.get("configured_mhz") or m.get("speed_mhz")})
         medido = ((" / ".join(f"{v} MHz" for v in leidas), "velocidad leída") if leidas
                   else ("No disponible", ""))

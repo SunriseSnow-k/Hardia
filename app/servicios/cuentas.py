@@ -76,8 +76,8 @@ def iniciar_sesion(repo: Repository, tech_id: str, password: str, ahora: datetim
     _auditar(repo, "sesion_fallida", tech_id)
     if u:
         espera = segundos_de_bloqueo(u["failed_attempts"] + 1)
-        hasta = (ahora + timedelta(seconds=espera)).strftime(FORMATO) if espera else ""
-        users.register_failure(tech_id, hasta)
+        bloqueo = (ahora + timedelta(seconds=espera)).strftime(FORMATO) if espera else ""
+        users.register_failure(tech_id, bloqueo)
         if espera:
             _auditar(repo, "cuenta_bloqueada", tech_id, f"{espera} s")
             raise AccesoBloqueado(espera)

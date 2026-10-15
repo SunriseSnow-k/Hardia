@@ -79,7 +79,7 @@ class _LectorFalso:
 
 
 def test_navegacion_incluye_salud(repo):
-    from app.ui.main_window import IDX_SALUD, MainWindow, SECCIONES
+    from app.ui.main_window import IDX_SALUD, SECCIONES, MainWindow
     assert SECCIONES[IDX_SALUD] == "Salud del equipo" and len(SECCIONES) == 11
     code = _caso_con_captura(repo)
     win = MainWindow(repo, "TEC-001")
@@ -201,6 +201,7 @@ def test_prueba_sin_temperatura_exige_confirmacion(repo):
 def test_dialogo_de_prueba_ejecuta_de_verdad_en_poco_tiempo(repo, monkeypatch):
     """Ejecución real del hilo con duraciones cortas y sin discos (la lectura física requiere administrador)."""
     from PySide6.QtCore import QEventLoop, QTimer
+
     from app.ui.benchmark_dialog import BenchmarkDialog
     code = _caso_con_captura(repo)
     cap = HealthRepository(repo).evaluate_case(code)["captura"]

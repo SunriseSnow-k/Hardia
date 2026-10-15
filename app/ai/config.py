@@ -3,7 +3,7 @@
 Hay dos motores: el paquete de IA integrado (por defecto; se descarga desde la sección IA local)
 y Ollama (avanzado, instalado aparte). Cada uno recuerda su propio modelo."""
 from . import paquete
-from .ollama_client import list_models, has_model, OllamaError
+from .ollama_client import OllamaError, has_model, list_models
 
 MOTORES = ("paquete", "ollama")
 DEFAULT_MODEL = "llama3.2:3b"  # modelo por defecto de Ollama
@@ -82,4 +82,4 @@ def check_ai(repo) -> tuple[bool, str, str]:
 
 def nombre_modelo(modelo: str) -> str:
     """Nombre para mostrar (los modelos del paquete tienen nombre propio)."""
-    return paquete.MODELOS[modelo]["nombre"] if modelo in paquete.MODELOS else modelo
+    return str(paquete.MODELOS[modelo]["nombre"]) if modelo in paquete.MODELOS else modelo

@@ -47,7 +47,7 @@ class OrdersRepository:
             try:
                 date.fromisoformat(estimada)
             except ValueError:
-                raise ValueError("La fecha estimada de entrega no es válida.")
+                raise ValueError("La fecha estimada de entrega no es válida.") from None
         valores = (_limpio(accessories, "Los accesorios"), _limpio(condition, "El estado físico"),
                    _limpio(observations, "Las observaciones"), estimada,
                    (received_by or "").strip().upper())

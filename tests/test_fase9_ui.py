@@ -48,7 +48,7 @@ def _caso(repo):
 
 
 def test_navegacion_completa(repo):
-    from app.ui.main_window import MainWindow, SECCIONES
+    from app.ui.main_window import SECCIONES, MainWindow
     _caso(repo)
     win = MainWindow(repo, "TEC-001")
     for i in range(len(SECCIONES)):

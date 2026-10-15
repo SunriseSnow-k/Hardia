@@ -2,7 +2,8 @@ import functools
 import sqlite3
 from contextlib import contextmanager
 
-from .migraciones import VERSION_ACTUAL as VERSION_ESQUEMA, migrar  # noqa: F401 (se reexporta)
+from .migraciones import VERSION_ACTUAL as VERSION_ESQUEMA  # noqa: F401 (se reexporta)
+from .migraciones import migrar
 
 
 class Conexion(sqlite3.Connection):
@@ -39,6 +40,13 @@ class Conexion(sqlite3.Connection):
         self.execute(f"RELEASE {punto}")
         if self._nivel == 0:
             super().commit()
+
+
+def ultimo_id(cur: sqlite3.Cursor) -> int:
+    """Id de la fila recién insertada (sqlite siempre lo informa tras un INSERT)."""
+    if cur.lastrowid is None:
+        raise RuntimeError("La inserción no devolvió un id.")
+    return cur.lastrowid
 
 
 def transaccional(metodo):

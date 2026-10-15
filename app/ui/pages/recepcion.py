@@ -3,14 +3,26 @@ import logging
 
 from PySide6.QtCore import QDate, Qt, QUrl, Signal
 from PySide6.QtGui import QDesktopServices
-from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QCheckBox, QDateEdit,
-                               QLabel, QLineEdit, QComboBox, QPushButton, QFrame)
+from PySide6.QtWidgets import (
+    QCheckBox,
+    QComboBox,
+    QDateEdit,
+    QFrame,
+    QGridLayout,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
+)
+
 from app.db.clients_repo import ClientsRepository
 from app.db.hardware_repo import HardwareRepository
 from app.db.health_repo import HealthRepository
 from app.db.orders_repo import ACCESORIOS
+from app.db.repo import PRIORIDADES, Repository
 from app.db.reports_repo import ReportsRepository
-from app.db.repo import Repository, PRIORIDADES
 from app.hardware.inventory import fmt_bytes
 from app.reports.service import generate_report
 from app.servicios import recepcion

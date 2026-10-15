@@ -4,10 +4,17 @@ from types import SimpleNamespace as NS
 import pytest
 
 from app.hardware import diag_file
-from app.hardware.inventory import (FALLO, NO_AUTORIZADO, NO_COMPATIBLE, NO_DISPONIBLE, OK,
-                                    compare_captures, identifiers_from_scan, inventory_rows)
-from app.hardware.scanner import (COMPONENT_NAMES, clasificar_error, run_scan, serie_valida,
-                                  uuid_valido)
+from app.hardware.inventory import (
+    FALLO,
+    NO_AUTORIZADO,
+    NO_COMPATIBLE,
+    NO_DISPONIBLE,
+    OK,
+    compare_captures,
+    identifiers_from_scan,
+    inventory_rows,
+)
+from app.hardware.scanner import COMPONENT_NAMES, clasificar_error, run_scan, serie_valida, uuid_valido
 
 GB = 1024 ** 3
 

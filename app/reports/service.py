@@ -2,6 +2,7 @@ from datetime import datetime
 from pathlib import Path
 
 from app.paths import reports_dir
+
 from .pdf import build_client, build_order, build_technical, load_order_data, load_report_data
 
 KINDS = {"tecnico": "Técnico", "cliente": "Cliente", "orden": "Orden de servicio"}
