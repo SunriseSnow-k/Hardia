@@ -31,17 +31,6 @@ class OrdersRepository:
     def __init__(self, repo: Repository):
         self.repo = repo
         self.c = repo.c
-        self.c.execute("""
-            CREATE TABLE IF NOT EXISTS service_orders (
-                case_code      TEXT PRIMARY KEY REFERENCES cases(code),
-                accessories    TEXT NOT NULL DEFAULT '',
-                condition      TEXT NOT NULL DEFAULT '',
-                observations   TEXT NOT NULL DEFAULT '',
-                estimated_date TEXT NOT NULL DEFAULT '',
-                received_by    TEXT NOT NULL DEFAULT '',
-                created_at     TEXT NOT NULL DEFAULT (datetime('now','localtime'))
-            )""")
-        self.c.commit()
 
     def save(self, case_code: str, accessories="", condition="", observations="",
              estimated_date="", received_by="") -> None:

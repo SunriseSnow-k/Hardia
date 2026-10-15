@@ -7,7 +7,7 @@ from PySide6.QtCore import QLockFile, Qt
 from PySide6.QtGui import QColor, QFont, QIcon, QPainter, QPixmap
 from PySide6.QtWidgets import QApplication, QMessageBox, QSplashScreen
 from app import registro
-from app.paths import data_dir, db_path, recurso
+from app.paths import backups_dir, data_dir, db_path, recurso
 from app.version import APP_NAME, VERSION
 
 log = logging.getLogger("app")
@@ -78,6 +78,7 @@ def main() -> int:
     # Lo pesado se importa con la pantalla de carga ya visible
     from app.ai import paquete
     from app.db.database import Database
+    from app.db.migraciones import BaseMasNueva
     from app.db.hardware_repo import HardwareRepository
     from app.db.repo import Repository
     from app.ui.login import LoginDialog
@@ -90,7 +91,15 @@ def main() -> int:
     # cerrar el login no debe terminarla por su cuenta.
     app.setQuitOnLastWindowClosed(False)
 
-    db = Database(db_path())
+    try:  # actualiza el esquema si hace falta (antes guarda una copia de la base tal como estaba)
+        db = Database(db_path(), carpeta_copias=backups_dir())
+    except BaseMasNueva as e:
+        splash.close()
+        QMessageBox.critical(None, APP_NAME, str(e))
+        lock.unlock()
+        return 1
+    if db.migraciones_aplicadas:
+        log.info("Esquema actualizado: migraciones %s", db.migraciones_aplicadas)
     repo = Repository(db)
     try:  # convierte los escaneos anteriores en capturas (no borra nada; se repite sin efecto)
         HardwareRepository(repo).migrate_legacy()

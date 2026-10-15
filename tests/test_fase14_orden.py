@@ -132,3 +132,16 @@ def test_recepcion_rechaza_fecha_pasada(ui_repo):
     page._guardar()
     assert "anterior a hoy" in page.error.text()
     assert ui_repo.list_cases() == []
+
+
+def test_recepcion_no_abre_orden_si_no_se_guardo(ui_repo, _sin_abrir_archivos, monkeypatch):
+    from app.ui.pages.recepcion import RecepcionPage
+
+    def falla(*a, **k):
+        raise RuntimeError("bloqueada")
+    monkeypatch.setattr(OrdersRepository, "save", falla)
+    page = RecepcionPage(ui_repo)
+    _llenar(page)
+    page._guardar()
+    assert page.ok.text().startswith("Caso C-001") and "orden de servicio" in page.ok.text()
+    assert _sin_abrir_archivos == []

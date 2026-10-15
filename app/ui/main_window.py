@@ -7,7 +7,7 @@ from PySide6.QtWidgets import (QMainWindow, QWidget, QHBoxLayout, QVBoxLayout,
 from app import backup
 from app.ai.config import check_ai
 from app.db.repo import Repository
-from app.db.search_repo import SearchQueries, prepare
+from app.db.search_repo import SearchQueries
 from app.ui.case_dialog import CaseDialog
 from app.ui.pages.inicio import InicioPage
 from app.ui.pages.recepcion import RecepcionPage
@@ -41,7 +41,6 @@ class MainWindow(QMainWindow):
         self._hits: dict[str, str] = {}
         self._skip_backup = False
         self.logout_requested = False
-        prepare(repo)  # tablas, columnas e índices que usa el buscador global
         self.setWindowTitle("Sistema Inteligente Offline")
         self.resize(1280, 780)
 

@@ -1,23 +1,11 @@
-"""Documento de identidad del cliente (opcional).
-
-Se agrega la columna clients.doc_id con ALTER TABLE: las bases existentes no pierden
-datos y los clientes anteriores quedan con el documento vacío.
-"""
+"""Documento de identidad del cliente (opcional). La columna clients.doc_id la crea la
+migración 3 (app/db/migraciones.py); los clientes anteriores quedan con el documento vacío."""
 import re
 import sqlite3
 
 from .repo import Repository
 
 MAX_DOC = 20
-
-
-def ensure_doc_column(conn: sqlite3.Connection) -> None:
-    """Migración idempotente: crea la columna y su índice si no existen."""
-    columnas = {f[1] for f in conn.execute("PRAGMA table_info(clients)")}
-    if "doc_id" not in columnas:
-        conn.execute("ALTER TABLE clients ADD COLUMN doc_id TEXT NOT NULL DEFAULT ''")
-    conn.execute("CREATE INDEX IF NOT EXISTS idx_clients_doc ON clients(doc_id)")
-    conn.commit()
 
 
 def normalize_doc(doc: str) -> str:
@@ -33,7 +21,6 @@ def normalize_doc(doc: str) -> str:
 class ClientsRepository:
     def __init__(self, repo: Repository):
         self.c = repo.c
-        ensure_doc_column(self.c)
 
     def set_doc(self, client_id: int, doc: str) -> None:
         self.c.execute("UPDATE clients SET doc_id=? WHERE id=?", (normalize_doc(doc), client_id))

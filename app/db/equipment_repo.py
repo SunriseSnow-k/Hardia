@@ -1,6 +1,5 @@
 import sqlite3
 
-from .clients_repo import ensure_doc_column
 from .hardware_repo import HardwareRepository
 from .repo import Repository
 from .search_repo import MAX_PALABRAS, _CAPTURA, _ESC, _like
@@ -13,8 +12,6 @@ class EquipmentRepository:
 
     def __init__(self, repo: Repository):
         self.c = repo.c
-        HardwareRepository(repo)  # asegura la tabla de capturas que usa la búsqueda por marca/modelo
-        ensure_doc_column(self.c)
 
     def list_equipment(self, text: str = "") -> list[sqlite3.Row]:
         """Busca por serie, equipo, cliente, teléfono, documento y por la marca o el modelo

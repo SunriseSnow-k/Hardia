@@ -6,14 +6,13 @@ import pytest
 from app.db.database import Database
 from app.db.repo import Repository
 from app.db.reports_repo import ReportsRepository
-from app.db.search_repo import SearchQueries, pages, prepare
+from app.db.search_repo import SearchQueries, pages
 
 
 @pytest.fixture
 def repo(tmp_path):
     db = Database(tmp_path / "t.db")
     r = Repository(db)
-    prepare(r)
     yield r
     db.close()
 

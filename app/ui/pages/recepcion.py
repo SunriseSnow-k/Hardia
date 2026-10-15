@@ -1,19 +1,23 @@
 import html
+import logging
 
 from PySide6.QtCore import QDate, Qt, QUrl, Signal
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QCheckBox, QDateEdit,
                                QLabel, QLineEdit, QComboBox, QPushButton, QFrame)
-from app.db.clients_repo import ClientsRepository, normalize_doc
+from app.db.clients_repo import ClientsRepository
 from app.db.hardware_repo import HardwareRepository
 from app.db.health_repo import HealthRepository
-from app.db.orders_repo import ACCESORIOS, OrdersRepository
+from app.db.orders_repo import ACCESORIOS
 from app.db.reports_repo import ReportsRepository
 from app.db.repo import Repository, PRIORIDADES
 from app.hardware.inventory import fmt_bytes
 from app.reports.service import generate_report
+from app.servicios import recepcion
+from app.servicios.recepcion import DatosRecepcion
 from app.ui.widgets import AreaDesplazable, cabecera, campo, fecha_corta, limpiar_layout, lista_dato_valor, muted, panel
 
+log = logging.getLogger(__name__)
 TIPOS_ID = {"uuid": "UUID", "serial": "número de serie", "board_serial": "serie de la placa", "mac": "MAC"}
 NO_DISP = "No disponible"
 
@@ -83,7 +87,6 @@ class RecepcionPage(QWidget):
         super().__init__()
         self.repo = repo
         self.tech_id = tech_id
-        self.orders = OrdersRepository(repo)
         self.hwr = HardwareRepository(repo)
         self.clients = ClientsRepository(repo)
         self.health = HealthRepository(repo)
@@ -393,75 +396,42 @@ class RecepcionPage(QWidget):
     # ---------- Guardar ----------
     def _guardar(self):
         self.ok.setText("")
-        cliente = self.cliente.text().strip()
-        telefono = self.telefono.text().strip()
-        equipo = self.equipo.text().strip()
-        serie = self.serie.text().strip()
         partes = [c.text() for c in self.chips if c.isChecked()]
-        escrito = self.problema.text().strip()
-        if escrito:
-            partes.append(escrito)
-        problema = ", ".join(partes)
-        if not (cliente and equipo and serie and problema):
-            self.error.setText("Complete cliente, equipo, serie y problema.")
-            return
-        try:
-            documento = normalize_doc(self.documento.text())
-        except ValueError as e:
-            self.error.setText(str(e))
-            return
+        if self.problema.text().strip():
+            partes.append(self.problema.text().strip())
         acc = [b.text() for b in self.accesorios if b.isChecked()]
         if self.otros_acc.text().strip():
             acc.append(self.otros_acc.text().strip())
-        estimada = self.fecha.date().toString("yyyy-MM-dd") if self.chk_fecha.isChecked() else ""
-        if estimada and self.fecha.date() < QDate.currentDate():
-            self.error.setText("La fecha estimada de entrega no puede ser anterior a hoy.")
+        datos = DatosRecepcion(
+            cliente=self.cliente.text().strip(), telefono=self.telefono.text().strip(),
+            documento=self.documento.text(), equipo=self.equipo.text().strip(),
+            serie=self.serie.text().strip(), problema=", ".join(partes),
+            prioridad=self.prioridad.currentText(), accesorios=acc,
+            estado_fisico=self.estado_fisico.text(), observaciones=self.observaciones.text(),
+            fecha_estimada=self.fecha.date().toString("yyyy-MM-dd") if self.chk_fecha.isChecked() else "",
+            tecnico=self.tech_id,
+        )
+        try:
+            res = recepcion.registrar(self.repo, datos, self.hw)
+        except ValueError as e:
+            self.error.setText(str(e))
+            return
+        except Exception as e:
+            log.exception("No se pudo registrar la recepción")
+            self.error.setText(f"No se pudo registrar la recepción; no se guardó ningún dato ({e}).")
             return
         self.error.setText("")
-        code = self.repo.register_intake(
-            cliente, telefono, serie, equipo, problema, self.prioridad.currentText(),
-        )
-        aviso = ""
-        if documento:
+        avisos = [f"Aviso: {a}" for a in res.avisos]
+        if self.chk_orden.isChecked() and res.orden_guardada:
             try:
-                self.clients.set_doc_for_case(code, documento)
-            except Exception as e:  # el caso ya quedó registrado; solo se avisa
-                aviso += f" Aviso: no se pudo guardar el documento ({e})."
-        if self.hw:  # guarda una captura nueva (las anteriores se conservan) y los datos actuales del equipo
-            r = self.hw.get("summary", {})
-            cid = self.repo.add_client(cliente, telefono)
-            self.repo.upsert_equipment(
-                serie, equipo, cid, cpu=r.get("cpu", ""), ram=r.get("ram", ""),
-                storage=r.get("storage", ""), os_name=r.get("os", ""),
-            )
-            try:
-                res = self.hwr.save_capture(code, self.hw)
-                if res["conflicts"]:
-                    aviso += (f" Aviso: {len(res['conflicts'])} identificador(es) del escaneo ya pertenecen a "
-                             "otro equipo y no se reasignaron; revise que la serie sea la correcta.")
-            except Exception as e:
-                aviso += f" Aviso: no se pudo guardar la captura de hardware ({e})."
-            else:
-                try:  # deja guardado el índice de salud para Equipos, Caso y futuros reingresos
-                    self.health.evaluate_case(code)
-                except Exception as e:
-                    aviso += f" Aviso: no se pudo evaluar la salud del equipo ({e})."
-        orden_ok = True
-        try:
-            self.orders.save(code, acc, self.estado_fisico.text(), self.observaciones.text(), estimada,
-                             self.tech_id)
-        except Exception as e:
-            orden_ok = False
-            aviso += f" Aviso: no se pudo guardar la orden de servicio ({e})."
-        if orden_ok and self.chk_orden.isChecked():
-            try:
-                ruta = generate_report(self.repo, ReportsRepository(self.repo), code, "orden", self.tech_id)
+                ruta = generate_report(self.repo, ReportsRepository(self.repo), res.code, "orden", self.tech_id)
                 QDesktopServices.openUrl(QUrl.fromLocalFile(str(ruta)))
             except Exception as e:
-                aviso += f" Aviso: no se pudo generar la orden de servicio ({e})."
+                log.exception("No se pudo generar la orden de servicio")
+                avisos.append(f"Aviso: no se pudo generar la orden de servicio ({e}).")
         self._limpiar()
-        self.ok.setText(f"Caso {code} registrado en la cola de trabajo.{aviso}")
-        self.case_created.emit(code)
+        self.ok.setText(" ".join([f"Caso {res.code} registrado en la cola de trabajo.", *avisos]))
+        self.case_created.emit(res.code)
 
     def _limpiar(self):
         for campo_ in (self.cliente, self.telefono, self.documento, self.equipo, self.serie,

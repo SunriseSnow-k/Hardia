@@ -4,13 +4,13 @@ import sqlite3
 import pytest
 from reportlab.pdfgen import canvas as rl_canvas
 
-from app.db.clients_repo import ClientsRepository, ensure_doc_column, normalize_doc
+from app.db.clients_repo import ClientsRepository, normalize_doc
 from app.db.database import Database
 from app.db.hardware_repo import HardwareRepository
 from app.db.notes_repo import NotesRepository
 from app.db.repo import Repository
 from app.db.reports_repo import ReportsRepository
-from app.db.search_repo import SearchQueries, prepare
+from app.db.search_repo import SearchQueries
 from app.diagnosis.engine import diagnose
 from app.hardware.inventory import inventory_rows
 from app.hardware.scanner import run_scan
@@ -24,7 +24,6 @@ from tests.test_fase10b_hardware import _env, _psutil
 def repo(tmp_path):
     db = Database(tmp_path / "t.db")
     r = Repository(db)
-    prepare(r)
     yield r
     db.close()
 
@@ -86,8 +85,6 @@ def test_migracion_de_la_columna_documento(tmp_path):
     con.close()
     db = Database(ruta)
     try:
-        ensure_doc_column(db.conn)
-        ensure_doc_column(db.conn)  # idempotente
         fila = db.conn.execute("SELECT name, phone, doc_id FROM clients").fetchone()
         assert tuple(fila) == ("Peña", "987", "")
     finally:
@@ -137,13 +134,11 @@ def test_buscar_por_marca_y_modelo_de_las_capturas(repo):
     assert q.search_cases(text="%")["total"] == 0  # los comodines siguen siendo texto
 
 
-def test_prepare_en_base_antigua(tmp_path):
+def test_busqueda_en_base_con_datos(tmp_path):
     db = Database(tmp_path / "t.db")
     try:
         repo = Repository(db)
         repo.register_intake("Luis", "1", "SN-1", "Laptop", "Lento")
-        prepare(repo)
-        prepare(repo)
         assert SearchQueries(repo.c).search_cases(text="Luis")["total"] == 1
     finally:
         db.close()

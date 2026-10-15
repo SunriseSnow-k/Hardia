@@ -1,6 +1,6 @@
 import json
 import sqlite3
-from .database import Database
+from .database import Database, transaccional
 from .security import hash_password, verify_password
 
 ESTADOS = ("Recibido", "En diagnóstico", "Listo", "Entregado")
@@ -11,6 +11,10 @@ class Repository:
     def __init__(self, db: Database):
         self.db = db
         self.c = db.conn
+
+    def transaccion(self):
+        """`with repo.transaccion():` agrupa varias operaciones: se guardan todas o ninguna."""
+        return self.c.transaccion()
 
     # ---------- Usuarios ----------
     def count_users(self) -> int:
@@ -100,6 +104,7 @@ class Repository:
         self.c.commit()
         return code
 
+    @transaccional
     def register_intake(self, cliente: str, telefono: str, serie: str,
                         equipo: str, problema: str, prioridad: str = "Media") -> str:
         """Recepción rápida: cliente + equipo + caso en una sola operación."""
@@ -179,6 +184,7 @@ class Repository:
         row = self.c.execute("SELECT scan FROM case_scans WHERE case_code=?", (code,)).fetchone()
         return json.loads(row["scan"]) if row else None
 
+    @transaccional
     def save_diagnosis(self, code: str, result: dict, method: str = "Reglas") -> None:
         """Guarda el resultado y actualiza la prioridad, el método y el estado del caso."""
         self.c.execute(

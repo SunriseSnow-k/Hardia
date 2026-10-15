@@ -6,7 +6,7 @@ from PySide6.QtCore import QDate, QObject, QRunnable, QThreadPool, Signal
 from PySide6.QtWidgets import QCheckBox, QDateEdit, QHBoxLayout, QLabel, QPushButton, QWidget
 
 from app.db.repo import Repository
-from app.db.search_repo import SearchQueries, prepare
+from app.db.search_repo import SearchQueries
 
 
 def _db_file(conn):
@@ -52,7 +52,6 @@ class AsyncSearch(QObject):
     def __init__(self, repo: Repository, parent=None):
         super().__init__(parent)
         self.repo = repo
-        prepare(repo)
         self._archivo = _db_file(repo.c)
         self._run = 0
         self._senales = _Senales()

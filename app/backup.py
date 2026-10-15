@@ -4,6 +4,7 @@ import threading
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from app.db.migraciones import comprobar_compatible
 from app.paths import backups_dir
 
 REQUIRED_TABLES = {"users", "clients", "equipment", "cases"}
@@ -100,6 +101,7 @@ def validate_backup(path) -> None:
         raise ValueError("La copia de seguridad está dañada.")
     if REQUIRED_TABLES - tablas:
         raise ValueError("El archivo no es una copia de este programa.")
+    comprobar_compatible(path)
 
 
 def restore_backup(conn, path, safety_folder=None) -> Path:

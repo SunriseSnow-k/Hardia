@@ -9,6 +9,7 @@ import sqlite3
 
 from app.hardware.inventory import FUERTES, identifiers_from_scan
 
+from .database import transaccional
 from .repo import Repository
 
 ORIGENES = {"local_scan": "Escaneo local", "imported_file": "Archivo importado", "legacy": "Migrado"}
@@ -18,38 +19,13 @@ class HardwareRepository:
     def __init__(self, repo: Repository):
         self.repo = repo
         self.c = repo.c
-        self.c.executescript("""
-            CREATE TABLE IF NOT EXISTS hardware_captures (
-                id            INTEGER PRIMARY KEY AUTOINCREMENT,
-                case_code     TEXT NOT NULL REFERENCES cases(code),
-                equipment_id  INTEGER NOT NULL REFERENCES equipment(id),
-                captured_at   TEXT NOT NULL,
-                recorded_at   TEXT NOT NULL DEFAULT (datetime('now','localtime')),
-                source        TEXT NOT NULL,
-                source_file   TEXT,
-                schema_version INTEGER NOT NULL,
-                host          TEXT, manufacturer TEXT, model TEXT, serial TEXT, uuid TEXT,
-                payload       TEXT NOT NULL
-            );
-            CREATE INDEX IF NOT EXISTS idx_captures_equipment
-                ON hardware_captures(equipment_id, captured_at);
-            CREATE INDEX IF NOT EXISTS idx_captures_case ON hardware_captures(case_code);
-            CREATE TABLE IF NOT EXISTS equipment_identifiers (
-                id           INTEGER PRIMARY KEY AUTOINCREMENT,
-                equipment_id INTEGER NOT NULL REFERENCES equipment(id),
-                kind         TEXT NOT NULL,
-                value        TEXT NOT NULL,
-                first_seen   TEXT NOT NULL DEFAULT (datetime('now','localtime')),
-                UNIQUE(kind, value)
-            );
-        """)
-        self.c.commit()
 
     # ---------- identificación ----------
     def _equipment_of_case(self, case_code: str):
         row = self.c.execute("SELECT equipment_id FROM cases WHERE code=?", (case_code,)).fetchone()
         return row[0] if row else None
 
+    @transaccional
     def add_identifiers(self, equipment_id: int, identifiers) -> list[dict]:
         """Asocia identificadores al equipo. Si alguno ya pertenece a OTRO equipo no se
         reasigna: se devuelve como conflicto para que el técnico lo revise."""
@@ -101,6 +77,7 @@ class HardwareRepository:
         return self.identify(identifiers_from_scan(scan))
 
     # ---------- capturas ----------
+    @transaccional
     def save_capture(self, case_code: str, scan: dict) -> dict:
         """Guarda una captura nueva vinculada al caso y al equipo. Conserva las anteriores y
         mantiene al día el escaneo 'actual' del caso que usan el diagnóstico y los reportes."""
@@ -149,6 +126,7 @@ class HardwareRepository:
         return None
 
     # ---------- datos anteriores ----------
+    @transaccional
     def migrate_legacy(self) -> int:
         """Convierte los escaneos guardados antes de existir las capturas. No borra ni
         modifica nada: solo agrega las capturas que falten (idempotente)."""

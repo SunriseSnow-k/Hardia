@@ -13,22 +13,11 @@ import sqlite3
 from datetime import date, datetime, timedelta
 from math import ceil
 
-from .clients_repo import ensure_doc_column
-from .hardware_repo import HardwareRepository
 from .repo import Repository
-from .reports_repo import ReportsRepository
 
 PAGE_SIZE = 50
 MAX_PALABRAS = 8
 _ESC = "ESCAPE '\\'"
-
-INDICES = (
-    "CREATE INDEX IF NOT EXISTS idx_cases_created ON cases(created_at)",
-    "CREATE INDEX IF NOT EXISTS idx_cases_status ON cases(status)",
-    "CREATE INDEX IF NOT EXISTS idx_clients_name ON clients(name)",
-    "CREATE INDEX IF NOT EXISTS idx_reports_case ON reports(case_code)",
-    "CREATE INDEX IF NOT EXISTS idx_reports_created ON reports(created_at)",
-)
 
 _CASOS_FROM = (" FROM cases cs JOIN equipment e ON e.id = cs.equipment_id"
                " LEFT JOIN clients cl ON cl.id = e.client_id")
@@ -49,17 +38,6 @@ _REPORTES_COLS = ("r.id AS report_id, r.case_code, r.kind, r.path, r.created_at,
                   "cs.priority, cs.status AS case_status")
 _REPORTES_CAMPOS = ("cl.name", "cl.phone", "cl.doc_id", "r.case_code", "e.serial", "e.description",
                     "cs.problem", _CAPTURA)
-
-
-def prepare(repo: Repository) -> None:
-    """Asegura las tablas y columnas que usa la búsqueda y sus índices (idempotente).
-    Debe llamarse antes de usar SearchQueries sobre una base nueva o antigua."""
-    ReportsRepository(repo)
-    HardwareRepository(repo)
-    ensure_doc_column(repo.c)
-    for sql in INDICES:
-        repo.c.execute(sql)
-    repo.c.commit()
 
 
 def pages(total: int, size: int = PAGE_SIZE) -> int:

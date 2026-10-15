@@ -8,15 +8,6 @@ class ReportsRepository:
 
     def __init__(self, repo: Repository):
         self.c = repo.c
-        self.c.execute(
-            "CREATE TABLE IF NOT EXISTS reports ("
-            " id INTEGER PRIMARY KEY AUTOINCREMENT,"
-            " case_code TEXT NOT NULL,"
-            " kind TEXT NOT NULL,"
-            " path TEXT NOT NULL,"
-            " created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')))"
-        )
-        self.c.commit()
 
     def add(self, case_code: str, kind: str, path: str) -> None:
         self.c.execute(

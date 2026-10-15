@@ -18,18 +18,6 @@ MAX_TEXTO = 2000
 class NotesRepository:
     def __init__(self, repo: Repository):
         self.c = repo.c
-        self.c.executescript("""
-            CREATE TABLE IF NOT EXISTS case_notes (
-                id         INTEGER PRIMARY KEY AUTOINCREMENT,
-                case_code  TEXT NOT NULL REFERENCES cases(code),
-                kind       TEXT NOT NULL,
-                text       TEXT NOT NULL,
-                author     TEXT NOT NULL DEFAULT '',
-                created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
-            );
-            CREATE INDEX IF NOT EXISTS idx_notes_case ON case_notes(case_code);
-        """)
-        self.c.commit()
 
     def add(self, case_code: str, kind: str, text: str, author: str = "") -> int:
         if kind not in TIPOS:

@@ -20,35 +20,6 @@ class HealthRepository:
         self.repo = repo
         self.c = repo.c
         self.hw = HardwareRepository(repo)
-        self.c.executescript("""
-            CREATE TABLE IF NOT EXISTS health_benchmarks (
-                id         INTEGER PRIMARY KEY AUTOINCREMENT,
-                case_code  TEXT NOT NULL REFERENCES cases(code),
-                capture_id INTEGER REFERENCES hardware_captures(id),
-                created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
-                payload    TEXT NOT NULL
-            );
-            CREATE INDEX IF NOT EXISTS idx_bench_case ON health_benchmarks(case_code);
-            CREATE TABLE IF NOT EXISTS health_results (
-                id           INTEGER PRIMARY KEY AUTOINCREMENT,
-                case_code    TEXT NOT NULL REFERENCES cases(code),
-                capture_id   INTEGER REFERENCES hardware_captures(id),
-                benchmark_id INTEGER REFERENCES health_benchmarks(id),
-                created_at   TEXT NOT NULL DEFAULT (datetime('now','localtime')),
-                indice       REAL,
-                payload      TEXT NOT NULL
-            );
-            CREATE INDEX IF NOT EXISTS idx_health_case ON health_results(case_code);
-            CREATE TABLE IF NOT EXISTS health_diag_items (
-                id         INTEGER PRIMARY KEY AUTOINCREMENT,
-                case_code  TEXT NOT NULL REFERENCES cases(code),
-                clave      TEXT NOT NULL,
-                texto      TEXT NOT NULL,
-                created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
-                UNIQUE(case_code, clave)
-            );
-        """)
-        self.c.commit()
 
     # ---------- resultados ----------
     def save_result(self, case_code: str, capture_id, result: dict, benchmark_id=None) -> int:
