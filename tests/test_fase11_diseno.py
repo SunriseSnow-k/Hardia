@@ -193,7 +193,7 @@ def test_escaneo_muestra_estados_escritos(qapp):
 
 
 def test_conocimiento_muestra_detalle_e_implicacion(qapp):
-    from app.reports.pdf import IMPLICACIONES
+    from app.reports.cliente import IMPLICACIONES
     from app.ui.pages.conocimiento import ConocimientoPage
     page = ConocimientoPage()
     assert page.lista.count() == len(page.rules)

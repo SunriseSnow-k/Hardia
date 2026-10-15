@@ -14,8 +14,9 @@ from app.db.search_repo import SearchQueries
 from app.diagnosis.engine import diagnose
 from app.hardware.inventory import inventory_rows
 from app.hardware.scanner import run_scan
-from app.reports import pdf
-from app.reports.pdf import implication, load_report_data, measured_items
+from app.reports import base, cliente, tecnico
+from app.reports.cliente import implication, measured_items
+from app.reports.datos import load_report_data
 from app.reports.service import generate_report
 from tests.test_fase10b_hardware import _env, _psutil
 
@@ -207,9 +208,9 @@ def _textos(monkeypatch, repo, code, tipo):
     def falso(story, path, titulo, autor, codigo):
         capturado["story"] = story
 
-    monkeypatch.setattr(pdf, "_construir", falso)
+    monkeypatch.setattr(base, "_construir", falso)
     data = load_report_data(repo, code)
-    (pdf.build_technical if tipo == "tecnico" else pdf.build_client)(data, "x.pdf", "TEC-001")
+    (tecnico.build_technical if tipo == "tecnico" else cliente.build_client)(data, "x.pdf", "TEC-001")
     textos = []
 
     def recorrer(f):
@@ -257,7 +258,7 @@ def test_lo_que_medimos_y_temperatura_aproximada():
 
 def test_implicaciones_para_el_cliente():
     assert "respaldar" in implication({"id": "R-007"})
-    assert implication({"id": "R-999"}) == pdf.IMPLICACION_GENERICA
+    assert implication({"id": "R-999"}) == cliente.IMPLICACION_GENERICA
 
 
 def test_pagina_x_de_n(monkeypatch, repo, tmp_path):

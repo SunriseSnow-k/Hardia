@@ -648,8 +648,8 @@ class SaludPage(QWidget):
     def caso_es_este_equipo(self) -> tuple[bool | None, str]:
         """¿El equipo del caso es esta computadora? Compara los identificadores de este equipo
         (UUID, serie, serie de la placa, MAC) con los registrados para el equipo del caso."""
-        fila = self.repo.c.execute("SELECT equipment_id FROM cases WHERE code=?", (self.code,)).fetchone()
-        if fila is None:
+        equipo = self.repo.equipment_id_of_case(self.code)
+        if equipo is None:
             return None, "No existe el caso."
         try:
             locales = self._ids_locales()
@@ -658,7 +658,7 @@ class SaludPage(QWidget):
         if not locales:
             return None, "Windows no informó el UUID ni el número de serie de este equipo."
         res = HardwareRepository(self.repo).identify(locales)
-        if res["status"] == "encontrado" and res["equipment_id"] == fila[0]:
+        if res["status"] == "encontrado" and res["equipment_id"] == equipo:
             return True, ""
         return False, ""
 

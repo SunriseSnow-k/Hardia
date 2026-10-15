@@ -297,7 +297,9 @@ def test_ejecutar_no_sigue_si_se_cancela_en_la_cpu(monkeypatch):
 
 # ---------------- reportes ----------------
 def test_reportes_incluyen_la_salud(repo, tmp_path):
-    from app.reports.pdf import build_client, build_technical, load_report_data, salud_para_cliente
+    from app.reports.cliente import build_client, salud_para_cliente
+    from app.reports.datos import load_report_data
+    from app.reports.tecnico import build_technical
     hw = HardwareRepository(repo)
     code = repo.register_intake("Luis", "1", "SN-1", "Laptop", "Lento")
     hw.save_capture(code, _scan())

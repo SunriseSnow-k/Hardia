@@ -13,7 +13,7 @@ from PySide6.QtWidgets import (
 )
 
 from app.diagnosis.engine import load_rules, normalizar
-from app.reports.pdf import implication
+from app.reports.cliente import implication
 from app.ui.styles import ACCENT
 from app.ui.widgets import AreaDesplazable, ChipEstado, cabecera, chip_html, colores_de, limpiar_layout, muted, panel
 

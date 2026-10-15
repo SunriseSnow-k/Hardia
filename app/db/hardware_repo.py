@@ -26,9 +26,6 @@ class HardwareRepository:
         self.c = repo.c
 
     # ---------- identificación ----------
-    def _equipment_of_case(self, case_code: str):
-        row = self.c.execute("SELECT equipment_id FROM cases WHERE code=?", (case_code,)).fetchone()
-        return row[0] if row else None
 
     @transaccional
     def add_identifiers(self, equipment_id: int, identifiers) -> list[dict]:
@@ -86,7 +83,7 @@ class HardwareRepository:
     def save_capture(self, case_code: str, scan: dict) -> dict:
         """Guarda una captura nueva vinculada al caso y al equipo. Conserva las anteriores y
         mantiene al día el escaneo 'actual' del caso que usan el diagnóstico y los reportes."""
-        equipment_id = self._equipment_of_case(case_code)
+        equipment_id = self.repo.equipment_id_of_case(case_code)
         if equipment_id is None:
             raise ValueError(f"No existe el caso {case_code}.")
         inv: dict = scan["inventory"] if isinstance(scan.get("inventory"), dict) else {}

@@ -118,6 +118,19 @@ class Repository:
         eid = self.upsert_equipment(serie, equipo.strip(), cid)
         return self.create_case(eid, problema.strip(), prioridad)
 
+    def equipment_id_of_case(self, code: str) -> int | None:
+        row = self.c.execute("SELECT equipment_id FROM cases WHERE code=?", (code,)).fetchone()
+        return row[0] if row else None
+
+    # Tablas que se pueden contar (pantalla Acerca de); el nombre nunca viene del usuario
+    TABLAS_CONTABLES = ("cases", "equipment", "clients", "hardware_captures", "diagnoses", "health_results",
+                        "health_benchmarks", "reports", "case_notes", "users", "service_orders", "audit_log")
+
+    def count_rows(self, tabla: str) -> int:
+        if tabla not in self.TABLAS_CONTABLES:
+            raise ValueError(f"Tabla no permitida: {tabla}")
+        return self.c.execute(f"SELECT COUNT(*) FROM {tabla}").fetchone()[0]  # noqa: S608 (lista cerrada)
+
     def update_case_status(self, code: str, status: str) -> None:
         self.c.execute("UPDATE cases SET status=? WHERE code=?", (status, code))
         self.c.commit()

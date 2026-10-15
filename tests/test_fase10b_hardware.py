@@ -4,6 +4,7 @@ from types import SimpleNamespace as NS
 import pytest
 
 from app.hardware import diag_file
+from app.hardware.comun import clasificar_error, serie_valida, uuid_valido
 from app.hardware.inventory import (
     FALLO,
     NO_AUTORIZADO,
@@ -14,7 +15,7 @@ from app.hardware.inventory import (
     identifiers_from_scan,
     inventory_rows,
 )
-from app.hardware.scanner import COMPONENT_NAMES, clasificar_error, run_scan, serie_valida, uuid_valido
+from app.hardware.scanner import COMPONENT_NAMES, run_scan
 
 GB = 1024 ** 3
 

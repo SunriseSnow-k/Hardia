@@ -4,7 +4,8 @@ from app.db.database import Database
 from app.db.repo import Repository
 from app.db.reports_repo import ReportsRepository
 from app.diagnosis.engine import diagnose
-from app.reports.pdf import client_summary, load_report_data
+from app.reports.cliente import client_summary
+from app.reports.datos import load_report_data
 from app.reports.service import generate_report
 
 SCAN = {

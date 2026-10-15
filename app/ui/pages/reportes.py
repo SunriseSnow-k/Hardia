@@ -28,7 +28,7 @@ from app.ui.widgets import AreaDesplazable, cabecera, fecha_corta, muted, panel
 
 COLUMNAS = ["Código", "Cliente", "Equipo", "Serie", "Tipo", "Fecha", "Archivo"]
 MAX_CASOS_COMBO = 50
-# Qué incluye cada PDF (según app/reports/pdf.py)
+# Qué incluye cada PDF (según app/reports/tecnico.py y cliente.py)
 CONTENIDO_TECNICO = (
     "Inventario completo del equipo por categorías",
     "Datos no disponibles, con su motivo",

@@ -132,8 +132,8 @@ class AcercaPage(QWidget):
 
     def _contar(self, tabla: str) -> str:
         try:
-            return str(self.repo.c.execute(f"SELECT COUNT(*) FROM {tabla}").fetchone()[0])
-        except sqlite3.Error:
+            return str(self.repo.count_rows(tabla))
+        except (sqlite3.Error, ValueError):
             return "0"
 
     def _datos(self) -> list[tuple[str, str]]:

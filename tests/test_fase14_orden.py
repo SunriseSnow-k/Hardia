@@ -8,7 +8,7 @@ from app.db.database import Database
 from app.db.orders_repo import TERMINOS_PREDETERMINADOS, OrdersRepository
 from app.db.repo import Repository
 from app.db.reports_repo import ReportsRepository
-from app.reports.pdf import load_order_data
+from app.reports.orden import load_order_data
 from app.reports.service import KINDS, generate_report
 
 

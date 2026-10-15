@@ -3,7 +3,10 @@ from pathlib import Path
 
 from app.paths import reports_dir
 
-from .pdf import build_client, build_order, build_technical, load_order_data, load_report_data
+from .cliente import build_client
+from .datos import load_report_data
+from .orden import build_order, load_order_data
+from .tecnico import build_technical
 
 KINDS = {"tecnico": "Técnico", "cliente": "Cliente", "orden": "Orden de servicio"}
 BUILDERS = {"tecnico": (load_report_data, build_technical), "cliente": (load_report_data, build_client),

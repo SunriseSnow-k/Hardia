@@ -5,7 +5,7 @@ que LibreHardwareMonitor no necesita estar abierto. Otra carpeta puede indicarse
 de entorno DIAG_LHM_DIR. Sin permisos de administrador la biblioteca carga, pero Windows no le deja
 leer la temperatura de la CPU ni el SMART de los discos: esos valores llegan vacíos o en 0.
 
-Este módulo solo devuelve lecturas normalizadas; su interpretación está en scanner._sensores.
+Este módulo solo devuelve lecturas normalizadas; su interpretación está en sensores.py y colectores._sensores.
 """
 import ctypes
 import logging
