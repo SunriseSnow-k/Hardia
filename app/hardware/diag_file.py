@@ -9,6 +9,9 @@ import psutil
 FORMAT = "SD-DIAG"
 VERSION = 2  # 2 = incluye inventario y disponibilidad; los archivos de versión 1 se siguen leyendo
 _DANADO = "El archivo está incompleto o dañado."
+# El colector portátil guarda sus escaneos en <unidad>\Colector\Resultados
+CARPETA_COLECTOR = "Colector"
+CARPETA_RESULTADOS = "Resultados"
 
 
 def save_scan(data: dict, path) -> Path:
@@ -30,7 +33,7 @@ def load_scan(path) -> dict:
         raise ValueError(_DANADO)
     if not isinstance(data.setdefault("metrics", {}), dict):
         raise ValueError(_DANADO)
-    for clave in ("inventory", "availability"):
+    for clave in ("inventory", "availability", "benchmark"):
         if clave in data and not isinstance(data[clave], dict):
             raise ValueError(_DANADO)
     return data
@@ -53,9 +56,17 @@ def removable_drives() -> list[Path]:
 
 
 def find_usb_scans() -> list[Path]:
-    """Archivos .diag en la raíz de las unidades USB conectadas."""
+    """Archivos .diag de las unidades USB conectadas: los del colector (Colector\\Resultados) y
+    los guardados en la raíz. Los más recientes primero."""
     archivos: list[Path] = []
     for unidad in removable_drives():
-        with contextlib.suppress(OSError):
-            archivos += sorted(unidad.glob("*.diag"))
-    return archivos
+        for carpeta in (unidad / CARPETA_COLECTOR / CARPETA_RESULTADOS, unidad):
+            with contextlib.suppress(OSError):
+                archivos += carpeta.glob("*.diag")
+
+    def fecha(p: Path) -> float:
+        try:
+            return p.stat().st_mtime
+        except OSError:
+            return 0.0
+    return sorted(archivos, key=fecha, reverse=True)

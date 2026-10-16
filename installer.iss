@@ -46,6 +46,7 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 [InstallDelete]
 ; Al actualizar se eliminan los archivos de la versión anterior (los datos no están aquí)
 Type: filesandordirs; Name: "{app}\_internal"
+Type: filesandordirs; Name: "{app}\Colector"
 
 [Files]
 Source: "dist\SistemaDiagnostico\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs

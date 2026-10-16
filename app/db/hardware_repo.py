@@ -9,7 +9,7 @@ import sqlite3
 
 from app.hardware.inventory import FUERTES, identifiers_from_scan
 
-from .database import transaccional
+from .database import transaccional, ultimo_id
 from .repo import Repository
 
 ORIGENES = {"local_scan": "Escaneo local", "imported_file": "Archivo importado", "legacy": "Migrado"}
@@ -82,7 +82,12 @@ class HardwareRepository:
     @transaccional
     def save_capture(self, case_code: str, scan: dict) -> dict:
         """Guarda una captura nueva vinculada al caso y al equipo. Conserva las anteriores y
-        mantiene al día el escaneo 'actual' del caso que usan el diagnóstico y los reportes."""
+        mantiene al día el escaneo 'actual' del caso que usan el diagnóstico y los reportes.
+        Si el escaneo trae la prueba de rendimiento (colector portátil), se guarda aparte,
+        vinculada a esta captura, igual que una prueba hecha en el taller."""
+        prueba = scan.get("benchmark")
+        if prueba is not None:
+            scan = {k: v for k, v in scan.items() if k != "benchmark"}
         equipment_id = self.repo.equipment_id_of_case(case_code)
         if equipment_id is None:
             raise ValueError(f"No existe el caso {case_code}.")
@@ -99,7 +104,14 @@ class HardwareRepository:
         self.c.commit()
         self.repo.save_scan(case_code, scan)
         conflictos = self.add_identifiers(equipment_id, identifiers_from_scan(scan))
-        return {"capture_id": cur.lastrowid, "equipment_id": equipment_id, "conflicts": conflictos}
+        benchmark_id = None
+        if isinstance(prueba, dict) and prueba.get("cpu"):
+            benchmark_id = ultimo_id(self.c.execute(
+                "INSERT INTO health_benchmarks(case_code, capture_id, payload) VALUES (?,?,?)",
+                (case_code, cur.lastrowid, json.dumps(prueba, ensure_ascii=False, sort_keys=True))))
+            self.c.commit()
+        return {"capture_id": cur.lastrowid, "equipment_id": equipment_id, "conflicts": conflictos,
+                "benchmark_id": benchmark_id}
 
     def captures_for_equipment(self, equipment_id: int) -> list[sqlite3.Row]:
         return self.c.execute(

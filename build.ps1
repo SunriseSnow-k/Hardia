@@ -21,6 +21,14 @@ if (-not $SinPruebas) {
 Write-Host "-- Programa (PyInstaller)" -ForegroundColor Cyan
 & $py -m PyInstaller --noconfirm --clean --log-level WARN diagnostico.spec
 if ($LASTEXITCODE -ne 0) { throw "PyInstaller fallo." }
+# El colector portatil viaja dentro del programa: desde Escanear se copia a la memoria USB
+$colector = "dist\SistemaDiagnostico\Colector"
+if (-not (Test-Path "dist\Colector\Colector.exe")) { throw "PyInstaller no genero el colector." }
+New-Item -ItemType Directory -Force "dist\Colector\Resultados" | Out-Null  # aqui guarda el colector los .diag
+if (Test-Path $colector) { Remove-Item -Recurse -Force $colector }
+Copy-Item -Recurse "dist\Colector" $colector
+$mb = (Get-ChildItem -Recurse -File $colector | Measure-Object -Sum Length).Sum / 1MB
+Write-Host ("Colector portatil: {0:N1} MB (tambien en dist\Colector para copiarlo a mano)" -f $mb)
 
 Write-Host "-- Instalador (Inno Setup)" -ForegroundColor Cyan
 $iscc = @(

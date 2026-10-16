@@ -28,6 +28,18 @@ CORTE_TEMP = 95.0
 VENTANA = 10  # segundos para el ritmo inicial y final
 BLOQUE = 1024 * 1024  # 1 MiB (múltiplo del tamaño de sector, requerido sin caché)
 
+def discos_de(scan: dict) -> list[dict]:
+    """Discos internos de una captura que la prueba puede leer: [{index, model}]."""
+    sto = ((scan or {}).get("inventory") or {}).get("storage") or {}
+    return [{"index": u.get("index"), "model": u.get("model")} for u in sto.get("physical") or []
+            if isinstance(u, dict) and not u.get("external") and u.get("index") is not None]
+
+
+def duracion_estimada(discos: list[dict], duracion_cpu: float = DURACION_CPU,
+                      duracion_disco: float = DURACION_DISCO) -> float:
+    return duracion_cpu + duracion_disco * len(discos)
+
+
 # ---------------- CPU ----------------
 def _unidad_de_trabajo() -> int:
     """Cálculo fijo y determinista (enteros), igual en todas las ejecuciones."""

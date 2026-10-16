@@ -10,11 +10,7 @@ from app.ui.pages.escaneo import fila_html
 from app.ui.tema import T
 from app.ui.widgets import lista_dato_valor, muted, panel
 
-
-def discos_de_captura(scan: dict) -> list[dict]:
-    sto = ((scan or {}).get("inventory") or {}).get("storage") or {}
-    return [{"index": u.get("index"), "model": u.get("model")} for u in sto.get("physical") or []
-            if isinstance(u, dict) and not u.get("external") and u.get("index") is not None]
+discos_de_captura = bm.discos_de  # nombre usado por las pruebas y la pantalla de salud
 
 
 class BenchmarkWorker(QThread):
