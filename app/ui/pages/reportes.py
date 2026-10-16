@@ -141,7 +141,7 @@ class ReportesPage(QWidget):
         pv.addWidget(self.buscar)
         ff = QHBoxLayout()
         ff.setSpacing(8)
-        self.f_tipo = self._combo(["Todos los tipos", "Técnico", "Cliente", "Orden de servicio"])
+        self.f_tipo = self._combo(["Todos los tipos", *KINDS.values()])
         self.f_estado = self._combo(["Todos los estados del caso", *ESTADOS])
         self.fechas = DateRangeFilter()
         self.fechas.changed.connect(self._nueva_busqueda)
@@ -242,7 +242,7 @@ class ReportesPage(QWidget):
         desde, hasta = self.fechas.values()
         return {
             "text": self.buscar.text().strip(),
-            "kind": {1: "tecnico", 2: "cliente", 3: "orden"}.get(self.f_tipo.currentIndex()),
+            "kind": dict(enumerate(KINDS, 1)).get(self.f_tipo.currentIndex()),
             "case_status": self.f_estado.currentText() if self.f_estado.currentIndex() else None,
             "date_from": desde, "date_to": hasta,
         }

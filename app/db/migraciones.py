@@ -196,9 +196,51 @@ def _v4_roles_y_auditoria(conn) -> None:
     """)
 
 
+def _v5_presupuesto_y_cobro(conn) -> None:
+    """Presupuesto por caso (líneas de servicio y repuestos) y pagos. Los importes se guardan en
+    céntimos (enteros) para no acumular errores de redondeo. Los pagos nunca se borran: se anulan
+    indicando el motivo."""
+    _ejecutar(conn, """
+        CREATE TABLE quotes (
+            case_code   TEXT PRIMARY KEY REFERENCES cases(code),
+            status      TEXT NOT NULL DEFAULT 'Borrador',
+            discount    INTEGER NOT NULL DEFAULT 0,
+            notes       TEXT NOT NULL DEFAULT '',
+            decided_at  TEXT NOT NULL DEFAULT '',
+            decided_by  TEXT NOT NULL DEFAULT '',
+            updated_at  TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+        );
+        CREATE TABLE quote_items (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            case_code   TEXT NOT NULL REFERENCES cases(code),
+            kind        TEXT NOT NULL,
+            description TEXT NOT NULL,
+            quantity    INTEGER NOT NULL DEFAULT 1,
+            unit_price  INTEGER NOT NULL,
+            created_at  TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+        );
+        CREATE INDEX idx_quote_items_case ON quote_items(case_code);
+        CREATE TABLE payments (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            case_code   TEXT NOT NULL REFERENCES cases(code),
+            amount      INTEGER NOT NULL,
+            method      TEXT NOT NULL,
+            note        TEXT NOT NULL DEFAULT '',
+            tech_id     TEXT NOT NULL DEFAULT '',
+            created_at  TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+            voided_at   TEXT NOT NULL DEFAULT '',
+            voided_by   TEXT NOT NULL DEFAULT '',
+            void_reason TEXT NOT NULL DEFAULT ''
+        );
+        CREATE INDEX idx_payments_case ON payments(case_code);
+        CREATE INDEX idx_payments_created ON payments(created_at)
+    """)
+
+
 MIGRACIONES = [
     (3, "Esquema consolidado", _v3_esquema_consolidado),
     (4, "Roles, bloqueo de acceso y auditoría", _v4_roles_y_auditoria),
+    (5, "Presupuesto y cobro", _v5_presupuesto_y_cobro),
 ]
 VERSION_ACTUAL = MIGRACIONES[-1][0]
 

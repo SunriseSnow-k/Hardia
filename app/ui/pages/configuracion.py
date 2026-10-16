@@ -31,7 +31,7 @@ from app.db.users_repo import ROLES, UsersRepository
 from app.hardware.diag_file import removable_drives
 from app.health.references import PAQUETE, load_references, ruta_activa, ruta_taller
 from app.paths import backups_dir, data_dir, reports_dir
-from app.servicios import cuentas
+from app.servicios import cobro, cuentas
 from app.ui.tema import T
 from app.ui.widgets import AreaDesplazable, cabecera, limpiar_layout, lista_dato_valor, muted, panel, ruta_cortable
 
@@ -70,6 +70,10 @@ class ConfiguracionPage(QWidget):
         self.telefono = QLineEdit()
         self._campo(v1, "Nombre del negocio", self.nombre)
         self._campo(v1, "Teléfono (opcional)", self.telefono)
+        self.moneda = QLineEdit()
+        self.moneda.setMaxLength(4)
+        self.moneda.setMaximumWidth(80)
+        self._campo(v1, "Símbolo de moneda (presupuestos y pagos)", self.moneda)
         v1.addWidget(muted("Aparecen en la cabecera de los reportes PDF."))
         self.terminos = QPlainTextEdit()
         self.terminos.setMaximumHeight(110)
@@ -255,6 +259,7 @@ class ConfiguracionPage(QWidget):
     def refresh(self):
         self.nombre.setText(self.repo.get_setting("business_name", ""))
         self.telefono.setText(self.repo.get_setting("business_phone", ""))
+        self.moneda.setText(cobro.simbolo(self.repo))
         self.terminos.setPlainText(self.repo.get_setting("service_terms", TERMINOS_PREDETERMINADOS))
         self.chk_auto.blockSignals(True)
         self.chk_auto.setChecked(self.repo.get_setting("auto_backup", "1") == "1")
@@ -282,7 +287,7 @@ class ConfiguracionPage(QWidget):
         self.admin_box.setVisible(admin)
         self.nota_admin.setVisible(not admin)
         self.p_audit.setVisible(admin)
-        for w in (self.nombre, self.telefono, self.terminos, self.b_negocio):
+        for w in (self.nombre, self.telefono, self.moneda, self.terminos, self.b_negocio):
             w.setEnabled(admin)
         self.b_restaurar.setEnabled(admin)
         self.b_restaurar.setToolTip("" if admin else "Solo un administrador puede restaurar copias.")
@@ -321,7 +326,12 @@ class ConfiguracionPage(QWidget):
         if not nombre:
             self._set(self.msg_neg, "Escriba el nombre del negocio.", ok=False)
             return
+        moneda = self.moneda.text().strip()
+        if not moneda:
+            self._set(self.msg_neg, "Escriba el símbolo de moneda (por ejemplo S/ o $).", ok=False)
+            return
         self.repo.set_setting("business_name", nombre)
+        self.repo.set_setting("currency_symbol", moneda)
         self.repo.set_setting("business_phone", self.telefono.text().strip())
         self.repo.set_setting("service_terms", self.terminos.toPlainText().strip())
         cuentas.auditar(self.repo, "taller_actualizado", self.user_id)

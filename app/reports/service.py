@@ -4,13 +4,16 @@ from pathlib import Path
 from app.paths import reports_dir
 
 from .cliente import build_client
+from .cobro import build_quote, build_statement, load_billing_data
 from .datos import load_report_data
 from .orden import build_order, load_order_data
 from .tecnico import build_technical
 
-KINDS = {"tecnico": "Técnico", "cliente": "Cliente", "orden": "Orden de servicio"}
+KINDS = {"tecnico": "Técnico", "cliente": "Cliente", "orden": "Orden de servicio",
+         "presupuesto": "Presupuesto", "cuenta": "Estado de cuenta"}
 BUILDERS = {"tecnico": (load_report_data, build_technical), "cliente": (load_report_data, build_client),
-            "orden": (load_order_data, build_order)}
+            "orden": (load_order_data, build_order), "presupuesto": (load_billing_data, build_quote),
+            "cuenta": (load_billing_data, build_statement)}
 
 
 def _unico(path: Path) -> Path:

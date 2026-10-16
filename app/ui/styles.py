@@ -13,6 +13,10 @@ STATUS_COLORS = {
     "Revisar": PRIORITY_COLORS["Media"],
     "Buen estado": PRIORITY_COLORS["Baja"],
     "Sin referencia": (T.fondo_app, T.texto_suave),
+    # presupuesto
+    "Enviado": (T.acento_suave, T.acento),
+    "Aprobado": (T.exito_suave, T.exito),
+    "Rechazado": (T.peligro_suave, T.peligro),
 }
 NEUTRAL_COLORS = (T.fondo_app, T.texto_suave)
 ACCENT = T.acento

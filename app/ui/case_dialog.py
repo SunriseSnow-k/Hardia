@@ -24,6 +24,7 @@ from app.db.repo import ESTADOS, Repository
 from app.db.reports_repo import ReportsRepository
 from app.diagnosis.engine import diagnose
 from app.reports.service import KINDS, generate_report
+from app.servicios import cobro
 from app.ui.ai_widgets import AiDialog
 from app.ui.diagnosis_dialog import DiagnosisDialog
 from app.ui.tema import T
@@ -171,7 +172,22 @@ class CaseDialog(QDialog):
         izq.addWidget(p_ia)
         izq.addStretch()
 
-        # ---------- Derecha: notas, reportes y otros casos ----------
+        # ---------- Derecha: cobro, notas, reportes y otros casos ----------
+        p_cobro, vc = panel("Presupuesto y cobro")
+        fila_cb = QHBoxLayout()
+        self.chip_cobro = ChipEstado("")
+        self.cobro_lbl = QLabel("")
+        self.cobro_lbl.setWordWrap(True)
+        fila_cb.addWidget(self.chip_cobro)
+        fila_cb.addWidget(self.cobro_lbl, 1)
+        vc.addLayout(fila_cb)
+        b_cobro = QPushButton("Abrir presupuesto y cobro")
+        b_cobro.setObjectName("Secondary")
+        b_cobro.clicked.connect(self._abrir_cobro)
+        vc.addWidget(b_cobro, alignment=Qt.AlignLeft)
+        der.addWidget(p_cobro)
+        self._pintar_cobro()
+
         p_n, vn = panel("Notas del caso")
         self.lista_notas = QListWidget()
         self.lista_notas.setMinimumHeight(110)
@@ -313,8 +329,40 @@ class CaseDialog(QDialog):
             self.metodo.setText(f'Método de análisis: {caso["method"]}')
             self.diag_lbl.setText(self._resumen_diag())
 
+    # ---------- presupuesto y cobro ----------
+    def _pintar_cobro(self):
+        r = cobro.resumen(self.repo, self.code)
+        s = cobro.simbolo(self.repo)
+        self.chip_cobro.set_estado(r.estado)
+        if not r.total and not r.pagado:
+            self.cobro_lbl.setText("Aún no hay importes ni pagos.")
+        else:
+            saldo = (f"saldo {cobro.formato(r.saldo, s)}" if r.saldo > 0 else
+                     "pagado por completo" if r.saldo == 0 else f"a favor del cliente {cobro.formato(-r.saldo, s)}")
+            self.cobro_lbl.setText(f"Total {cobro.formato(r.total, s)} · pagado {cobro.formato(r.pagado, s)} · {saldo}")
+
+    def _abrir_cobro(self):
+        from app.ui.cobro_dialog import CobroDialog
+        dlg = CobroDialog(self.repo, self.code, self)
+        dlg.exec()
+        self._pintar_cobro()
+        if dlg.changed:
+            self.changed = True
+            self._cargar_reportes()
+
     def _guardar_estado(self):
-        self.repo.update_case_status(self.code, self.estado.currentText())
+        nuevo = self.estado.currentText()
+        if nuevo == "Entregado" and self.repo.get_case(self.code)["status"] != "Entregado":
+            saldo = cobro.saldo_pendiente(self.repo, self.code)
+            if saldo > 0:
+                resp = QMessageBox.question(
+                    self, "Saldo pendiente",
+                    f"El caso tiene un saldo pendiente de {cobro.formato(saldo, cobro.simbolo(self.repo))}.\n"
+                    "¿Marcarlo como entregado de todos modos?",
+                    QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+                if resp != QMessageBox.Yes:
+                    return
+        self.repo.update_case_status(self.code, nuevo)
         self.etapas.set_actual(self.estado.currentText())
         self.changed = True
         self._msg(self.ok, "Estado actualizado.")

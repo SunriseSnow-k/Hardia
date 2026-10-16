@@ -124,7 +124,8 @@ class Repository:
 
     # Tablas que se pueden contar (pantalla Acerca de); el nombre nunca viene del usuario
     TABLAS_CONTABLES = ("cases", "equipment", "clients", "hardware_captures", "diagnoses", "health_results",
-                        "health_benchmarks", "reports", "case_notes", "users", "service_orders", "audit_log")
+                        "health_benchmarks", "reports", "case_notes", "users", "service_orders", "audit_log",
+                        "quote_items", "payments")
 
     def count_rows(self, tabla: str) -> int:
         if tabla not in self.TABLAS_CONTABLES:

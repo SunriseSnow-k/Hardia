@@ -113,7 +113,7 @@ def test_migra_base_antigua_sin_perder_datos_y_con_copia(tmp_path):
     _base_version_2(ruta)
     d = Database(ruta, carpeta_copias=copias)
     try:
-        assert d.migraciones_aplicadas == [3, 4]
+        assert d.migraciones_aplicadas == [3, 4, 5]
         repo = Repository(d)
         caso = repo.get_case("C-001")
         assert (caso["cliente"], caso["serial"]) == ("Peña", "SN-1")

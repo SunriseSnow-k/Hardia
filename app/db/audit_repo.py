@@ -17,6 +17,11 @@ ACCIONES = {
     "copia_creada": "Copia de seguridad creada",
     "copia_restaurada": "Copia de seguridad restaurada",
     "taller_actualizado": "Datos del taller actualizados",
+    "presupuesto_aprobado": "Presupuesto aprobado",
+    "presupuesto_rechazado": "Presupuesto rechazado",
+    "presupuesto_reabierto": "Presupuesto reabierto",
+    "pago_registrado": "Pago registrado",
+    "pago_anulado": "Pago anulado",
 }
 
 
