@@ -18,6 +18,9 @@ Incluidos en el instalador
   https://github.com/LibreHardwareMonitor/LibreHardwareMonitor
   El codigo fuente esta disponible en ese repositorio. Ver LICENSE-LibreHardwareMonitor.txt.
 - Runtime de Microsoft Visual C++ (redistribuible, licencia de Microsoft)
+- PawnIO 2.2.0, controlador de sensores (GPL-2.0) - https://pawnio.eu
+  Se incluye sin modificar su instalador oficial firmado (carpeta Controladores) y se instala
+  como programa independiente. Codigo fuente: https://github.com/namazso/PawnIO
 
 Paquete de IA opcional (se descarga solo si el usuario lo pide)
 ---------------------------------------------------------------

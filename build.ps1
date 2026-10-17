@@ -31,6 +31,12 @@ $mb = (Get-ChildItem -Recurse -File $colector | Measure-Object -Sum Length).Sum 
 Write-Host ("Colector portatil: {0:N1} MB (tambien en dist\Colector para copiarlo a mano)" -f $mb)
 
 Write-Host "-- Instalador (Inno Setup)" -ForegroundColor Cyan
+# Controlador de sensores incluido en el instalador (version y SHA-256 fijos, como el paquete de IA)
+$pawnio = "redist\PawnIO_setup.exe"
+$pawnioSha = "1f519a22e47187f70a1379a48ca604981c4fcf694f4e65b734aaa74a9fba3032"
+if (-not (Test-Path $pawnio) -or (Get-FileHash $pawnio -Algorithm SHA256).Hash.ToLower() -ne $pawnioSha) {
+    throw "Falta $pawnio o no es la version esperada (PawnIO 2.2.0: https://github.com/namazso/PawnIO.Setup/releases/tag/2.2.0)"
+}
 $iscc = @(
     "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe",
     "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",

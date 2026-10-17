@@ -295,6 +295,13 @@ class EscaneoPage(QWidget):
         texto.setWordWrap(True)
         texto.setStyleSheet(f"color:{T.aviso_texto};")
         h.addWidget(texto, 1)
+        if lhm.pawnio_instalado() is False and lhm.instalador_pawnio() is not None:
+            bp = QPushButton("Instalar controlador")
+            bp.setObjectName("Secondary")
+            bp.setToolTip("Instala PawnIO, el controlador que permite leer la temperatura de la CPU "
+                          "(viene incluido con el programa)")
+            bp.clicked.connect(self._instalar_pawnio)
+            h.addWidget(bp, 0, Qt.AlignVCenter)
         if not lhm.es_administrador() and lhm.puede_reiniciar_como_administrador():
             b = QPushButton("Reiniciar como administrador")
             b.setObjectName("Secondary")
@@ -303,6 +310,23 @@ class EscaneoPage(QWidget):
         caja.setVisible(bool(falta))
         self.aviso_sensores = caja
         return caja
+
+    def _instalar_pawnio(self):
+        self._msg("Instalando el controlador de sensores… (Windows pedirá confirmación)")
+        QGuiApplication.setOverrideCursor(Qt.WaitCursor)
+        QApplication.processEvents()
+        try:
+            ok = lhm.instalar_pawnio()
+        finally:
+            QGuiApplication.restoreOverrideCursor()
+        if ok:
+            self._msg("Controlador instalado. Vuelva a escanear para leer la temperatura de la CPU.")
+            viejo = self.aviso_sensores
+            nuevo = self._aviso_sensores()  # se rehace sin la sugerencia ya resuelta
+            viejo.parentWidget().layout().replaceWidget(viejo, nuevo)
+            viejo.deleteLater()
+        else:
+            self._msg("No se instaló el controlador (se canceló el aviso de Windows o hubo un error).", ok=False)
 
     def _reiniciar_admin(self):
         from PySide6.QtWidgets import QApplication, QMessageBox

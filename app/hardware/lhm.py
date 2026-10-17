@@ -83,10 +83,47 @@ def requisitos_sensores() -> list[str]:
     if not es_administrador():
         falta.append("ejecutar el programa como administrador (temperatura de CPU y SMART de los discos)")
     if pawnio_instalado() is False:
-        falta.append("instalar el controlador PawnIO (https://pawnio.eu) para la temperatura de la CPU")
+        if instalador_pawnio() is not None:
+            falta.append("instalar el controlador de sensores PawnIO (incluido: botón «Instalar controlador»)")
+        else:
+            falta.append("instalar el controlador PawnIO (https://pawnio.eu) para la temperatura de la CPU")
     if not (carpeta() / DLL).exists():
         falta.append(f"la biblioteca {DLL} en {carpeta()}")
     return falta
+
+
+PAWNIO_SETUP = "PawnIO_setup.exe"
+
+
+def instalador_pawnio() -> Path | None:
+    """Instalador de PawnIO que acompaña al programa (el instalador lo deja en {app}\\Controladores;
+    en desarrollo está en redist). None si no está o no es Windows."""
+    if sys.platform != "win32":
+        return None
+    if getattr(sys, "frozen", False):
+        ruta = Path(sys.executable).resolve().parent / "Controladores" / PAWNIO_SETUP
+    else:
+        ruta = Path(__file__).resolve().parents[2] / "redist" / PAWNIO_SETUP
+    return ruta if ruta.is_file() else None
+
+
+def instalar_pawnio() -> bool:
+    """Instala PawnIO en silencio con permisos de administrador (Windows pide confirmación) y espera
+    a que termine. True si quedó instalado."""
+    import subprocess
+    setup = instalador_pawnio()
+    if setup is None:
+        return False
+    ruta = str(setup).replace("'", "''")
+    orden = (f"$p = Start-Process -FilePath '{ruta}' -ArgumentList '-install','-silent' -Verb RunAs "
+             "-Wait -PassThru; exit $p.ExitCode")
+    try:
+        subprocess.run(["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", orden],  # noqa: S603, S607 (orden fija)
+                       capture_output=True, timeout=300, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+    except (OSError, subprocess.SubprocessError):
+        log.warning("No se pudo ejecutar el instalador de PawnIO", exc_info=True)
+        return False
+    return pawnio_instalado() is True
 
 
 def pawnio_instalado() -> bool | None:

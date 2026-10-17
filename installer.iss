@@ -24,7 +24,9 @@ PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
-MinVersion=10.0
+; Windows 10 1803 o posterior: trae .NET Framework 4.7.2+, que usa LibreHardwareMonitor (así Windows
+; nunca pide instalar nada aparte)
+MinVersion=10.0.17134
 OutputDir=dist\instalador
 OutputBaseFilename=SistemaDiagnostico-Setup-{#AppVersion}
 SetupIconFile=app\assets\icono.ico
@@ -50,15 +52,30 @@ Type: filesandordirs; Name: "{app}\Colector"
 
 [Files]
 Source: "dist\SistemaDiagnostico\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+; Controlador de sensores PawnIO (temperatura de la CPU con LibreHardwareMonitor). Queda en la carpeta
+; del programa para que la pantalla Escanear pueda instalarlo si aquí se canceló el permiso de Windows.
+Source: "redist\PawnIO_setup.exe"; DestDir: "{app}\Controladores"; Flags: ignoreversion
 
 [Icons]
 Name: "{autoprograms}\{#AppName}"; Filename: "{app}\{#AppExe}"
 Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExe}"; Tasks: desktopicon
 
 [Run]
+; Instala PawnIO en silencio si falta. Un controlador requiere administrador: si la instalación es
+; solo para el usuario, Windows pide confirmación únicamente para este paso.
+Filename: "{app}\Controladores\PawnIO_setup.exe"; Parameters: "-install -silent"; Verb: "runas"; StatusMsg: "Instalando el controlador de sensores (PawnIO)..."; Flags: shellexec waituntilterminated runhidden; Check: not PawnIOInstalado
 Filename: "{app}\{#AppExe}"; Description: "{cm:LaunchProgram,{#AppName}}"; Flags: nowait postinstall skipifsilent
 
 [Code]
+// PawnIO se deja instalado al desinstalar: otros programas (LibreHardwareMonitor, OpenRGB...) también lo usan
+function PawnIOInstalado: Boolean;
+var
+  Version: String;
+begin
+  Result := RegQueryStringValue(HKLM64, 'SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\PawnIO',
+                                'DisplayVersion', Version) and (Version <> '');
+end;
+
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 var
   Datos: String;
