@@ -1,4 +1,5 @@
-"""Lectura de hardware en Windows (psutil + WMI + LibreHardwareMonitorLib).
+"""Lectura de hardware: en Windows con psutil + WMI + LibreHardwareMonitorLib; en Linux con
+psutil + /sys + /proc (ver linux.py).
 
 Cada categoría es independiente: si una falla, el resto sigue funcionando. Solo se
 registran datos verificables; lo que no se pudo obtener se guarda con su motivo:
@@ -15,8 +16,11 @@ from typing import Any
 
 import psutil
 
+from app.plataforma import ES_WINDOWS
+
 from . import lhm
-from .colectores import _FUNCIONES, _identidad, _placa, _red, _sensores
+from . import linux as _linux
+from .colectores import _FUNCIONES
 from .comun import _res, clasificar_error
 from .diag_file import FORMAT, VERSION
 from .inventory import FALLO, NO_AUTORIZADO, NO_COMPATIBLE, NO_DISPONIBLE, OK
@@ -82,6 +86,8 @@ class _Entorno:
 
 
 def _crear_entorno():
+    if not ES_WINDOWS:
+        return _linux.EntornoLinux()
     c: Any = None
     ns: Callable[[str], Any] | None = None
     if wmi:
@@ -95,6 +101,15 @@ def _crear_entorno():
     return _Entorno(c, ns)
 
 
+def _es_linux(env) -> bool:
+    return getattr(env, "sistema", "windows") == "linux"
+
+
+def _funciones(env) -> dict:
+    """Colectores del sistema del entorno (los entornos simulados de las pruebas son de Windows)."""
+    return _linux.FUNCIONES if _es_linux(env) else _FUNCIONES
+
+
 _ESTADO_COMPONENTE = {OK: "ok", NO_COMPATIBLE: "ok", NO_DISPONIBLE: "warn",
                       NO_AUTORIZADO: "warn", FALLO: "error"}
 
@@ -106,7 +121,8 @@ def _escanear(progress, env) -> dict:
     inventario: dict[str, Any] = {}
     disp: dict[str, Any] = {}
     resumen = {"description": "", "serial": "", "cpu": "", "ram": "", "storage": "", "os": "", "gpu": ""}
-    env._lhm_cache = _leer_lhm(env)  # una sola lectura de sensores, compartida por los colectores
+    # una sola lectura de sensores, compartida por los colectores
+    env._lhm_cache = _linux.leer_sensores(env) if _es_linux(env) else _leer_lhm(env)
     try:
         _recorrer(progress, env, comps, metricas, inventario, disp, resumen)
     finally:
@@ -122,7 +138,7 @@ def _escanear(progress, env) -> dict:
 def _recorrer(progress, env, comps, metricas, inventario, disp, resumen):
     for i, (nombre, clave) in enumerate(COLECTORES_NOMBRES):
         try:
-            r = _FUNCIONES[clave](env)
+            r = _funciones(env)[clave](env)
         except Exception as e:
             r = _res(clasificar_error(e), f"No se pudo leer ({type(e).__name__})")
         estado = _ESTADO_COMPONENTE.get(r["status"], "error")
@@ -144,7 +160,7 @@ def read_cpu_temperature(env=None) -> tuple[float | None, str | None]:
     Devuelve (None, None) si no hay lectura. Nunca lanza."""
     def leer(e):
         try:
-            r = _sensores(e)
+            r = _funciones(e)["sensors"](e)
         except Exception:
             return None, None
         if r["status"] != OK:
@@ -176,6 +192,8 @@ class LectorTemperatura:
             if pythoncom:
                 pythoncom.CoInitialize()
             self.env = _crear_entorno()
+            if _es_linux(self.env):
+                return self  # hwmon se lee en cada llamada: no hay nada que mantener abierto
             try:
                 self.env.lector = lhm.Lector().__enter__()
             except Exception:
@@ -203,7 +221,8 @@ def local_identifiers(env=None) -> list[tuple[str, str]]:
 
     def leer(e):
         inv = {}
-        for clave, fn in (("identity", _identidad), ("motherboard", _placa), ("network", _red)):
+        for clave in ("identity", "motherboard", "network"):
+            fn = _funciones(e)[clave]
             try:
                 r = fn(e)
             except Exception:  # cada colector es independiente: el resto del inventario se conserva

@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from app.plataforma import FUENTE
 from app.ui.styles import ACCENT, MUTED, NEUTRAL_COLORS, PRIORITY_COLORS, STATUS_COLORS, TRACK
 from app.ui.tema import T
 
@@ -310,7 +311,7 @@ def cabecera(titulo: str, subtitulo: str = "") -> tuple[QVBoxLayout, QLabel, QLa
 
 def ruta_cortable(ruta) -> str:
     """Ruta con cortes de línea permitidos después de cada barra (las rutas no tienen espacios)."""
-    return str(ruta).replace("\\", "\\\u200b")
+    return str(ruta).replace("\\", "\\\u200b").replace("/", "/\u200b")
 
 
 def lista_dato_valor(filas, columnas: int = 1) -> QWidget:
@@ -390,7 +391,7 @@ def item_medida(*textos: str) -> QTableWidgetItem:
     return item
 
 
-_FUENTE_TABLA = QFont("Segoe UI")  # la misma que la hoja de estilos (QWidget, 14 px)
+_FUENTE_TABLA = QFont(FUENTE)  # la misma que la hoja de estilos (QWidget, 14 px)
 _FUENTE_TABLA.setPixelSize(14)
 
 

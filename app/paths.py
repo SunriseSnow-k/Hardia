@@ -3,12 +3,23 @@ import sys
 from pathlib import Path
 
 APP_NAME = "SistemaDiagnostico"
+# Variable de entorno con la carpeta base de los datos (las pruebas la cambian por una temporal)
+VAR_DATOS = "APPDATA" if sys.platform == "win32" else "XDG_DATA_HOME"
+
+
+def _base_datos() -> Path:
+    otra = os.environ.get(VAR_DATOS)
+    if otra:
+        return Path(otra)
+    if sys.platform == "win32":
+        return Path.home()
+    return Path.home() / ".local" / "share"  # estándar XDG
 
 
 def data_dir() -> Path:
-    """C:\\Users\\<usuario>\\AppData\\Roaming\\SistemaDiagnostico"""
-    base = Path(os.environ.get("APPDATA", Path.home()))
-    path = base / APP_NAME
+    """Windows: C:\\Users\\<usuario>\\AppData\\Roaming\\SistemaDiagnostico
+    Linux: ~/.local/share/SistemaDiagnostico"""
+    path = _base_datos() / APP_NAME
     path.mkdir(parents=True, exist_ok=True)
     return path
 

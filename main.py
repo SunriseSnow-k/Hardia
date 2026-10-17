@@ -10,6 +10,7 @@ from PySide6.QtWidgets import QApplication, QMessageBox, QSplashScreen
 
 from app import registro
 from app.paths import backups_dir, data_dir, db_path, recurso
+from app.plataforma import FUENTE
 from app.version import APP_NAME, VERSION
 
 log = logging.getLogger("app")
@@ -43,10 +44,10 @@ def _splash() -> QSplashScreen:
     p.setRenderHint(QPainter.Antialiasing)
     p.drawPixmap(32, 62, QIcon(str(recurso("assets", "icono.png"))).pixmap(96, 96))
     p.setPen(QColor("white"))
-    p.setFont(QFont("Segoe UI", 16, QFont.DemiBold))
+    p.setFont(QFont(FUENTE, 16, QFont.DemiBold))
     p.drawText(146, 100, APP_NAME)
     p.setPen(QColor("#a9b6c4"))
-    p.setFont(QFont("Segoe UI", 10))
+    p.setFont(QFont(FUENTE, 10))
     p.drawText(146, 126, f"Versión {VERSION}")
     p.drawText(146, 150, "Cargando…")
     p.end()
@@ -61,7 +62,8 @@ def main() -> int:
     app = QApplication(sys.argv)
     app.setApplicationName(APP_NAME)
     app.setApplicationVersion(VERSION)
-    app.setWindowIcon(QIcon(str(recurso("assets", "icono.ico"))))
+    app.setWindowIcon(QIcon(str(recurso("assets", "icono.ico" if sys.platform == "win32" else "icono.png"))))
+    app.setDesktopFileName("sistemadiagnostico")  # Linux: enlaza la ventana con su lanzador (.desktop)
     with contextlib.suppress(AttributeError):  # diseño claro; Qt < 6.8 no tiene setColorScheme
         app.styleHints().setColorScheme(Qt.ColorScheme.Light)
 

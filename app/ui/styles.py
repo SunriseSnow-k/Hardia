@@ -1,4 +1,5 @@
 """Estilos de la interfaz. Los colores salen de la paleta activa (app/ui/tema.py)."""
+from app.plataforma import FUENTE
 from app.ui.tema import T, rellenar
 
 # Colores de prioridad: (fondo, texto)
@@ -25,7 +26,7 @@ MUTED = T.texto_suave
 TRACK = T.pista
 
 QSS = rellenar("""
-QWidget { font-family: "Segoe UI"; font-size: 14px; }
+QWidget { font-family: "@fuente"; font-size: 14px; }
 QLabel { color: $texto; }
 QMainWindow, QDialog { background: $fondo_app; }
 QToolTip { background: $lateral; color: $sobre_acento; border: none; padding: 4px 6px; }
@@ -122,4 +123,4 @@ QHeaderView::section { background: $fondo_cabecera; color: $texto_suave; border:
                        font-weight: 600; }
 QScrollArea { border: none; background: transparent; }
 QScrollArea > QWidget > QWidget#ScrollBody { background: transparent; }
-""")
+""").replace("@fuente", FUENTE)

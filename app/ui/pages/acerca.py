@@ -16,14 +16,16 @@ from app.ui.welcome import WelcomeDialog
 from app.ui.widgets import AreaDesplazable, cabecera, limpiar_layout, lista_dato_valor, panel, ruta_cortable
 from app.version import APP_NAME, VERSION
 
-TECNOLOGIAS = ("Python · PySide6 (Qt) · SQLite · psutil y WMI (lectura de hardware) · "
-               "motor de reglas propio · IA local opcional con llama.cpp (u Ollama) · ReportLab (PDF) · "
-               "PyInstaller e Inno Setup (instalador)")
+TECNOLOGIAS = ("Python · PySide6 (Qt) · SQLite · psutil, WMI (Windows) y /sys, dmidecode y smartctl "
+               "(Linux) para leer el hardware · motor de reglas propio · IA local opcional con llama.cpp "
+               "(u Ollama) · ReportLab (PDF) · PyInstaller e Inno Setup (instalador)")
 LIMITACIONES = (
     "Las temperaturas dependen de LibreHardwareMonitor o de permisos de administrador; sin ellos "
     "se usa un sensor general (aproximado) o no se muestran.",
     "La salud de los discos es la que informa Windows Storage; el programa no lee SMART por su cuenta.",
     "WMI no informa la memoria gráfica de 4 GB o más.",
+    "En Linux, el número de serie, los módulos de RAM y el SMART de los discos requieren ejecutar con "
+    "sudo y tener instalados dmidecode y smartmontools.",
     "El diagnóstico por reglas solo reconoce los síntomas y datos definidos en sus reglas.",
     "La IA local es opcional: su paquete (1 a 2,5 GB) se descarga una vez desde la sección IA local; "
     "puede tardar en equipos modestos y su texto debe revisarse.",

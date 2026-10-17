@@ -8,13 +8,14 @@ from app.db.database import Database
 from app.db.orders_repo import TERMINOS_PREDETERMINADOS, OrdersRepository
 from app.db.repo import Repository
 from app.db.reports_repo import ReportsRepository
+from app.paths import VAR_DATOS
 from app.reports.orden import load_order_data
 from app.reports.service import KINDS, generate_report
 
 
 @pytest.fixture
 def repo(tmp_path, monkeypatch):
-    monkeypatch.setenv("APPDATA", str(tmp_path / "appdata"))
+    monkeypatch.setenv(VAR_DATOS, str(tmp_path / "appdata"))
     db = Database(tmp_path / "orden.db")
     yield Repository(db)
     db.close()

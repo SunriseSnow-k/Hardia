@@ -1,6 +1,7 @@
 """Paquete opcional de IA: motor llama.cpp + un modelo GGUF, descargados una sola vez.
 
-Todo se guarda en %APPDATA%\\SistemaDiagnostico\\IA. La descarga es lo único que usa Internet;
+Todo se guarda en la carpeta de datos del programa, subcarpeta IA (%APPDATA%\\SistemaDiagnostico\\IA
+en Windows, ~/.local/share/SistemaDiagnostico/IA en Linux). La descarga es lo único que usa Internet;
 después el motor funciona sin conexión y escucha solo en 127.0.0.1. Cada archivo tiene su
 versión y su SHA-256 fijos: si lo descargado no coincide, se descarta.
 """
@@ -13,6 +14,7 @@ import shutil
 import socket
 import subprocess
 import sys
+import tarfile
 import threading
 import time
 import urllib.error
@@ -29,16 +31,45 @@ from .ollama_client import AiError
 
 log = logging.getLogger(__name__)
 
-MOTOR: dict[str, Any] = {
-    "version": "b11620",
-    "url": "https://github.com/ggml-org/llama.cpp/releases/download/b11620/"
-           "llama-b11620-bin-win-cpu-x64.zip",
-    "sha256": "f77646c3cea8e775bb56ca0e391e8324112d29e5b783e1d92f2ceae8627deb3c",
-    "tamano": 19_553_388,
-    "licencia": "MIT",
+_DESCARGAS = "https://github.com/ggml-org/llama.cpp/releases/download/b11620/"
+# Un build fijo de llama.cpp por sistema y procesador (solo CPU: funciona en cualquier equipo)
+MOTORES: dict[tuple[str, str], dict[str, Any]] = {
+    ("win32", "x64"): {
+        "version": "b11620",
+        "url": _DESCARGAS + "llama-b11620-bin-win-cpu-x64.zip",
+        "sha256": "f77646c3cea8e775bb56ca0e391e8324112d29e5b783e1d92f2ceae8627deb3c",
+        "tamano": 19_553_388,
+        "licencia": "MIT",
+    },
+    ("linux", "x64"): {
+        "version": "b11620",
+        "url": _DESCARGAS + "llama-b11620-bin-ubuntu-x64.tar.gz",
+        "sha256": "7f573d554fbc88ddef70c515c533dc9288523eca70e32a1b809a0db344c393c4",
+        "tamano": 17_774_833,
+        "licencia": "MIT",
+    },
+    ("linux", "arm64"): {
+        "version": "b11620",
+        "url": _DESCARGAS + "llama-b11620-bin-ubuntu-arm64.tar.gz",
+        "sha256": "377e725d7bf3e3edb7c60bf210046a6b0e60c0921318ea7bb9a5a9fe62a8e770",
+        "tamano": 13_868_274,
+        "licencia": "MIT",
+    },
 }
-# Del zip solo se conserva lo que necesita el servidor
-_ARCHIVOS_MOTOR = ("llama-server.exe",)
+
+
+def _motor_de_este_equipo() -> dict[str, Any]:
+    import platform
+    sistema = "win32" if sys.platform == "win32" else "linux" if sys.platform.startswith("linux") else sys.platform
+    arq = {"amd64": "x64", "x86_64": "x64", "aarch64": "arm64", "arm64": "arm64"}.get(platform.machine().lower(), "")
+    # sin build para este equipo: version vacía (motor_instalado() es falso e instalar avisa)
+    return MOTORES.get((sistema, arq), {"version": "", "url": "", "sha256": "", "tamano": 0, "licencia": "MIT"})
+
+
+MOTOR: dict[str, Any] = _motor_de_este_equipo()
+SERVIDOR_EXE = "llama-server.exe" if sys.platform == "win32" else "llama-server"
+# Del archivo descargado solo se conserva lo que necesita el servidor
+_ARCHIVOS_MOTOR = (SERVIDOR_EXE,)
 # Runtime de Visual C++ que pide llama.cpp; PySide6 lo trae, así no hace falta instalarlo aparte
 _RUNTIME_VC = ("msvcp140.dll", "vcruntime140.dll", "vcruntime140_1.dll")
 
@@ -108,7 +139,7 @@ def motor_instalado() -> bool:
         version = (m / "version.txt").read_text(encoding="utf-8").strip()
     except OSError:
         return False
-    return version == MOTOR["version"] and (m / "llama-server.exe").exists()
+    return bool(MOTOR["version"]) and version == MOTOR["version"] and (m / SERVIDOR_EXE).exists()
 
 
 def modelo_instalado(modelo_id: str) -> bool:
@@ -222,31 +253,68 @@ def _runtime_vc() -> list[Path]:
     return encontradas
 
 
+def _necesario(base: str) -> bool:
+    """Archivos del motor que se conservan: el servidor, sus bibliotecas y las licencias."""
+    b = base.lower()
+    return base in _ARCHIVOS_MOTOR or base.startswith("LICENSE") or b.endswith(".dll") or ".so" in b
+
+
+def _extraer_zip(archivo: Path, tmp: Path):
+    """Windows: solo los archivos de la raíz del zip."""
+    with zipfile.ZipFile(archivo) as z:
+        for nombre in z.namelist():
+            base = Path(nombre).name
+            if not base or "/" in nombre.rstrip("/") or "\\" in nombre:
+                continue
+            if _necesario(base):
+                (tmp / base).write_bytes(z.read(nombre))
+
+
+def _extraer_tar(archivo: Path, tmp: Path):
+    """Linux: el .tar.gz trae una carpeta llama-bNNNN/ con el servidor y sus .so (algunas son
+    enlaces simbólicos). Se aplana en tmp; el filtro "data" rechaza rutas y enlaces peligrosos."""
+    with tarfile.open(archivo, "r:gz") as t:
+        elegidos = []
+        for m in t.getmembers():
+            base = Path(m.name).name
+            if not (m.isfile() or m.issym()) or not _necesario(base) or len(Path(m.name).parts) > 2:
+                continue
+            if m.issym() and ("/" in m.linkname or "\\" in m.linkname):
+                continue  # solo enlaces entre archivos de la misma carpeta
+            m.name = base
+            elegidos.append(m)
+        t.extractall(tmp, members=elegidos, filter="data")
+    servidor_exe = tmp / SERVIDOR_EXE
+    if servidor_exe.exists():
+        servidor_exe.chmod(0o755)
+
+
 def instalar_motor(progreso=None, cancelado=lambda: False):
     if motor_instalado():
         return
-    zip_path = carpeta() / Path(MOTOR["url"]).name
-    descargar(MOTOR["url"], zip_path, MOTOR["sha256"], MOTOR["tamano"], progreso, cancelado)
+    if not MOTOR["url"]:
+        raise PaqueteError("El paquete de IA integrado no está disponible para este sistema o procesador. "
+                           "Puede usar Ollama (motor avanzado).")
+    archivo = carpeta() / Path(MOTOR["url"]).name
+    descargar(MOTOR["url"], archivo, MOTOR["sha256"], MOTOR["tamano"], progreso, cancelado)
     tmp = carpeta() / "motor.tmp"
     shutil.rmtree(tmp, ignore_errors=True)
     tmp.mkdir()
     try:
-        with zipfile.ZipFile(zip_path) as z:
-            for nombre in z.namelist():
-                base = Path(nombre).name
-                if not base or "/" in nombre.rstrip("/") or "\\" in nombre:
-                    continue  # solo archivos de la raíz del zip
-                if base.lower().endswith(".dll") or base.startswith("LICENSE") or base in _ARCHIVOS_MOTOR:
-                    (tmp / base).write_bytes(z.read(nombre))
-    except (zipfile.BadZipFile, OSError) as e:
+        if archivo.name.endswith(".zip"):
+            _extraer_zip(archivo, tmp)
+        else:
+            _extraer_tar(archivo, tmp)
+    except (zipfile.BadZipFile, tarfile.TarError, OSError) as e:
         raise PaqueteError(f"No se pudo descomprimir el motor de IA: {e}") from e
-    for dll in _runtime_vc():
-        shutil.copy2(dll, tmp / dll.name)
+    if sys.platform == "win32":
+        for dll in _runtime_vc():
+            shutil.copy2(dll, tmp / dll.name)
     (tmp / "version.txt").write_text(MOTOR["version"], encoding="utf-8")
     servidor.detener()
     shutil.rmtree(carpeta_motor(), ignore_errors=True)
     os.replace(tmp, carpeta_motor())
-    zip_path.unlink(missing_ok=True)
+    archivo.unlink(missing_ok=True)
     log.info("Motor de IA %s instalado", MOTOR["version"])
 
 
@@ -303,8 +371,8 @@ def _hilos() -> int:
 
 class Servidor:
     """llama-server en segundo plano, con un modelo cargado. Se inicia al primer uso y se
-    reinicia si se pide otro modelo. Si el programa se cierra de golpe, Windows lo termina
-    (objeto de trabajo con KILL_ON_JOB_CLOSE)."""
+    reinicia si se pide otro modelo. Si el programa se cierra de golpe, el sistema lo termina
+    (Windows: objeto de trabajo con KILL_ON_JOB_CLOSE; Linux: señal al morir el proceso padre)."""
 
     def __init__(self):
         self._lock = threading.Lock()
@@ -345,15 +413,23 @@ class Servidor:
                                "descargado. Descárguelo en la sección IA local.")
         self.puerto = _puerto_libre()
         self.clave = secrets.token_hex(16)  # solo este programa puede usar el servidor
-        exe = carpeta_motor() / "llama-server.exe"
+        exe = carpeta_motor() / SERVIDOR_EXE
         args = [str(exe), "-m", str(ruta_modelo(modelo_id)), "--host", "127.0.0.1",
                 "--port", str(self.puerto), "-c", str(CONTEXTO), "-np", "1", "-t", str(_hilos()),
                 "--no-webui", "--api-key", self.clave]
         salida = open(carpeta() / "motor.log", "wb")  # noqa: SIM115 (el proceso hijo hereda el archivo; se cierra abajo)
+        extra: dict[str, Any] = {}
+        if sys.platform == "win32":
+            extra["creationflags"] = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+        else:  # las .so del motor están junto al servidor
+            entorno = dict(os.environ)
+            entorno["LD_LIBRARY_PATH"] = os.pathsep.join(filter(None, [str(exe.parent),
+                                                                       entorno.get("LD_LIBRARY_PATH")]))
+            extra.update(env=entorno, preexec_fn=_morir_con_el_padre)
         try:
             self._proc = subprocess.Popen(  # noqa: S603 (ejecutable y argumentos propios, sin shell)
                 args, cwd=str(exe.parent), stdin=subprocess.DEVNULL, stdout=salida, stderr=subprocess.STDOUT,
-                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+                **extra)
         except OSError as e:
             raise PaqueteError(f"No se pudo iniciar el motor de IA: {e}") from e
         finally:
@@ -376,6 +452,15 @@ class Servidor:
     def detener(self):
         with self._lock:
             self._detener()
+
+
+def _morir_con_el_padre():  # pragma: no cover (se ejecuta en el proceso hijo, solo en Linux)
+    """Linux: el motor recibe SIGTERM si el programa termina de golpe (prctl PR_SET_PDEATHSIG)."""
+    import contextlib
+    import ctypes
+    import signal
+    with contextlib.suppress(Exception):  # sin prctl el motor se cierra igual al salir normalmente
+        ctypes.CDLL(None).prctl(1, signal.SIGTERM)
 
 
 def _atar_al_programa(pid: int):

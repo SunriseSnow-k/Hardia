@@ -7,6 +7,7 @@ from app.db.audit_repo import AuditRepository
 from app.db.database import Database
 from app.db.repo import Repository
 from app.db.users_repo import UsersRepository
+from app.paths import VAR_DATOS
 from app.servicios import cuentas
 from app.servicios.cuentas import AccesoBloqueado, SinPermiso, segundos_de_bloqueo
 
@@ -158,7 +159,7 @@ def test_auditoria_rechaza_acciones_desconocidas(repo):
 def ui(repo, monkeypatch, tmp_path):
     pytest.importorskip("PySide6")
     from PySide6.QtWidgets import QApplication
-    monkeypatch.setenv("APPDATA", str(tmp_path / "appdata"))
+    monkeypatch.setenv(VAR_DATOS, str(tmp_path / "appdata"))
     QApplication.instance() or QApplication([])
     return repo
 

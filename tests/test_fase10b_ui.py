@@ -9,6 +9,7 @@ from app.db.hardware_repo import HardwareRepository
 from app.db.repo import Repository
 from app.hardware import diag_file
 from app.hardware.scanner import run_scan
+from app.paths import VAR_DATOS
 from tests.test_fase10b_hardware import _env, _psutil
 
 
@@ -19,7 +20,7 @@ def qapp():
 
 @pytest.fixture(autouse=True)
 def entorno(monkeypatch, tmp_path):
-    monkeypatch.setenv("APPDATA", str(tmp_path / "appdata"))
+    monkeypatch.setenv(VAR_DATOS, str(tmp_path / "appdata"))
 
 
 @pytest.fixture

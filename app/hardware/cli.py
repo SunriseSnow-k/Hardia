@@ -2,6 +2,7 @@
 
 Empaquetado es Colector.exe (ver diagnostico.spec), que va en la carpeta Colector del USB y pide
 permisos de administrador al abrirse (sin ellos no se leen temperaturas, ventiladores ni SMART).
+En Linux es Colector y se abre con colector.sh, que pide sudo (ver colector_usb.py).
 No instala nada ni escribe en el PC del cliente: el archivo queda en la carpeta Resultados, junto
 a Colector.exe (en el USB: <unidad>\\Colector\\Resultados).
 
@@ -20,6 +21,7 @@ from app.hardware.scanner import LectorTemperatura, run_scan
 from app.health import benchmark as bm
 from app.health import evaluate, load_references
 from app.health.evaluate import GRAVEDAD
+from app.plataforma import ES_WINDOWS
 
 
 def destino_predeterminado() -> Path:
@@ -117,8 +119,12 @@ def main(argv: list[str]) -> int:
         destino = Path(args[0]) if args else destino_predeterminado()
         print("Colector de diagnóstico — escaneo de este equipo\n")
         if not lhm.es_administrador():
-            print("AVISO: sin permisos de administrador no se leerán temperaturas, ventiladores "
-                  "ni el estado SMART completo, y la prueba no podrá medir los discos.\n")
+            if ES_WINDOWS:
+                print("AVISO: sin permisos de administrador no se leerán temperaturas, ventiladores "
+                      "ni el estado SMART completo, y la prueba no podrá medir los discos.\n")
+            else:
+                print("AVISO: sin permisos de administrador (sudo) no se leerán el número de serie, los "
+                      "módulos de RAM ni el estado SMART, y la prueba no podrá medir los discos.\n")
         data = run_scan(lambda _i, n, d, s: print(f"  [{s}] {n}: {d}"))
         ruta = diag_file.save_scan(data, ruta_libre(destino, diag_file.default_filename(data)))
         print(f"\nEscaneo guardado en: {ruta}")

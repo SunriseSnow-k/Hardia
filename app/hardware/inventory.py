@@ -150,7 +150,8 @@ def _f_motherboard(t, d):
 
 def _f_os(t, d):
     return _campos(t, d, [("name", "Sistema", None), ("version", "Versión", None),
-                          ("build", "Compilación", None), ("architecture", "Arquitectura", None)])
+                          ("build", "Compilación", None), ("kernel", "Núcleo (kernel)", None),
+                          ("architecture", "Arquitectura", None)])
 
 
 def _f_network(t, d):

@@ -6,6 +6,7 @@ from app.db.billing_repo import BillingRepository
 from app.db.database import Database
 from app.db.repo import Repository
 from app.db.reports_repo import ReportsRepository
+from app.paths import VAR_DATOS
 from app.reports.service import generate_report
 from app.servicios import cobro
 from app.servicios.cuentas import SinPermiso
@@ -13,7 +14,7 @@ from app.servicios.cuentas import SinPermiso
 
 @pytest.fixture
 def repo(tmp_path, monkeypatch):
-    monkeypatch.setenv("APPDATA", str(tmp_path / "appdata"))
+    monkeypatch.setenv(VAR_DATOS, str(tmp_path / "appdata"))
     db = Database(tmp_path / "cobro.db")
     r = Repository(db)
     r.create_user("ADM", "secreto1")             # primera cuenta: administrador

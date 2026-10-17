@@ -16,6 +16,7 @@ from app.health import ATENCION, BUENO, REVISAR, SIN_REF, componente, estado_por
 from app.health import benchmark as bm
 from app.health.evaluate import estado_por_margen, peor
 from app.health.references import find_cpu, find_disk_type
+from app.paths import VAR_DATOS
 from tests.test_fase10b_hardware import _env, _psutil, _wmi_basico
 
 GB = 1024 ** 3
@@ -28,7 +29,7 @@ def refs():
 
 @pytest.fixture
 def repo(tmp_path, monkeypatch):
-    monkeypatch.setenv("APPDATA", str(tmp_path / "appdata"))
+    monkeypatch.setenv(VAR_DATOS, str(tmp_path / "appdata"))
     db = Database(tmp_path / "t.db")
     yield Repository(db)
     db.close()
@@ -92,7 +93,7 @@ def test_referencias_documentadas_y_busqueda(refs):
 
 
 def test_copia_del_taller_tiene_prioridad_y_si_esta_danada_se_usa_la_del_programa(tmp_path, monkeypatch):
-    monkeypatch.setenv("APPDATA", str(tmp_path))
+    monkeypatch.setenv(VAR_DATOS, str(tmp_path))
     destino = tmp_path / "SistemaDiagnostico" / "references.json"
     destino.parent.mkdir(parents=True)
     destino.write_text(json.dumps({"cpus": [{"modelo": "X-1", "tjmax_c": 90, "fuente": "taller"}]}), encoding="utf-8")

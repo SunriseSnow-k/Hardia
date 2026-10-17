@@ -47,7 +47,7 @@ IMPLICACIONES = {
              "térmica seca.",
     "R-018": "La unidad de estado sólido (SSD) se acerca al final de su vida útil. Le recomendamos "
              "respaldar su información y planificar su cambio.",
-    "R-019": "Windows detectó fallas en la unidad donde se guardan sus archivos. Respalde su "
+    "R-019": "El sistema detectó fallas en la unidad donde se guardan sus archivos. Respalde su "
              "información cuanto antes.",
     "R-020": "La unidad de almacenamiento trabaja muy caliente, lo que puede volverla lenta y "
              "reducir su vida útil.",

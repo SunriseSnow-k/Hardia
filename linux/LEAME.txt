@@ -1,0 +1,24 @@
+SISTEMA INTELIGENTE OFFLINE — LINUX
+
+Instalar (no necesita sudo):
+  1. Descomprima este archivo.
+  2. Abra una terminal en la carpeta descomprimida y ejecute:  sh instalar.sh
+  3. Abra «Sistema Inteligente Offline» desde el menú de aplicaciones.
+
+Desinstalar:  sh desinstalar.sh   (sus datos se conservan)
+
+Pensado para distribuciones de 64 bits recientes (Ubuntu 22.04 o posterior, Debian 12, Fedora,
+Linux Mint), con escritorio X11 o Wayland. El paquete se genera en Linux con build.sh y funciona
+en distribuciones con una glibc igual o más nueva que la del equipo donde se generó.
+
+Para leer todo el hardware conviene instalar (el instalador avisa si faltan):
+  smartmontools  estado SMART, temperatura y vida útil de los discos
+  dmidecode      módulos de memoria RAM
+  pciutils       nombre de la tarjeta gráfica
+  lm-sensors     temperaturas de la CPU en algunos equipos (sudo sensors-detect)
+
+Linux protege algunos datos: el número de serie, el UUID, los módulos de RAM y el SMART solo se
+leen como administrador. Para el escaneo completo de un PC use el colector desde una memoria USB
+(Escanear → Preparar USB colector): en el PC del cliente se ejecuta  sh colector.sh  y pide sudo.
+
+Datos del programa: ~/.local/share/SistemaDiagnostico (base de datos, reportes, copias, IA).

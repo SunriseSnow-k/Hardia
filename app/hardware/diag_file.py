@@ -2,6 +2,7 @@
 import contextlib
 import json
 import re
+import sys
 from pathlib import Path
 
 import psutil
@@ -47,7 +48,10 @@ def default_filename(data: dict) -> str:
 
 
 def removable_drives() -> list[Path]:
-    """Unidades extraíbles (USB) detectadas por Windows."""
+    """Unidades extraíbles (USB) conectadas: letras de unidad en Windows, puntos de montaje en Linux."""
+    if sys.platform != "win32":
+        from .linux import unidades_extraibles
+        return [Path(m) for m in unidades_extraibles()]
     unidades = []
     for p in psutil.disk_partitions(all=False):
         if "removable" in p.opts.lower():

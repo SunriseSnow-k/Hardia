@@ -43,11 +43,11 @@ QUE_SIGNIFICA = {
                    "La memoria funciona bastante más lenta de lo que permite."),
     },
     "disco": {
-        BUENO: ("Windows no informa problemas en la unidad y, si se midió, la lectura es la esperada.",
+        BUENO: ("El sistema no informa problemas en la unidad y, si se midió, la lectura es la esperada.",
                 "La unidad de almacenamiento no muestra problemas."),
         REVISAR: ("La lectura medida es menor que la típica para este tipo de unidad.",
                   "La unidad de almacenamiento es más lenta de lo normal."),
-        ATENCION: ("Windows informa la unidad con advertencias o la lectura es muy baja. Respalde los "
+        ATENCION: ("El sistema informa la unidad con advertencias o la lectura es muy baja. Respalde los "
                    "datos y revise la unidad.",
                    "La unidad donde se guardan sus archivos muestra señales de desgaste; conviene "
                    "respaldar su información."),
@@ -82,7 +82,7 @@ QUE_SIGNIFICA = {
 QUE_HACER = {
     "bateria": "Comparar la autonomía real con la esperada; si el desgaste es alto, cotizar una batería nueva.",
     "memoria": "Revisar el perfil de memoria en el BIOS y que los módulos sean compatibles y del mismo tipo.",
-    "disco": "Respaldar la información y repetir la medición; si Windows informa advertencias, planificar el reemplazo.",
+    "disco": "Respaldar la información y repetir la medición; si el sistema informa advertencias, planificar el reemplazo.",
     "refrigeracion": "Limpiar ventiladores y disipador, renovar la pasta térmica y volver a medir bajo carga.",
     "procesador": "Repetir la prueba con el cargador conectado y sin programas abiertos; revisar la temperatura.",
     "graficos": "Limpiar el disipador y los ventiladores de la GPU y volver a medir bajo carga.",
@@ -146,6 +146,15 @@ def _comp(clave, nombre, modelo="", estado=SIN_REF, medido=("No disponible", "")
 
 
 # ---------------- componentes ----------------
+def _es_linux(inv) -> bool:
+    """Captura hecha en Linux (sus datos vienen de /sys, dmidecode y smartctl, no de WMI)."""
+    return bool(_d(inv.get("os")).get("kernel"))
+
+
+def _sistema(inv) -> str:
+    return "Linux" if _es_linux(inv) else "Windows"
+
+
 def _bateria(inv, disp) -> dict | None:
     a = _d(disp.get("battery"))
     if a.get("status") == NO_COMPATIBLE or ("battery" not in inv and not a):
@@ -157,7 +166,8 @@ def _bateria(inv, disp) -> dict | None:
     if b.get("plugged") is not None:
         windows.append(("Conectada a corriente", "Sí" if b["plugged"] else "No"))
     windows.append(("Ciclos de carga", "No disponible: esta versión no los lee"))
-    fuente = "Windows (BatteryStaticData y BatteryFullChargedCapacity)"
+    fuente = ("Linux (/sys/class/power_supply: capacidad de diseño y máxima actual)" if _es_linux(inv)
+              else "Windows (BatteryStaticData y BatteryFullChargedCapacity)")
     if not b:
         motivo = ESTADO_TEXTO.get(str(a.get("status")), "No disponible")
         return _comp("bateria", "Batería", alt=f"Sin referencia: {motivo.lower()}", fuente=fuente,
@@ -167,7 +177,7 @@ def _bateria(inv, disp) -> dict | None:
         motivo = next((ESTADO_TEXTO.get(str(f.get("motivo")), "No disponible") for f in _l(a.get("faltantes"))
                        if isinstance(f, dict) and "batería" in str(f.get("campo", "")).lower()),
                       "No disponible")
-        return _comp("bateria", "Batería", alt=f"Sin referencia: Windows no informó la capacidad ({motivo.lower()})",
+        return _comp("bateria", "Batería", alt=f"Sin referencia: {_sistema(inv)} no informó la capacidad ({motivo.lower()})",
                      fuente=fuente, windows=windows)
     pct = 100 * actual / diseno
     estado = estado_por_pct(pct)
@@ -193,12 +203,13 @@ def _memoria(inv) -> dict | None:
         f'nominal {m["nominal_mhz"]} MHz' if m.get("nominal_mhz") else None,
         f'configurada {m["configured_mhz"]} MHz' if m.get("configured_mhz") else None,
         m.get("slot")) if p)) for i, m in enumerate(modulos, 1)]
-    fuente = "Windows (Win32_PhysicalMemory: Speed y ConfiguredClockSpeed)"
+    fuente = ("dmidecode (Speed y Configured Memory Speed)" if _es_linux(inv)
+              else "Windows (Win32_PhysicalMemory: Speed y ConfiguredClockSpeed)")
     pares = [(m["configured_mhz"], m["nominal_mhz"]) for m in modulos
              if m.get("configured_mhz") and m.get("nominal_mhz")]
     if not pares:
         motivo = ("la captura no incluye la velocidad nominal y la configurada de los módulos"
-                  if modulos else "Windows no informó los módulos de memoria")
+                  if modulos else f"{_sistema(inv)} no informó los módulos de memoria")
         leidas = sorted({int(m.get("configured_mhz") or m.get("speed_mhz") or 0) for m in modulos
                          if m.get("configured_mhz") or m.get("speed_mhz")})
         medido = ((" / ".join(f"{v} MHz" for v in leidas), "velocidad leída") if leidas
@@ -226,21 +237,25 @@ def _discos(inv, references, benchmark) -> list[dict]:
     medidas = {str(x.get("index")): x for x in _l(_d(benchmark).get("discos")) if isinstance(x, dict)}
     salida = []
     fisicos = [u for u in _l(sto.get("physical")) if isinstance(u, dict) and not u.get("external")]
+    linux = _es_linux(inv)
+    origen_salud = "SMART (smartctl)" if linux else "Windows Storage"
+    lector = "hwmon / smartctl" if linux else "LibreHardwareMonitor"
+    permisos = "ejecutar con sudo" if linux else "ejecutar como administrador"
     for n, u in enumerate(fisicos, 1):
         salud = u.get("health")
         e_salud = _estado_salud_disco(salud)
         modelo = " · ".join(p for p in (u.get("model"), u.get("media"),
                                          fmt_bytes(u["size_bytes"]) if u.get("size_bytes") else None) if p)
         windows = [("Salud", f'{salud} ({fuente_salud(u.get("health_source"))})' if salud else
-                    "No disponible: Windows Storage no la informó"),
+                    f"No disponible: {origen_salud} no la informó"),
                    ("Tipo", u.get("media") or "No disponible"), ("Conexión", u.get("bus") or "No disponible")]
         if u.get("rpm"):
             windows.append(("Velocidad de giro", f'{u["rpm"]} rpm'))
         t_disco, vida = u.get("temp_c"), u.get("life_pct")
-        windows.append(("Temperatura del disco", f"{t_disco:.0f} °C (LibreHardwareMonitor)" if t_disco is not None
-                        else "No disponible: requiere ejecutar como administrador"))
-        windows.append(("Vida útil restante", f"{vida:.0f} % (SMART, LibreHardwareMonitor)" if vida is not None
-                        else "No disponible: la unidad no la informa o falta ejecutar como administrador"))
+        windows.append(("Temperatura del disco", f"{t_disco:.0f} °C ({lector})" if t_disco is not None
+                        else f"No disponible: requiere {permisos}"))
+        windows.append(("Vida útil restante", f"{vida:.0f} % (SMART, {lector})" if vida is not None
+                        else f"No disponible: la unidad no la informa o falta {permisos}"))
         if u.get("written_gb"):
             windows.append(("Datos escritos", f'{u["written_gb"]:,.0f} GB'.replace(",", " ")))
         e_temp = (ATENCION if t_disco is not None and t_disco >= DISCO_T_ATENCION else
@@ -252,11 +267,12 @@ def _discos(inv, references, benchmark) -> list[dict]:
         mb_s = med.get("lectura_mb_s") if med else None
         fabrica = ((f'{ref["lectura_mb_s"]:.0f} MB/s', f'típico de {ref["tipo"]}') if ref
                    else ("Sin referencia", "no hay valor de fábrica para este tipo de unidad"))
-        fuente = "Windows Storage (MSFT_PhysicalDisk)" + (" · SMART: LibreHardwareMonitor" if vida is not None else "") + (
+        fuente = ("SMART (smartctl)" if linux else "Windows Storage (MSFT_PhysicalDisk)") + (
+            f" · SMART: {lector}" if vida is not None and not linux else "") + (
             f' · lectura medida por este programa · referencia: {ref["fuente"]}' if mb_s and ref else
             " · lectura medida por este programa" if mb_s else "")
         nombre = "Almacenamiento" if len(fisicos) == 1 else f"Almacenamiento {n}"
-        texto_salud = f"Windows Storage informa la unidad {u.get('model') or ''} en estado «{salud}»." if salud else ""
+        texto_salud = f"{origen_salud} informa la unidad {u.get('model') or ''} en estado «{salud}»." if salud else ""
         if vida is not None:
             texto_salud = (texto_salud + " " if texto_salud else "") + f"Le queda el {vida:.0f} % de su vida útil."
         if mb_s and ref:
@@ -287,7 +303,7 @@ def _discos(inv, references, benchmark) -> list[dict]:
         else:
             motivo = med.get("motivo") if med else None
             alt = f"Sin medición: {motivo}" if motivo else SIN_MEDICION
-            medido = (salud or "No disponible", "salud según Windows Storage")
+            medido = (salud or "No disponible", f"salud según {origen_salud}")
         salida.append(_comp(f"disco:{u.get('index')}", nombre, modelo, e_salud, medido=medido, fabrica=fabrica,
                             alt=alt, fuente=fuente, windows=windows, resumen=texto_salud, tipo="disco"))
     return salida

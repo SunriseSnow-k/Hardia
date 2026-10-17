@@ -56,7 +56,7 @@ MAX_CASOS_COMBO = 50
 COLUMNAS = ["Componente", "Estado", "Medido ahora", "De fábrica", "Respecto a fábrica", "Fuente del dato", ""]
 ANCHOS = {0: 210, 2: 170, 3: 170, 4: 170, 6: 100}  # el resto se ajusta al contenido o al espacio libre
 NOTA_FINAL = ("Cómo leer esta pantalla: cada componente se compara con su valor de fábrica (100 %). Los "
-              "porcentajes salen de datos leídos de Windows o medidos por la prueba de rendimiento; lo que "
+              "porcentajes salen de datos leídos del sistema (Windows o Linux) o medidos por la prueba de rendimiento; lo que "
               "no tiene medición o referencia aparece como «Sin referencia» con su motivo. El índice es "
               "orientativo: es una asistencia y la validación final es del técnico.")
 
@@ -127,9 +127,9 @@ class DetalleComponenteDialog(QDialog):
         v1.addWidget(muted(f'Fuente: {comp.get("fuente") or "—"}'))
         lay.addWidget(p1)
 
-        # Datos de Windows
+        # Datos leídos del sistema operativo (la clave "windows" es histórica: también Linux)
         if comp.get("windows"):
-            p2, v2 = panel("Datos de Windows")
+            p2, v2 = panel("Datos del sistema")
             grid = QGridLayout()
             grid.setHorizontalSpacing(10)
             grid.setVerticalSpacing(10)
@@ -657,7 +657,7 @@ class SaludPage(QWidget):
         except Exception as e:
             return None, f"No se pudo identificar este equipo: {e}"
         if not locales:
-            return None, "Windows no informó el UUID ni el número de serie de este equipo."
+            return None, "El sistema no informó el UUID ni el número de serie de este equipo."
         res = HardwareRepository(self.repo).identify(locales)
         if res["status"] == "encontrado" and res["equipment_id"] == equipo:
             return True, ""

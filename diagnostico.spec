@@ -1,22 +1,33 @@
 # -*- mode: python ; coding: utf-8 -*-
 # Empaquetado con PyInstaller (carpeta, no un solo .exe: arranca más rápido y los antivirus
-# lo marcan menos). Uso: .\build.ps1   (o: python -m PyInstaller --noconfirm diagnostico.spec)
-# Genera dos programas: dist\SistemaDiagnostico (el del taller) y dist\Colector (el colector
-# portátil que se lleva en el USB al PC del cliente; build.ps1 lo copia dentro del primero).
+# lo marcan menos). Uso: .\build.ps1 en Windows, ./build.sh en Linux
+# (o: python -m PyInstaller --noconfirm diagnostico.spec). PyInstaller no compila de un sistema a
+# otro: el programa para Linux se genera en Linux y el de Windows en Windows.
+# Genera dos programas: dist/SistemaDiagnostico (el del taller) y dist/Colector (el colector
+# portátil que se lleva en el USB al PC del cliente; el script de build lo copia dentro del primero).
 import re
+import sys
 from pathlib import Path
 
-from PyInstaller.utils.win32.versioninfo import (FixedFileInfo, StringFileInfo, StringStruct,
-                                                 StringTable, VarFileInfo, VarStruct, VSVersionInfo)
+WINDOWS = sys.platform == "win32"
+if WINDOWS:
+    from PyInstaller.utils.win32.versioninfo import (FixedFileInfo, StringFileInfo, StringStruct,
+                                                     StringTable, VarFileInfo, VarStruct, VSVersionInfo)
 
 RAIZ = Path(SPECPATH)
 _version_py = (RAIZ / "app" / "version.py").read_text(encoding="utf-8")
 APP_NAME = re.search(r'APP_NAME\s*=\s*"([^"]+)"', _version_py).group(1)
 VERSION = re.search(r'VERSION\s*=\s*"([^"]+)"', _version_py).group(1)
 NUMEROS = tuple(int(n) for n in (VERSION.split(".") + ["0", "0", "0"])[:4])
+# LibreHardwareMonitor (.NET) y pywin32 solo se usan en Windows
+LHM = [("app/vendor/lhm", "app/vendor/lhm")] if WINDOWS else []
+ICONO = str(RAIZ / "app" / "assets" / ("icono.ico" if WINDOWS else "icono.png"))
 
 
-def _version_info(interno: str, descripcion: str) -> VSVersionInfo:
+def _version_info(interno: str, descripcion: str):
+    """Datos de versión del .exe (solo Windows; en Linux no existen)."""
+    if not WINDOWS:
+        return None
     return VSVersionInfo(
         ffi=FixedFileInfo(filevers=NUMEROS, prodvers=NUMEROS),
         kids=[
@@ -40,10 +51,10 @@ a = Analysis(
     datas=[
         ("app/diagnosis/rules.json", "app/diagnosis"),
         ("app/health/references.json", "app/health"),
-        ("app/vendor/lhm", "app/vendor/lhm"),
+        *LHM,
         ("app/assets", "app/assets"),
     ],
-    hiddenimports=["win32timezone", "win32job"],
+    hiddenimports=["win32timezone", "win32job"] if WINDOWS else [],
     excludes=["tkinter", "pytest", "PyInstaller", "setuptools",
               "PySide6.QtWebEngineCore", "PySide6.QtWebEngineWidgets", "PySide6.QtQml",
               "PySide6.QtQuick", "PySide6.Qt3DCore", "PySide6.QtMultimedia", "PySide6.QtPdf"],
@@ -57,7 +68,7 @@ exe = EXE(
     [],
     exclude_binaries=True,
     name="SistemaDiagnostico",
-    icon=str(RAIZ / "app" / "assets" / "icono.ico"),
+    icon=ICONO,
     version=_version_info("SistemaDiagnostico", APP_NAME),
     console=False,
     upx=False,
@@ -70,8 +81,8 @@ coll = COLLECT(exe, a.binaries, a.datas, name="SistemaDiagnostico", upx=False)
 c = Analysis(
     [str(RAIZ / "app" / "hardware" / "cli.py")],
     pathex=[str(RAIZ)],
-    datas=[("app/vendor/lhm", "app/vendor/lhm"), ("app/health/references.json", "app/health")],
-    hiddenimports=["win32timezone"],
+    datas=[*LHM, ("app/health/references.json", "app/health")],
+    hiddenimports=["win32timezone"] if WINDOWS else [],
     excludes=["tkinter", "pytest", "PyInstaller", "setuptools", "PySide6", "shiboken6", "reportlab",
               "PIL", "numpy", "sqlite3", "app.ui", "app.db", "app.reports", "app.ai"],
     noarchive=False,
@@ -82,10 +93,10 @@ colector = EXE(
     [],
     exclude_binaries=True,
     name="Colector",
-    icon=str(RAIZ / "app" / "assets" / "icono.ico"),
+    icon=ICONO,
     version=_version_info("Colector", f"{APP_NAME} - Colector portátil"),
     console=True,
     upx=False,
-    uac_admin=True,  # temperaturas, ventiladores y SMART solo se leen como administrador
+    uac_admin=True,  # Windows: temperaturas, ventiladores y SMART solo se leen como administrador
 )
 COLLECT(colector, c.binaries, c.datas, name="Colector", upx=False)

@@ -11,6 +11,7 @@ from app.ai import prompts
 from app.db.database import Database
 from app.db.repo import Repository
 from app.diagnosis.engine import diagnose, load_rules
+from app.paths import VAR_DATOS
 
 
 class Falso(BaseHTTPRequestHandler):
@@ -135,7 +136,7 @@ def test_prompt_historial_y_cliente():
 
 
 def test_config_guardar_y_cargar(repo, monkeypatch, tmp_path):
-    monkeypatch.setenv("APPDATA", str(tmp_path / "appdata"))
+    monkeypatch.setenv(VAR_DATOS, str(tmp_path / "appdata"))
     # Por defecto: paquete de IA integrado con el modelo recomendado
     assert ia_config.load(repo) == {"enabled": True, "engine": "paquete", "model": "qwen3-4b",
                                     "mode": "rapido"}

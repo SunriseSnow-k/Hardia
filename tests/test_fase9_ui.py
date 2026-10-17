@@ -7,6 +7,7 @@ from PySide6.QtWidgets import QApplication
 from app.ai.ollama_client import OllamaError
 from app.db.database import Database
 from app.db.repo import Repository
+from app.paths import VAR_DATOS
 
 
 @pytest.fixture(scope="session")
@@ -17,7 +18,7 @@ def qapp():
 @pytest.fixture(autouse=True)
 def entorno(monkeypatch, tmp_path):
     """Datos en una carpeta temporal y Ollama simulado como no disponible."""
-    monkeypatch.setenv("APPDATA", str(tmp_path / "appdata"))
+    monkeypatch.setenv(VAR_DATOS, str(tmp_path / "appdata"))
 
     def sin_ollama(*args, **kwargs):
         raise OllamaError("sin ollama")

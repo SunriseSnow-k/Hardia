@@ -1,11 +1,15 @@
-"""Fase 18: colector portátil en USB (Colector.exe) y preparación de la memoria desde el programa."""
+"""Fase 18: colector portátil en USB (Colector.exe o Colector en Linux) y preparación de la memoria desde el programa."""
 import sys
 from collections import namedtuple
-from pathlib import Path
 
 import pytest
 
 from app.hardware import cli, colector_usb, diag_file
+from app.paths import VAR_DATOS
+from app.plataforma import ES_WINDOWS
+
+# Lo que el técnico ejecuta en el PC del cliente: Colector.exe en Windows, colector.sh en Linux
+PARA_EJECUTAR = colector_usb.EXE if ES_WINDOWS else colector_usb.LANZADOR
 
 ESCANEO = {"format": diag_file.FORMAT, "version": diag_file.VERSION, "scanned_at": "2026-10-15T10:00:00",
            "host": "PC-CLIENTE", "summary": {"serial": "ABC 123"}, "components": [], "metrics": {}}
@@ -45,8 +49,8 @@ def test_colector_informa_el_error_y_espera_enter(tmp_path, monkeypatch, capsys)
 
 def test_destino_es_la_carpeta_resultados_del_colector(monkeypatch, tmp_path):
     monkeypatch.setattr(sys, "frozen", True, raising=False)
-    monkeypatch.setattr(sys, "executable", r"E:\Colector\Colector.exe")
-    assert cli.destino_predeterminado() == Path(r"E:\Colector\Resultados")
+    monkeypatch.setattr(sys, "executable", str(tmp_path / "E" / "Colector" / colector_usb.EXE))
+    assert cli.destino_predeterminado() == tmp_path / "E" / "Colector" / "Resultados"
     monkeypatch.setattr(sys, "frozen", False)
     monkeypatch.chdir(tmp_path)
     assert cli.destino_predeterminado() == tmp_path / "Resultados"
@@ -77,7 +81,7 @@ def test_taller_encuentra_los_escaneos_del_colector(tmp_path, monkeypatch):
 def fuente(tmp_path):
     carpeta = tmp_path / "programa" / "Colector"
     (carpeta / "_internal").mkdir(parents=True)
-    (carpeta / "Colector.exe").write_bytes(b"MZ" + b"0" * 100)
+    (carpeta / colector_usb.EXE).write_bytes(b"MZ" + b"0" * 100)
     (carpeta / "_internal" / "lhm.dll").write_bytes(b"dll")
     return carpeta
 
@@ -88,7 +92,8 @@ def test_preparar_copia_y_reemplaza_version_anterior(tmp_path, fuente):
     (usb / "Colector" / "viejo.txt").write_text("versión anterior")
     (usb / "EQUIPO_2026-10-01.diag").write_text("{}")
     exe = colector_usb.preparar(usb, fuente)
-    assert exe == usb / "Colector" / "Colector.exe" and exe.read_bytes().startswith(b"MZ")
+    assert exe == usb / "Colector" / PARA_EJECUTAR
+    assert (usb / "Colector" / colector_usb.EXE).read_bytes().startswith(b"MZ")
     assert (usb / "Colector" / "_internal" / "lhm.dll").exists()
     assert not (usb / "Colector" / "viejo.txt").exists() and not (usb / "Colector.nuevo").exists()
     assert (usb / "EQUIPO_2026-10-01.diag").exists()  # los escaneos de la memoria no se tocan
@@ -103,7 +108,7 @@ def test_preparar_conserva_resultados_y_no_copia_escaneos_del_taller(tmp_path, f
     (usb / "Colector" / "Resultados" / "CLIENTE.diag").write_text("{}")
     colector_usb.preparar(usb, fuente)
     assert [p.name for p in (usb / "Colector" / "Resultados").iterdir()] == ["CLIENTE.diag"]
-    assert "Colector.exe" in (usb / colector_usb.INSTRUCCIONES).read_text(encoding="utf-8-sig")
+    assert PARA_EJECUTAR in (usb / colector_usb.INSTRUCCIONES).read_text(encoding="utf-8-sig")
 
 
 def test_preparar_valida_origen_unidad_y_espacio(tmp_path, fuente, monkeypatch):
@@ -117,10 +122,20 @@ def test_preparar_valida_origen_unidad_y_espacio(tmp_path, fuente, monkeypatch):
         colector_usb.preparar(tmp_path, fuente)
 
 
-def test_origen_empaquetado(monkeypatch):
+def test_origen_empaquetado(monkeypatch, tmp_path):
     monkeypatch.setattr(sys, "frozen", True, raising=False)
-    monkeypatch.setattr(sys, "executable", r"C:\Program Files\SistemaDiagnostico\SistemaDiagnostico.exe")
-    assert colector_usb.origen() == Path(r"C:\Program Files\SistemaDiagnostico\Colector")
+    monkeypatch.setattr(sys, "executable", str(tmp_path / "SistemaDiagnostico" / "SistemaDiagnostico.exe"))
+    assert colector_usb.origen() == tmp_path / "SistemaDiagnostico" / "Colector"
+
+
+@pytest.mark.skipif(ES_WINDOWS, reason="el lanzador colector.sh es solo de Linux")
+def test_preparar_en_linux_deja_el_lanzador(tmp_path, fuente):
+    usb = tmp_path / "usb"
+    usb.mkdir()
+    lanzador = colector_usb.preparar(usb, fuente)
+    texto = lanzador.read_text(encoding="utf-8")
+    assert lanzador.name == "colector.sh" and texto.startswith("#!/bin/sh") and "\r" not in texto
+    assert "sudo" in texto and '"$DIR/Resultados"' in texto
 
 
 # ---------------- Interfaz ----------------
@@ -145,7 +160,7 @@ def test_boton_preparar_usb(pagina, fuente, tmp_path, monkeypatch):
     monkeypatch.setattr(diag_file, "removable_drives", lambda: [usb])
     monkeypatch.setattr(QMessageBox, "question", staticmethod(lambda *a, **k: QMessageBox.Yes))
     pagina._preparar_usb()
-    assert "USB listo" in pagina.msg.text() and (usb / "Colector" / "Colector.exe").exists()
+    assert "USB listo" in pagina.msg.text() and (usb / "Colector" / colector_usb.EXE).exists()
 
 
 def test_boton_preparar_usb_elige_unidad_o_avisa(pagina, fuente, tmp_path, monkeypatch):
@@ -161,7 +176,7 @@ def test_boton_preparar_usb_elige_unidad_o_avisa(pagina, fuente, tmp_path, monke
     monkeypatch.setattr(diag_file, "removable_drives", lambda: [e, f])
     monkeypatch.setattr(QInputDialog, "getItem", staticmethod(lambda *a, **k: (str(f), True)))
     pagina._preparar_usb()
-    assert (f / "Colector" / "Colector.exe").exists() and not (e / "Colector").exists()
+    assert (f / "Colector" / colector_usb.EXE).exists() and not (e / "Colector").exists()
 
 
 # ---------------- Resumen de salud y prueba de rendimiento en el colector ----------------
@@ -272,7 +287,7 @@ def test_importar_diag_con_prueba_la_vincula_a_la_captura(tmp_path, monkeypatch)
     from app.db.hardware_repo import HardwareRepository
     from app.db.health_repo import HealthRepository
     from app.db.repo import Repository
-    monkeypatch.setenv("APPDATA", str(tmp_path / "appdata"))
+    monkeypatch.setenv(VAR_DATOS, str(tmp_path / "appdata"))
     db = Database(tmp_path / "t.db")
     try:
         repo = Repository(db)

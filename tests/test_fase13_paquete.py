@@ -2,6 +2,7 @@
 import hashlib
 import io
 import json
+import sys
 import threading
 import time
 import zipfile
@@ -17,6 +18,7 @@ from app.ai.ollama_client import AiError, ChatStream, OllamaError
 from app.ai.worker import crear_stream
 from app.db.database import Database
 from app.db.repo import Repository
+from app.paths import VAR_DATOS
 
 
 @pytest.fixture(scope="session")
@@ -26,7 +28,7 @@ def qapp():
 
 @pytest.fixture(autouse=True)
 def entorno(monkeypatch, tmp_path):
-    monkeypatch.setenv("APPDATA", str(tmp_path / "appdata"))
+    monkeypatch.setenv(VAR_DATOS, str(tmp_path / "appdata"))
 
     def sin_ollama(*args, **kwargs):
         raise OllamaError("sin ollama")
@@ -145,7 +147,7 @@ def test_descarga_sin_conexion_da_mensaje_claro(tmp_path):
 def _zip_motor() -> bytes:
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w") as z:
-        z.writestr("llama-server.exe", b"MZ servidor")
+        z.writestr(paquete.SERVIDOR_EXE, b"MZ servidor")
         z.writestr("ggml.dll", b"dll")
         z.writestr("LICENSE-LLVM-OpenMP", b"licencia")
         z.writestr("llama-bench.exe", b"no hace falta")
@@ -172,9 +174,10 @@ def test_instalar_motor_y_modelo(web, monkeypatch):
     motor = paquete.carpeta_motor()
     assert paquete.motor_instalado()
     nombres = {p.name for p in motor.iterdir()}
-    assert {"llama-server.exe", "ggml.dll", "LICENSE-LLVM-OpenMP", "version.txt"} <= nombres
+    assert {paquete.SERVIDOR_EXE, "ggml.dll", "LICENSE-LLVM-OpenMP", "version.txt"} <= nombres
     assert "llama-bench.exe" not in nombres and "otra.dll" not in nombres
-    assert {"msvcp140.dll", "vcruntime140.dll", "vcruntime140_1.dll"} <= nombres  # runtime de VC++
+    if sys.platform == "win32":
+        assert {"msvcp140.dll", "vcruntime140.dll", "vcruntime140_1.dll"} <= nombres  # runtime de VC++
     assert not list(paquete.carpeta().glob("*.zip"))  # el zip se borra al terminar
 
     paquete.instalar_modelo("qwen2.5-1.5b")

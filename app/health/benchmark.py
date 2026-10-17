@@ -3,9 +3,9 @@
 - CPU: carga de todos los núcleos durante unos 60 s con procesos (multiprocessing). Se mide
   cuántas unidades de trabajo fijas se completan por segundo y cuánto se mantiene el ritmo.
   Se detiene sola si la temperatura llega al corte de seguridad (95 °C).
-- Discos: lectura secuencial de la unidad física (\\\\.\\PhysicalDriveN) durante unos 30 s,
-  SOLO LECTURA y sin abrir archivos: no toca los datos del cliente. Windows exige permisos de
-  administrador; sin ellos la medición queda como "No disponible" con su motivo.
+- Discos: lectura secuencial de la unidad física (\\\\.\\PhysicalDriveN en Windows; /dev/sdX o
+  /dev/nvmeXnY en Linux) durante unos 30 s, SOLO LECTURA y sin abrir archivos: no toca los datos
+  del cliente. Exige administrador (root en Linux); sin él la medición queda como "No disponible".
 - Condiciones: cargador conectado, carga de batería, uso previo de CPU y programas abiertos.
 
 El puntaje de CPU está en unidades propias de este programa: solo es comparable con
@@ -14,6 +14,7 @@ referencias medidas con esta misma prueba.
 import ctypes
 import multiprocessing as mp
 import os
+import sys
 import time
 from datetime import datetime
 from statistics import mean
@@ -29,9 +30,11 @@ VENTANA = 10  # segundos para el ritmo inicial y final
 BLOQUE = 1024 * 1024  # 1 MiB (múltiplo del tamaño de sector, requerido sin caché)
 
 def discos_de(scan: dict) -> list[dict]:
-    """Discos internos de una captura que la prueba puede leer: [{index, model}]."""
+    """Discos internos de una captura que la prueba puede leer: [{index, model, device}]
+    (device solo existe en las capturas de Linux: /dev/sda)."""
     sto = ((scan or {}).get("inventory") or {}).get("storage") or {}
-    return [{"index": u.get("index"), "model": u.get("model")} for u in sto.get("physical") or []
+    return [{"index": u.get("index"), "model": u.get("model"), "device": u.get("device")}
+            for u in sto.get("physical") or []
             if isinstance(u, dict) and not u.get("external") and u.get("index") is not None]
 
 
@@ -138,6 +141,8 @@ ERROR_ACCESS_DENIED = 5
 
 
 def _kernel32():
+    if sys.platform != "win32":  # pragma: no cover (comparación literal: así la entiende mypy)
+        raise OSError("solo Windows")
     k = ctypes.WinDLL("kernel32", use_last_error=True)
     from ctypes import wintypes as w
     k.CreateFileW.argtypes = [w.LPCWSTR, w.DWORD, w.DWORD, w.LPVOID, w.DWORD, w.DWORD, w.HANDLE]
@@ -156,8 +161,10 @@ def lectura_disco(indice, duracion: float = DURACION_DISCO, cancelado=lambda: Fa
     """Lee secuencialmente la unidad física `indice` (o `ruta`, usado en las pruebas) sin caché.
     Nunca escribe. Devuelve {index, lectura_mb_s, bytes, duracion_s, estado, motivo}."""
     base = {"index": indice, "lectura_mb_s": None, "bytes": 0, "duracion_s": 0.0, "estado": "ok", "motivo": ""}
-    if os.name != "nt":
-        return {**base, "estado": "no_disponible", "motivo": "solo disponible en Windows"}
+    if sys.platform != "win32":
+        if not ruta:
+            return {**base, "estado": "no_disponible", "motivo": "no se conoce el dispositivo de la unidad"}
+        return _lectura_linux(base, ruta, duracion, cancelado, al_avanzar)
     ruta = ruta or rf"\\.\PhysicalDrive{int(indice)}"
     k = _kernel32()
     h = k.CreateFileW(ruta, GENERIC_READ, FILE_SHARE_READ_WRITE, None, OPEN_EXISTING,
@@ -194,6 +201,48 @@ def lectura_disco(indice, duracion: float = DURACION_DISCO, cancelado=lambda: Fa
         if buf:
             k.VirtualFree(buf, 0, MEM_RELEASE)
         k.CloseHandle(h)
+    dur = time.perf_counter() - t0
+    if total == 0:
+        return {**base, "estado": "fallo", "motivo": "no se pudo leer la unidad", "duracion_s": round(dur, 1)}
+    return {**base, "lectura_mb_s": round(total / 1e6 / max(dur, 1e-6), 1), "bytes": total,
+            "duracion_s": round(dur, 1), "cancelado": cancelada}
+
+
+def _lectura_linux(base: dict, ruta: str, duracion: float, cancelado, al_avanzar) -> dict:
+    """Lectura secuencial sin caché (O_DIRECT) de un dispositivo de bloque en Linux."""
+    if sys.platform == "win32":  # pragma: no cover (comparación literal: así la entiende mypy)
+        raise OSError("solo Linux")
+    import mmap
+    try:
+        fd = os.open(ruta, os.O_RDONLY | getattr(os, "O_DIRECT", 0))
+    except PermissionError:
+        return {**base, "estado": "no_autorizado", "motivo": "requiere ejecutar el programa con sudo"}
+    except OSError as e:
+        return {**base, "estado": "fallo", "motivo": f"Linux no permitió abrir la unidad ({e.strerror})"}
+    buf = mmap.mmap(-1, BLOQUE)  # alineado a página, como exige O_DIRECT
+    total, cancelada = 0, False
+    t0 = ultimo_aviso = time.perf_counter()
+    try:
+        while True:
+            try:
+                leidos = os.readv(fd, [buf])
+            except OSError:
+                break  # error de lectura: se usa lo leído
+            if leidos <= 0:
+                break
+            total += leidos
+            ahora = time.perf_counter()
+            if al_avanzar and ahora - ultimo_aviso >= 0.5:
+                al_avanzar(ahora - t0, total)
+                ultimo_aviso = ahora
+            if ahora - t0 >= duracion:
+                break
+            if cancelado():
+                cancelada = True
+                break
+    finally:
+        buf.close()
+        os.close(fd)
     dur = time.perf_counter() - t0
     if total == 0:
         return {**base, "estado": "fallo", "motivo": "no se pudo leer la unidad", "duracion_s": round(dur, 1)}
@@ -268,7 +317,8 @@ def ejecutar(discos: list[dict], cancelado=lambda: False, al_paso=None, al_muest
         if al_paso:
             al_paso(i, f'Disco {d.get("model") or d.get("index")}: lectura secuencial (solo lectura)')
         r = lectura_disco(d.get("index"), duracion_disco, cancelado,
-                          (lambda t, b, i=i: al_avanzar_disco(i, t, b)) if al_avanzar_disco else None)
+                          (lambda t, b, i=i: al_avanzar_disco(i, t, b)) if al_avanzar_disco else None,
+                          ruta=d.get("device") if os.name != "nt" else None)
         r["model"] = d.get("model")
         res["discos"].append(r)
         if r.get("cancelado") or cancelado():

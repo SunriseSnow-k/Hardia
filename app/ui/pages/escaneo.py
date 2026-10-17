@@ -1,4 +1,5 @@
 import html
+import os
 from datetime import datetime
 from pathlib import Path
 
@@ -24,6 +25,7 @@ from PySide6.QtWidgets import (
 from app.hardware import colector_usb, diag_file, lhm
 from app.hardware.inventory import CATEGORIAS, ESTADO_TEXTO, FALLO, NO_AUTORIZADO, NO_COMPATIBLE, NO_DISPONIBLE, OK
 from app.hardware.scanner import COLECTORES_NOMBRES, COMPONENT_NAMES, run_scan
+from app.plataforma import ES_WINDOWS
 from app.ui.inventory_dialog import InventoryDialog
 from app.ui.tema import T
 from app.ui.widgets import AreaDesplazable, ChipEstado, cabecera, fecha_corta, muted, panel
@@ -197,9 +199,10 @@ class EscaneoPage(QWidget):
         usb = QWidget()
         uv = QVBoxLayout(usb)
         uv.setContentsMargins(0, 0, 0, 0)
-        info = muted("En el PC del cliente se ejecuta Colector.exe desde el USB: escanea el equipo y guarda un "
-                     "archivo .diag en la carpeta Colector\\Resultados de la memoria. Conéctela aquí e impórtelo. "
-                     "Para llevar el colector, use «Preparar USB colector».")
+        programa = colector_usb.EXE if ES_WINDOWS else colector_usb.LANZADOR
+        info = muted(f"En el PC del cliente se ejecuta {programa} desde el USB: escanea el equipo y guarda un "
+                     f"archivo .diag en la carpeta Colector{os.sep}Resultados de la memoria. Conéctela aquí e "
+                     "impórtelo. Para llevar el colector, use «Preparar USB colector».")
         self.lista = QListWidget()
         self.lista.setMaximumHeight(110)
         bt = QHBoxLayout()
@@ -292,7 +295,7 @@ class EscaneoPage(QWidget):
         texto.setWordWrap(True)
         texto.setStyleSheet(f"color:{T.aviso_texto};")
         h.addWidget(texto, 1)
-        if not lhm.es_administrador():
+        if not lhm.es_administrador() and lhm.puede_reiniciar_como_administrador():
             b = QPushButton("Reiniciar como administrador")
             b.setObjectName("Secondary")
             b.clicked.connect(self._reiniciar_admin)
@@ -488,7 +491,9 @@ class EscaneoPage(QWidget):
             return
         finally:
             QGuiApplication.restoreOverrideCursor()
-        self._msg(f"USB listo: en el PC del cliente ejecute {exe}. El escaneo quedará en la raíz de la memoria.")
+        como = f"ejecute {exe}" if ES_WINDOWS else f"abra una terminal en {exe.parent} y ejecute: sh {exe.name}"
+        self._msg(f"USB listo: en el PC del cliente {como}. El escaneo quedará en la carpeta "
+                  f"Colector{os.sep}Resultados de la memoria.")
 
     def _buscar_archivo(self):
         ruta, _ = QFileDialog.getOpenFileName(self, "Seleccionar escaneo", "", "Escaneo (*.diag)")

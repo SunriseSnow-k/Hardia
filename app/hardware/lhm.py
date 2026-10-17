@@ -15,6 +15,8 @@ import threading
 import time
 from pathlib import Path
 
+from app import plataforma
+
 log = logging.getLogger(__name__)
 
 DLL = "LibreHardwareMonitorLib.dll"
@@ -43,16 +45,21 @@ def carpeta() -> Path:
 
 
 def es_administrador() -> bool:
-    try:
-        return bool(ctypes.windll.shell32.IsUserAnAdmin())
-    except Exception:
-        return False
+    """Administrador en Windows; root en Linux."""
+    return plataforma.es_administrador()
+
+
+def puede_reiniciar_como_administrador() -> bool:
+    """Solo Windows: en Linux la interfaz no se abre como root (se usa sudo en el colector)."""
+    return plataforma.ES_WINDOWS
 
 
 def reiniciar_como_administrador() -> bool:
     """Abre otra instancia del programa con permisos de administrador (Windows pide confirmación).
     True si se lanzó; el llamador debe cerrar esta instancia."""
     import subprocess
+    if sys.platform != "win32":
+        return False
     # --relanzado: la nueva instancia espera a que esta se cierre (el programa es de instancia única)
     extra = [a for a in sys.argv[1:] if a != "--relanzado"] + ["--relanzado"]
     if getattr(sys, "frozen", False):
@@ -69,6 +76,9 @@ def reiniciar_como_administrador() -> bool:
 
 def requisitos_sensores() -> list[str]:
     """Lo que falta en este equipo para leer todos los sensores (vacío si no falta nada)."""
+    if not plataforma.ES_WINDOWS:
+        from .linux import requisitos_sensores as en_linux
+        return en_linux()
     falta = []
     if not es_administrador():
         falta.append("ejecutar el programa como administrador (temperatura de CPU y SMART de los discos)")
@@ -81,7 +91,9 @@ def requisitos_sensores() -> list[str]:
 
 def pawnio_instalado() -> bool | None:
     """LibreHardwareMonitor 0.9.5+ lee la temperatura de la CPU con el controlador PawnIO
-    (https://pawnio.eu). None si no se pudo consultar el registro."""
+    (https://pawnio.eu). None si no se pudo consultar el registro (o no es Windows)."""
+    if sys.platform != "win32":
+        return None
     try:
         import winreg
     except ImportError:

@@ -10,6 +10,7 @@ from app.db.database import Database
 from app.db.notes_repo import NotesRepository
 from app.db.repo import Repository
 from app.db.reports_repo import ReportsRepository
+from app.paths import VAR_DATOS
 
 
 @pytest.fixture(scope="session")
@@ -19,7 +20,7 @@ def qapp():
 
 @pytest.fixture(autouse=True)
 def entorno(monkeypatch, tmp_path):
-    monkeypatch.setenv("APPDATA", str(tmp_path / "appdata"))
+    monkeypatch.setenv(VAR_DATOS, str(tmp_path / "appdata"))
     abiertos = []
 
     class _SinVisor:  # no abre el visor de PDF durante las pruebas

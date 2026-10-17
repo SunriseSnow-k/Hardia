@@ -1,22 +1,29 @@
-"""Prepara una memoria USB con el colector portátil (Colector.exe).
+"""Prepara una memoria USB con el colector portátil (Colector.exe en Windows, Colector en Linux).
 
 El instalador trae el colector en la subcarpeta Colector del programa (build.ps1 lo genera con
 PyInstaller y lo copia allí). Preparar el USB es copiar esa carpeta a <unidad>\\Colector junto
 con un archivo de instrucciones. Los escaneos se guardan en <unidad>\\Colector\\Resultados, donde
 la pantalla Escanear los busca; al actualizar el colector esa carpeta se conserva.
+
+El colector es del mismo sistema que el programa: el de Windows escanea PCs con Windows y el de
+Linux, PCs con Linux. En Linux se agrega colector.sh: las memorias FAT32/exFAT suelen montarse sin
+permiso de ejecución, así que el lanzador pide sudo y, si hace falta, ejecuta una copia temporal.
 """
 import shutil
 import sys
 from pathlib import Path
 
+from app.plataforma import ES_WINDOWS, ejecutable
+
 from .diag_file import CARPETA_COLECTOR, CARPETA_RESULTADOS
 
 CARPETA = CARPETA_COLECTOR
-EXE = "Colector.exe"
+EXE = ejecutable("Colector")
+LANZADOR = "colector.sh"  # solo Linux
 INSTRUCCIONES = "LEAME - Colector.txt"
-TEXTO_INSTRUCCIONES = """COLECTOR DE DIAGNÓSTICO
+TEXTO_WINDOWS = """COLECTOR DE DIAGNÓSTICO
 
-En el PC del cliente:
+En el PC del cliente (con Windows):
   1. Conecte esta memoria USB.
   2. Abra la carpeta Colector y ejecute Colector.exe.
   3. Acepte la solicitud de permisos de administrador (sin ellos no se leen
@@ -31,6 +38,49 @@ El colector no instala nada ni guarda datos en el PC del cliente.
 
 En el taller:
   Conecte la memoria y abra Escanear → Importar desde USB.
+"""
+TEXTO_LINUX = """COLECTOR DE DIAGNÓSTICO (Linux)
+
+En el PC del cliente (con Linux):
+  1. Conecte esta memoria USB y abra una terminal en la carpeta Colector
+     (clic derecho en la carpeta → «Abrir en una terminal»).
+  2. Ejecute:  sh colector.sh
+  3. Escriba la contraseña de sudo cuando se la pida (sin ella no se leen el
+     número de serie, los módulos de RAM ni el estado SMART de los discos).
+     Para el SMART conviene tener instalado smartmontools.
+  4. Espere a que termine el escaneo: verá un resumen de la salud del equipo.
+  5. Si lo desea, acepte la prueba de rendimiento (unos 2 minutos: mide el
+     procesador y la velocidad de los discos, solo lectura). Conviene tener el
+     cargador conectado y los programas cerrados.
+  6. El archivo .diag queda en la carpeta Colector/Resultados de esta memoria.
+
+El colector no instala nada en el PC del cliente (si la memoria no permite
+ejecutar programas, usa una copia temporal que se borra al terminar).
+
+En el taller:
+  Conecte la memoria y abra Escanear → Importar desde USB.
+"""
+TEXTO_INSTRUCCIONES = TEXTO_WINDOWS if ES_WINDOWS else TEXTO_LINUX
+SCRIPT_LINUX = """#!/bin/sh
+# Colector de diagnóstico: escanea este equipo y guarda el .diag en Resultados (junto a este archivo).
+# Uso:  sh colector.sh
+DIR=$(cd "$(dirname "$0")" && pwd)
+if [ "$(id -u)" -ne 0 ] && command -v sudo >/dev/null 2>&1; then
+    echo "El colector necesita permisos de administrador (sudo) para leer todos los datos."
+    exec sudo sh "$DIR/colector.sh" "$@"
+fi
+mkdir -p "$DIR/Resultados"
+if [ -x "$DIR/Colector" ]; then
+    exec "$DIR/Colector" "$DIR/Resultados" "$@"
+fi
+# Memoria sin permiso de ejecución (FAT32/exFAT): copia temporal que se borra al terminar
+TMP=$(mktemp -d) || exit 1
+trap 'rm -rf "$TMP"' EXIT INT TERM
+for f in "$DIR"/*; do
+    [ "$(basename "$f")" = "Resultados" ] || cp -r "$f" "$TMP/"
+done
+chmod +x "$TMP/Colector"
+"$TMP/Colector" "$DIR/Resultados" "$@"
 """
 
 
@@ -54,7 +104,8 @@ def _tamano(carpeta: Path) -> int:
 
 def preparar(unidad, carpeta: Path | None = None) -> Path:
     """Copia el colector a <unidad>\\Colector (reemplaza una versión anterior, conservando los
-    escaneos de Resultados) y deja las instrucciones en la raíz. Devuelve la ruta del Colector.exe."""
+    escaneos de Resultados) y deja las instrucciones en la raíz. Devuelve lo que hay que ejecutar en
+    el PC del cliente: Colector.exe en Windows, colector.sh en Linux."""
     fuente = carpeta or origen()
     if not disponible(fuente):
         raise FileNotFoundError("El colector no está incluido en esta instalación. "
@@ -82,4 +133,8 @@ def preparar(unidad, carpeta: Path | None = None) -> Path:
         shutil.rmtree(destino)
     temporal.rename(destino)
     (unidad / INSTRUCCIONES).write_text(TEXTO_INSTRUCCIONES, encoding="utf-8-sig")
-    return destino / EXE
+    if ES_WINDOWS:
+        return destino / EXE
+    lanzador = destino / LANZADOR
+    lanzador.write_bytes(SCRIPT_LINUX.encode("utf-8"))  # finales de línea de Unix
+    return lanzador

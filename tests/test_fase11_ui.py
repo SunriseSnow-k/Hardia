@@ -16,6 +16,7 @@ from app.db.notes_repo import NotesRepository
 from app.db.repo import Repository
 from app.hardware.inventory import identifiers_from_scan
 from app.hardware.scanner import run_scan
+from app.paths import VAR_DATOS
 from tests.test_fase10b_hardware import _env
 
 
@@ -26,7 +27,7 @@ def qapp():
 
 @pytest.fixture(autouse=True)
 def entorno(monkeypatch, tmp_path):
-    monkeypatch.setenv("APPDATA", str(tmp_path / "appdata"))
+    monkeypatch.setenv(VAR_DATOS, str(tmp_path / "appdata"))
 
     def sin_ollama(*args, **kwargs):
         raise OllamaError("sin ollama")
