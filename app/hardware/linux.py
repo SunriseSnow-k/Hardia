@@ -814,6 +814,53 @@ FUNCIONES = {"identity": _identidad, "cpu": _cpu, "memory": _memoria, "storage":
              "battery": _bateria, "other": _otros, "sensors": _sensores}
 
 
+# Sistemas de archivos de memorias y discos externos que se pueden montar para preparar o leer el USB
+_FS_MONTABLES = {"vfat", "exfat", "ntfs", "ntfs3", "ext4", "ext3", "ext2", "btrfs", "xfs", "f2fs", "hfsplus"}
+
+
+def extraibles_sin_montar(env=None) -> list[str]:
+    """Particiones de memorias USB conectadas pero sin montar. En Windows cada memoria recibe una
+    letra al conectarla; en Linux, si nadie la abrió en el explorador de archivos, no tiene carpeta."""
+    env = env or EntornoLinux()
+    try:
+        arbol = json.loads(env.ejecutar("lsblk", "-J", "-p", "-o", "PATH,TYPE,RM,HOTPLUG,TRAN,FSTYPE,MOUNTPOINTS")
+                           or "{}")
+    except ValueError:
+        return []
+    salida: list[str] = []
+
+    def recorrer(nodos, extraible_padre: bool):
+        for n in nodos or []:
+            if not isinstance(n, dict):
+                continue
+            extraible = extraible_padre or bool(n.get("rm")) or bool(n.get("hotplug")) or n.get("tran") == "usb"
+            montado = any(m for m in n.get("mountpoints") or [] if m)
+            if (extraible and not montado and n.get("type") in ("part", "disk")
+                    and str(n.get("fstype") or "").lower() in _FS_MONTABLES and n.get("path")):
+                salida.append(str(n["path"]))
+            recorrer(n.get("children"), extraible)
+    recorrer(arbol.get("blockdevices"), False)
+    return salida
+
+
+def montar_extraibles(env=None) -> list[str]:
+    """Monta las memorias USB conectadas sin montar, como al abrirlas en el explorador de archivos
+    (udisksctl: no pide contraseña al usuario del escritorio). Devuelve las carpetas montadas."""
+    env = env or EntornoLinux()
+    if not env.tiene("udisksctl"):
+        return []
+    montadas = []
+    for dispositivo in extraibles_sin_montar(env):
+        texto = env.ejecutar("udisksctl", "mount", "-b", dispositivo, "--no-user-interaction") or ""
+        m = re.search(r"Mounted \S+ at (.+?)\.?$", texto.strip())
+        if m:
+            log.info("Memoria USB %s montada en %s", dispositivo, m.group(1))
+            montadas.append(m.group(1))
+        else:
+            log.info("No se pudo montar la memoria USB %s", dispositivo)
+    return montadas
+
+
 def unidades_extraibles(env=None) -> list[str]:
     """Puntos de montaje de memorias USB y tarjetas (dispositivo extraíble o conectado por USB)."""
     env = env or EntornoLinux()

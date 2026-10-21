@@ -222,3 +222,59 @@ def test_sin_pkexec_no_hay_boton(monkeypatch):
     from app.ui.pages import escaneo
     monkeypatch.setattr(lhm, "puede_pedir_permisos", lambda: False)
     assert escaneo.EscaneoPage().b_scan_admin is None
+
+
+# ---------------- memorias USB sin montar ----------------
+LSBLK = {"blockdevices": [
+    {"path": "/dev/sda", "type": "disk", "rm": False, "hotplug": False, "tran": "sata", "fstype": None,
+     "mountpoints": [None], "children": [
+         {"path": "/dev/sda1", "type": "part", "rm": False, "hotplug": False, "fstype": "ntfs", "mountpoints": [None]}]},
+    {"path": "/dev/sdb", "type": "disk", "rm": True, "hotplug": True, "tran": "usb", "fstype": None,
+     "mountpoints": [None], "children": [
+         {"path": "/dev/sdb1", "type": "part", "rm": True, "hotplug": True, "fstype": "vfat", "mountpoints": [None]},
+         {"path": "/dev/sdb2", "type": "part", "rm": True, "hotplug": True, "fstype": "swap", "mountpoints": [None]}]},
+    {"path": "/dev/sdc", "type": "disk", "rm": False, "hotplug": False, "tran": "usb", "fstype": "exfat",
+     "mountpoints": ["/media/tecnico/DISCO"]},
+    {"path": "/dev/sdd", "type": "disk", "rm": False, "hotplug": False, "tran": "usb", "fstype": "exfat",
+     "mountpoints": [None]}]}
+
+
+class Montador:
+    def __init__(self, udisks=True):
+        self.ordenes, self.udisks = [], udisks
+
+    def ejecutar(self, *args):
+        self.ordenes.append(args)
+        if args[0] == "lsblk":
+            return json.dumps(LSBLK)
+        if args[:2] == ("udisksctl", "mount"):
+            return f"Mounted {args[3]} at /media/tecnico/{args[3][-4:].upper()}.\n" if args[3] != "/dev/sdd" else None
+        return None
+
+    def tiene(self, programa):
+        return self.udisks
+
+
+def test_memorias_sin_montar_se_montan_sin_contrasena():
+    assert linux.extraibles_sin_montar(Montador()) == ["/dev/sdb1", "/dev/sdd"]  # ni discos internos ni swap
+    m = Montador()
+    assert linux.montar_extraibles(m) == ["/media/tecnico/SDB1"]  # /dev/sdd no se pudo montar
+    assert ("udisksctl", "mount", "-b", "/dev/sdb1", "--no-user-interaction") in m.ordenes
+    assert linux.montar_extraibles(Montador(udisks=False)) == []
+
+
+def test_lsblk_ausente_o_roto():
+    class Roto(Montador):
+        def ejecutar(self, *args):
+            return "no es json"
+    assert linux.extraibles_sin_montar(Roto()) == []
+
+
+def test_buscar_memorias_monta_antes(monkeypatch):
+    from app.hardware import diag_file
+    if sys.platform == "win32":
+        pytest.skip("en Windows las memorias tienen letra de unidad")
+    pasos = []
+    monkeypatch.setattr(linux, "montar_extraibles", lambda: pasos.append("montar"))
+    monkeypatch.setattr(linux, "unidades_extraibles", lambda: pasos.append("listar") or ["/media/tecnico/USB"])
+    assert [str(u) for u in diag_file.removable_drives()] == ["/media/tecnico/USB"] and pasos == ["montar", "listar"]

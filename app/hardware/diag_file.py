@@ -1,11 +1,14 @@
 """Archivo .diag: guarda e importa un escaneo (para llevarlo en un USB)."""
 import contextlib
 import json
+import logging
 import re
 import sys
 from pathlib import Path
 
 import psutil
+
+log = logging.getLogger(__name__)
 
 FORMAT = "SD-DIAG"
 VERSION = 2  # 2 = incluye inventario y disponibilidad; los archivos de versión 1 se siguen leyendo
@@ -50,7 +53,11 @@ def default_filename(data: dict) -> str:
 def removable_drives() -> list[Path]:
     """Unidades extraíbles (USB) conectadas: letras de unidad en Windows, puntos de montaje en Linux."""
     if sys.platform != "win32":
-        from .linux import unidades_extraibles
+        from .linux import montar_extraibles, unidades_extraibles
+        try:
+            montar_extraibles()  # Linux: las memorias conectadas sin abrir no tienen carpeta todavía
+        except Exception:
+            log.warning("No se pudieron montar las memorias USB", exc_info=True)
         return [Path(m) for m in unidades_extraibles()]
     unidades = []
     for p in psutil.disk_partitions(all=False):

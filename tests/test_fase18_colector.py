@@ -10,6 +10,8 @@ from app.plataforma import ES_WINDOWS
 
 # Lo que el técnico ejecuta en el PC del cliente: Colector.exe en Windows, colector.sh en Linux
 PARA_EJECUTAR = colector_usb.EXE if ES_WINDOWS else colector_usb.LANZADOR
+# Dónde queda el programa del colector en la memoria (el de Linux va en Colector/linux)
+PROGRAMA = ("Colector", "Colector.exe") if ES_WINDOWS else ("Colector", "linux", "Colector")
 
 ESCANEO = {"format": diag_file.FORMAT, "version": diag_file.VERSION, "scanned_at": "2026-10-15T10:00:00",
            "host": "PC-CLIENTE", "summary": {"serial": "ABC 123"}, "components": [], "metrics": {}}
@@ -77,27 +79,57 @@ def test_taller_encuentra_los_escaneos_del_colector(tmp_path, monkeypatch):
 
 
 # ---------------- Preparar el USB ----------------
+def _colector(carpeta, windows: bool):
+    (carpeta / "_internal").mkdir(parents=True)
+    (carpeta / ("Colector.exe" if windows else "Colector")).write_bytes(b"MZ" + b"0" * 100)
+    (carpeta / "_internal" / ("lhm.dll" if windows else "libpython.so")).write_bytes(b"lib")
+    return carpeta
+
+
 @pytest.fixture
 def fuente(tmp_path):
-    carpeta = tmp_path / "programa" / "Colector"
-    (carpeta / "_internal").mkdir(parents=True)
-    (carpeta / colector_usb.EXE).write_bytes(b"MZ" + b"0" * 100)
-    (carpeta / "_internal" / "lhm.dll").write_bytes(b"dll")
-    return carpeta
+    return _colector(tmp_path / "programa" / "Colector", ES_WINDOWS)
 
 
 def test_preparar_copia_y_reemplaza_version_anterior(tmp_path, fuente):
     usb = tmp_path / "usb"
     (usb / "Colector").mkdir(parents=True)
-    (usb / "Colector" / "viejo.txt").write_text("versión anterior")
     (usb / "EQUIPO_2026-10-01.diag").write_text("{}")
+    colector_usb.preparar(usb, fuente)
+    (usb / "Colector" / ("_internal" if ES_WINDOWS else "linux/_internal") / "viejo.txt").write_text("anterior")
     exe = colector_usb.preparar(usb, fuente)
     assert exe == usb / "Colector" / PARA_EJECUTAR
-    assert (usb / "Colector" / colector_usb.EXE).read_bytes().startswith(b"MZ")
-    assert (usb / "Colector" / "_internal" / "lhm.dll").exists()
-    assert not (usb / "Colector" / "viejo.txt").exists() and not (usb / "Colector.nuevo").exists()
+    assert usb.joinpath(*PROGRAMA).read_bytes().startswith(b"MZ")
+    assert not list(usb.rglob("viejo.txt")) and not (usb / "Colector.nuevo").exists()
     assert (usb / "EQUIPO_2026-10-01.diag").exists()  # los escaneos de la memoria no se tocan
     assert (usb / "Colector" / "Resultados").is_dir()
+
+
+def test_una_memoria_lleva_los_dos_colectores(tmp_path):
+    """Cada sistema reemplaza solo su colector: el de Windows y el de Linux conviven en la memoria."""
+    win, lin = _colector(tmp_path / "w" / "Colector", True), _colector(tmp_path / "l" / "Colector", False)
+    usb = tmp_path / "usb"
+    (usb / "Colector" / "Resultados").mkdir(parents=True)
+    (usb / "Colector" / "Resultados" / "CLIENTE.diag").write_text("{}")
+    assert colector_usb.preparar(usb, win, windows=True) == usb / "Colector" / "Colector.exe"
+    assert colector_usb.preparar(usb, lin, windows=False) == usb / "Colector" / "colector.sh"
+    colector_usb.preparar(usb, win, windows=True)  # actualizar el de Windows no borra el de Linux
+    c = usb / "Colector"
+    assert sorted(p.name for p in c.iterdir()) == ["Colector.exe", "Resultados", "_internal", "colector.sh", "linux"]
+    assert (c / "_internal" / "lhm.dll").exists() and (c / "linux" / "_internal" / "libpython.so").exists()
+    assert [p.name for p in (c / "Resultados").iterdir()] == ["CLIENTE.diag"]
+    texto = (usb / colector_usb.INSTRUCCIONES).read_text(encoding="utf-8-sig")
+    assert "Colector.exe" in texto and "sh colector.sh" in texto
+
+
+def test_linux_pasa_la_version_anterior_a_su_carpeta(tmp_path):
+    """La versión anterior dejaba el colector de Linux suelto en Colector: se reemplaza por Colector/linux."""
+    lin = _colector(tmp_path / "l" / "Colector", False)
+    usb = tmp_path / "usb"
+    _colector(usb / "Colector", False)
+    (usb / "Colector" / "glibc-minima.txt").write_text("2.39")
+    colector_usb.preparar(usb, lin, windows=False)
+    assert sorted(p.name for p in (usb / "Colector").iterdir()) == ["Resultados", "colector.sh", "linux"]
 
 
 def test_preparar_conserva_resultados_y_no_copia_escaneos_del_taller(tmp_path, fuente):
@@ -160,7 +192,7 @@ def test_boton_preparar_usb(pagina, fuente, tmp_path, monkeypatch):
     monkeypatch.setattr(diag_file, "removable_drives", lambda: [usb])
     monkeypatch.setattr(QMessageBox, "question", staticmethod(lambda *a, **k: QMessageBox.Yes))
     pagina._preparar_usb()
-    assert "USB listo" in pagina.msg.text() and (usb / "Colector" / colector_usb.EXE).exists()
+    assert "USB listo" in pagina.msg.text() and usb.joinpath(*PROGRAMA).exists()
 
 
 def test_boton_preparar_usb_elige_unidad_o_avisa(pagina, fuente, tmp_path, monkeypatch):
@@ -176,7 +208,7 @@ def test_boton_preparar_usb_elige_unidad_o_avisa(pagina, fuente, tmp_path, monke
     monkeypatch.setattr(diag_file, "removable_drives", lambda: [e, f])
     monkeypatch.setattr(QInputDialog, "getItem", staticmethod(lambda *a, **k: (str(f), True)))
     pagina._preparar_usb()
-    assert (f / "Colector" / colector_usb.EXE).exists() and not (e / "Colector").exists()
+    assert f.joinpath(*PROGRAMA).exists() and not (e / "Colector").exists()
 
 
 # ---------------- Resumen de salud y prueba de rendimiento en el colector ----------------

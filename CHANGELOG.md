@@ -19,7 +19,13 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y l
   glibc y que el programa arranque antes de reemplazar la versión anterior, e instala el ícono en el tema.
 - Colector de Linux: avisa con claridad si el PC del cliente tiene una glibc más antigua que la necesaria.
 
+- Una misma memoria USB puede llevar el colector de Windows y el de Linux: cada programa reemplaza solo el
+  suyo (el de Linux va en `Colector/linux`) y los escaneos de `Colector/Resultados` se conservan.
+
 ### Corregido
+- Linux: las memorias USB conectadas pero sin montar no se reconocían para preparar el colector ni para
+  importar escaneos. Ahora se montan solas con udisksctl (sin contraseña).
+- Preparar el colector de Linux borraba el colector de Windows que ya tenía la memoria.
 - Linux: la copia de la base de referencias del taller se buscaba en `%APPDATA%` y no en
   `~/.local/share/SistemaDiagnostico`.
 - Linux: el instalador y el desinstalador no detectaban el programa abierto (el nombre del proceso se corta

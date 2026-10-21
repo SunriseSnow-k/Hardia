@@ -6,8 +6,12 @@ con un archivo de instrucciones. Los escaneos se guardan en <unidad>\\Colector\\
 la pantalla Escanear los busca; al actualizar el colector esa carpeta se conserva.
 
 El colector es del mismo sistema que el programa: el de Windows escanea PCs con Windows y el de
-Linux, PCs con Linux. En Linux se agrega colector.sh: las memorias FAT32/exFAT suelen montarse sin
-permiso de ejecución, así que el lanzador pide sudo y, si hace falta, ejecuta una copia temporal.
+Linux, PCs con Linux. Una misma memoria puede llevar los dos, y cada sistema reemplaza solo el suyo:
+  Colector/Colector.exe, Colector/_internal   colector de Windows
+  Colector/colector.sh, Colector/linux/       colector de Linux
+  Colector/Resultados                         escaneos de los dos (se conservan siempre)
+Las memorias FAT32/exFAT suelen montarse en Linux sin permiso de ejecución: colector.sh pide sudo
+y, si hace falta, ejecuta una copia temporal.
 """
 import shutil
 import sys
@@ -20,6 +24,8 @@ from .diag_file import CARPETA_COLECTOR, CARPETA_RESULTADOS
 CARPETA = CARPETA_COLECTOR
 EXE = ejecutable("Colector")
 LANZADOR = "colector.sh"  # solo Linux
+SUBCARPETA_LINUX = "linux"  # el colector de Linux, dentro de Colector (el de Windows va en la raíz)
+EXE_WINDOWS = "Colector.exe"
 INSTRUCCIONES = "LEAME - Colector.txt"
 TEXTO_WINDOWS = """COLECTOR DE DIAGNÓSTICO
 
@@ -70,8 +76,9 @@ if [ "$(id -u)" -ne 0 ] && command -v sudo >/dev/null 2>&1; then
     exec sudo sh "$DIR/colector.sh" "$@"
 fi
 # El colector funciona con una glibc igual o más nueva que la del equipo donde se generó
-if [ -f "$DIR/glibc-minima.txt" ] && command -v ldd >/dev/null 2>&1; then
-    MINIMA=$(cat "$DIR/glibc-minima.txt")
+BIN="$DIR/linux"
+if [ -f "$BIN/glibc-minima.txt" ] && command -v ldd >/dev/null 2>&1; then
+    MINIMA=$(cat "$BIN/glibc-minima.txt")
     ACTUAL=$(ldd --version 2>/dev/null | head -n 1 | grep -oE '[0-9]+\.[0-9]+$')
     if [ -n "$ACTUAL" ] && [ "$(printf '%s\n%s\n' "$MINIMA" "$ACTUAL" | sort -V | head -n 1)" != "$MINIMA" ]; then
         echo "Este Linux es demasiado antiguo para el colector (tiene glibc $ACTUAL; se necesita $MINIMA o más nueva)."
@@ -79,16 +86,18 @@ if [ -f "$DIR/glibc-minima.txt" ] && command -v ldd >/dev/null 2>&1; then
         exit 1
     fi
 fi
+if [ ! -f "$BIN/Colector" ]; then
+    echo "No se encontró el colector de Linux en $BIN. Vuelva a preparar la memoria desde el programa."
+    exit 1
+fi
 mkdir -p "$DIR/Resultados"
-if [ -x "$DIR/Colector" ]; then
-    exec "$DIR/Colector" "$DIR/Resultados" "$@"
+if [ -x "$BIN/Colector" ]; then
+    exec "$BIN/Colector" "$DIR/Resultados" "$@"
 fi
 # Memoria sin permiso de ejecución (FAT32/exFAT): copia temporal que se borra al terminar
 TMP=$(mktemp -d) || exit 1
 trap 'rm -rf "$TMP"' EXIT INT TERM
-for f in "$DIR"/*; do
-    [ "$(basename "$f")" = "Resultados" ] || cp -r "$f" "$TMP/"
-done
+cp -r "$BIN"/. "$TMP/"
 chmod +x "$TMP/Colector"
 "$TMP/Colector" "$DIR/Resultados" "$@"
 """
@@ -103,49 +112,87 @@ def origen() -> Path:
     return dist / CARPETA if ES_WINDOWS else dist / "linux" / CARPETA
 
 
-def disponible(carpeta: Path | None = None) -> bool:
-    return ((carpeta or origen()) / EXE).is_file()
+def disponible(carpeta: Path | None = None, windows: bool = ES_WINDOWS) -> bool:
+    return ((carpeta or origen()) / (EXE_WINDOWS if windows else "Colector")).is_file()
 
 
-def _tamano(carpeta: Path) -> int:
-    """Tamaño del programa, sin contar los escaneos de Resultados."""
-    return sum(f.stat().st_size for f in carpeta.rglob("*")
-               if f.is_file() and f.relative_to(carpeta).parts[0] != CARPETA_RESULTADOS)
+def _tamano(ruta: Path) -> int:
+    if ruta.is_file():
+        return ruta.stat().st_size
+    return sum(f.stat().st_size for f in ruta.rglob("*") if f.is_file()) if ruta.is_dir() else 0
 
 
-def preparar(unidad, carpeta: Path | None = None) -> Path:
-    """Copia el colector a <unidad>\\Colector (reemplaza una versión anterior, conservando los
-    escaneos de Resultados) y deja las instrucciones en la raíz. Devuelve lo que hay que ejecutar en
-    el PC del cliente: Colector.exe en Windows, colector.sh en Linux."""
+def _de_linux(destino: Path) -> list[Path]:
+    """Partes del colector de Linux en <unidad>/Colector (también las de la versión anterior, que
+    lo dejaba suelto en la raíz de la carpeta)."""
+    partes = [destino / SUBCARPETA_LINUX, destino / LANZADOR]
+    if (destino / "Colector").is_file():  # versión anterior: Colector/Colector y Colector/_internal
+        partes.append(destino / "Colector")
+        if not (destino / EXE_WINDOWS).exists():  # _internal es del de Windows si está Colector.exe
+            partes += [destino / "_internal", destino / "glibc-minima.txt"]
+    return partes
+
+
+def _de_windows(destino: Path) -> list[Path]:
+    """Partes del colector de Windows: todo lo que no es del de Linux ni los escaneos."""
+    if not destino.is_dir():
+        return []
+    ajenas = {p.name for p in _de_linux(destino)} | {CARPETA_RESULTADOS}
+    return [p for p in destino.iterdir() if p.name not in ajenas]
+
+
+def _borrar(ruta: Path) -> None:
+    if ruta.is_dir() and not ruta.is_symlink():
+        shutil.rmtree(ruta)
+    elif ruta.exists() or ruta.is_symlink():
+        ruta.unlink()
+
+
+def _instrucciones(destino: Path) -> str:
+    """Instrucciones de los colectores que lleva la memoria."""
+    textos = []
+    if (destino / EXE_WINDOWS).is_file():
+        textos.append(TEXTO_WINDOWS)
+    if (destino / SUBCARPETA_LINUX / "Colector").is_file():
+        textos.append(TEXTO_LINUX)
+    return "\n\n".join(textos) or TEXTO_INSTRUCCIONES
+
+
+def preparar(unidad, carpeta: Path | None = None, windows: bool = ES_WINDOWS) -> Path:
+    """Copia el colector de este sistema a <unidad>\\Colector. Reemplaza solo su versión anterior:
+    los escaneos de Resultados y el colector del otro sistema se conservan. Deja las instrucciones
+    en la raíz. Devuelve lo que hay que ejecutar en el PC del cliente: Colector.exe en Windows,
+    colector.sh en Linux."""
     fuente = carpeta or origen()
-    if not disponible(fuente):
+    if not disponible(fuente, windows):
         raise FileNotFoundError("El colector no está incluido en esta instalación. "
                                 "Reinstale el programa con la versión más reciente.")
     unidad = Path(unidad)
     if not unidad.is_dir():
         raise OSError(f"No se encuentra la unidad {unidad}.")
     destino = unidad / CARPETA
-    necesario = _tamano(fuente) - (_tamano(destino) if destino.is_dir() else 0)
+    anteriores = _de_windows(destino) if windows else _de_linux(destino)
+    nuevo = _tamano(fuente) - _tamano(fuente / CARPETA_RESULTADOS)
+    necesario = nuevo - sum(_tamano(p) for p in anteriores)
     if necesario > shutil.disk_usage(unidad).free:
         raise OSError(f"No hay espacio suficiente en {unidad} "
                       f"(se necesitan {max(necesario, 0) / 1024 ** 2:.0f} MB).")
-    temporal = unidad / f"{CARPETA}.nuevo"
-    if temporal.exists():
-        shutil.rmtree(temporal)
+    destino.mkdir(exist_ok=True)
     # se copia aparte: un USB retirado a mitad no deja el colector roto. Nunca se copian escaneos
     # de la carpeta de origen (serían de otros equipos)
-    shutil.copytree(fuente, temporal, ignore=lambda carpeta, _n: [CARPETA_RESULTADOS] if Path(carpeta) == fuente else [])
-    resultados = destino / CARPETA_RESULTADOS
-    if resultados.is_dir():
-        resultados.rename(temporal / CARPETA_RESULTADOS)  # los escaneos ya guardados en la memoria se conservan
+    temporal = unidad / f"{CARPETA}.nuevo"
+    _borrar(temporal)
+    shutil.copytree(fuente, temporal, ignore=lambda c, _n: [CARPETA_RESULTADOS] if Path(c) == fuente else [])
+    for p in anteriores:
+        _borrar(p)
+    if windows:
+        for p in temporal.iterdir():
+            p.rename(destino / p.name)
+        temporal.rmdir()
     else:
-        (temporal / CARPETA_RESULTADOS).mkdir()
-    if destino.exists():
-        shutil.rmtree(destino)
-    temporal.rename(destino)
-    (unidad / INSTRUCCIONES).write_text(TEXTO_INSTRUCCIONES, encoding="utf-8-sig")
-    if ES_WINDOWS:
-        return destino / EXE
-    lanzador = destino / LANZADOR
-    lanzador.write_bytes(SCRIPT_LINUX.encode("utf-8"))  # finales de línea de Unix
-    return lanzador
+        temporal.rename(destino / SUBCARPETA_LINUX)
+    (destino / CARPETA_RESULTADOS).mkdir(exist_ok=True)  # los escaneos ya guardados se conservan
+    if not windows:
+        (destino / LANZADOR).write_bytes(SCRIPT_LINUX.encode("utf-8"))  # finales de línea de Unix
+    (unidad / INSTRUCCIONES).write_text(_instrucciones(destino), encoding="utf-8-sig")
+    return destino / (EXE_WINDOWS if windows else LANZADOR)

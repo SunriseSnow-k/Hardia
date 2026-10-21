@@ -213,10 +213,14 @@ También permite volver a abrir el asistente de configuración inicial.
 Sirve para escanear el PC de un cliente sin llevarlo al taller y sin instalar nada en él.
 
 1. En **Escanear equipo**, pulse **Preparar USB colector…** y elija la memoria. Los escaneos anteriores
-   de la memoria se conservan.
+   de la memoria se conservan. En Linux, si la memoria está conectada pero no la abrió en el explorador
+   de archivos, el programa la monta solo.
+   El programa de Windows copia el colector de Windows y el de Linux, el de Linux. **Una misma memoria
+   puede llevar los dos:** prepárela desde cada programa y cada uno reemplaza solo el suyo.
 2. En el PC del cliente:
    - **Windows:** abra `Colector\Colector.exe` y acepte el permiso de administrador.
-   - **Linux:** ejecute `sh colector.sh`, que le pedirá `sudo`.
+   - **Linux:** abra una terminal en la carpeta `Colector` y ejecute `sh colector.sh`, que le pedirá
+     `sudo`. El programa del colector de Linux está en `Colector/linux`.
 3. El colector muestra un resumen de salud y ofrece la prueba de rendimiento opcional. El resultado se
    guarda en `Colector\Resultados` como archivo `.diag`.
 4. En el taller, conecte la memoria e impórtela desde **Escanear equipo → Importar desde USB (.diag)**.
