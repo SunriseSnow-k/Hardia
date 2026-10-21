@@ -49,12 +49,13 @@ class HardwareRepository:
         return {"equipment_id": e["id"], "serial": e["serial"], "description": e["description"],
                 "matched": sorted(tipos)}
 
-    def identify(self, identifiers) -> dict:
+    def identify(self, identifiers, fuertes=FUERTES) -> dict:
         """¿A qué equipo registrado corresponden estos identificadores?
         - encontrado: un solo equipo coincide por un identificador fuerte (UUID o serie).
         - ambiguo: identificadores fuertes que apuntan a equipos distintos.
         - probable: solo coincide algo débil (MAC): conviene confirmar.
-        - nuevo: no hay coincidencias."""
+        - nuevo: no hay coincidencias.
+        `fuertes`: FUERTES_LOCAL al preguntar si un caso es de ESTA computadora."""
         coincidencias: dict[int, set] = {}
         for kind, value in identifiers:
             filas = self.c.execute("SELECT equipment_id FROM equipment_identifiers WHERE kind=? AND value=?",
@@ -63,13 +64,13 @@ class HardwareRepository:
                 filas += self.c.execute("SELECT id FROM equipment WHERE serial=?", (value,)).fetchall()
             for f in filas:
                 coincidencias.setdefault(f[0], set()).add(kind)
-        fuertes = [e for e, tipos in coincidencias.items() if tipos & set(FUERTES)]
-        if len(fuertes) == 1:
-            return {"status": "encontrado", "equipment_id": fuertes[0],
-                    "candidates": [self._describe(fuertes[0], coincidencias[fuertes[0]])]}
-        if len(fuertes) > 1:
+        con_fuerte = [e for e, tipos in coincidencias.items() if tipos & set(fuertes)]
+        if len(con_fuerte) == 1:
+            return {"status": "encontrado", "equipment_id": con_fuerte[0],
+                    "candidates": [self._describe(con_fuerte[0], coincidencias[con_fuerte[0]])]}
+        if len(con_fuerte) > 1:
             return {"status": "ambiguo", "equipment_id": None,
-                    "candidates": [self._describe(e, coincidencias[e]) for e in sorted(fuertes)]}
+                    "candidates": [self._describe(e, coincidencias[e]) for e in sorted(con_fuerte)]}
         if coincidencias:
             return {"status": "probable", "equipment_id": None,
                     "candidates": [self._describe(e, t) for e, t in sorted(coincidencias.items())]}

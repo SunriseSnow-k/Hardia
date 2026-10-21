@@ -24,8 +24,8 @@ LIMITACIONES = (
     "se usa un sensor general (aproximado) o no se muestran.",
     "La salud de los discos es la que informa Windows Storage; el programa no lee SMART por su cuenta.",
     "WMI no informa la memoria gráfica de 4 GB o más.",
-    "En Linux, el número de serie, los módulos de RAM y el SMART de los discos requieren ejecutar con "
-    "sudo y tener instalados dmidecode y smartmontools.",
+    "En Linux, el número de serie, los módulos de RAM y el SMART de los discos requieren la contraseña "
+    "de administrador (Escanear con permisos) y tener instalados dmidecode y smartmontools.",
     "El diagnóstico por reglas solo reconoce los síntomas y datos definidos en sus reglas.",
     "La IA local es opcional: su paquete (1 a 2,5 GB) se descarga una vez desde la sección IA local; "
     "puede tardar en equipos modestos y su texto debe revisarse.",

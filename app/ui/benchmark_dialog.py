@@ -6,6 +6,7 @@ from PySide6.QtWidgets import QCheckBox, QDialog, QFrame, QHBoxLayout, QLabel, Q
 from app.db.health_repo import HealthRepository
 from app.hardware.scanner import LectorTemperatura
 from app.health import benchmark as bm
+from app.plataforma import ES_LINUX
 from app.ui.pages.escaneo import fila_html
 from app.ui.tema import T
 from app.ui.widgets import lista_dato_valor, muted, panel
@@ -19,6 +20,7 @@ class BenchmarkWorker(QThread):
     avance_disco = Signal(int, float, int)
     terminado = Signal(dict)
     fallo = Signal(str)
+    aviso = Signal(str)
 
     def __init__(self, discos, duracion_cpu, duracion_disco, procesos, cond, lector):
         super().__init__()
@@ -29,8 +31,21 @@ class BenchmarkWorker(QThread):
     def cancelar(self):
         self._cancelar = True
 
+    def _sesion(self):
+        """Linux sin root: el ayudante con permisos lee los discos (la contraseña se pide al empezar)."""
+        if not ES_LINUX or not self.discos:
+            return None
+        from app.hardware.permisos_linux import sesion_si_hace_falta
+        self.aviso.emit("Esperando la contraseña de administrador para leer los discos…")
+        sesion, motivo = sesion_si_hace_falta([d.get("device") for d in self.discos])
+        self.aviso.emit(f"Los discos no se medirán: {motivo}." if motivo else
+                        "Midiendo… no use el equipo mientras tanto.")
+        return sesion
+
     def run(self):
+        sesion = None
         try:
+            sesion = self._sesion()
             with self.lector() as lt:
                 res = bm.ejecutar(
                     self.discos, cancelado=lambda: self._cancelar,
@@ -38,10 +53,13 @@ class BenchmarkWorker(QThread):
                     al_muestrear=lambda t, r, temp, f: self.muestra.emit(t, r, temp, f),
                     al_avanzar_disco=lambda i, t, b: self.avance_disco.emit(i, t, b),
                     leer_temp=lt.leer, duracion_cpu=self.duracion_cpu, duracion_disco=self.duracion_disco,
-                    procesos=self.procesos, cond=self.cond)
+                    procesos=self.procesos, cond=self.cond, sesion=sesion)
             self.terminado.emit(res)
         except Exception as e:  # nunca debe cerrar el programa
             self.fallo.emit(str(e))
+        finally:
+            if sesion is not None:
+                sesion.cerrar()
 
 
 class BenchmarkDialog(QDialog):
@@ -78,7 +96,9 @@ class BenchmarkDialog(QDialog):
         av.setContentsMargins(14, 10, 14, 10)
         txt = ("<b>Antes de empezar:</b> conecte el cargador y cierre los programas abiertos. La prueba se "
                f"detiene sola si la CPU llega a {bm.CORTE_TEMP:.0f} °C. La lectura de discos necesita "
-               "ejecutar el programa como administrador; sin ese permiso se omite y se indica el motivo.")
+               + ("permisos de administrador: al iniciar se pedirá la contraseña" if ES_LINUX else
+                  "ejecutar el programa como administrador")
+               + "; sin ese permiso se omite y se indica el motivo.")
         a1 = QLabel(txt)
         a1.setTextFormat(Qt.RichText)
         a1.setWordWrap(True)
@@ -86,9 +106,11 @@ class BenchmarkDialog(QDialog):
         self.chk_sin_temp = QCheckBox("Entiendo que sin lectura de temperatura no hay corte de seguridad")
         if self.temp_inicial is None:
             a2 = QLabel(f"<b style='color:{T.peligro}'>No hay lectura de temperatura en este equipo:</b> el corte "
-                        "a 95 °C no podrá actuar. Para tenerla, abra LibreHardwareMonitor antes de la prueba "
-                        "o ejecute este programa como administrador (lectura aproximada del sensor ACPI). "
-                        "Si continúa sin lectura, vigile el equipo y cancele si se calienta.")
+                        "a 95 °C no podrá actuar. Para tenerla, "
+                        + ("instale lm-sensors y ejecute sudo sensors-detect antes de la prueba. " if ES_LINUX else
+                           "abra LibreHardwareMonitor antes de la prueba o ejecute este programa como "
+                           "administrador (lectura aproximada del sensor ACPI). ")
+                        + "Si continúa sin lectura, vigile el equipo y cancele si se calienta.")
             a2.setTextFormat(Qt.RichText)
             a2.setWordWrap(True)
             av.addWidget(a2)
@@ -169,6 +191,7 @@ class BenchmarkDialog(QDialog):
         self.worker.avance_disco.connect(self._on_disco)
         self.worker.terminado.connect(self._on_fin)
         self.worker.fallo.connect(self._on_fallo)
+        self.worker.aviso.connect(self.estado.setText)
         self.worker.start()
 
     def cancelar(self):

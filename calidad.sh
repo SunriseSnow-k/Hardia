@@ -3,11 +3,15 @@
 #   1. ruff  (estilo, errores probables y seguridad)
 #   2. mypy  (tipos en la logica)
 #   3. pytest con cobertura minima (ver fail_under en pyproject.toml)
-# Uso:  ./calidad.sh
+# Uso:  ./calidad.sh          (o PY=/ruta/a/python ./calidad.sh)
 set -euo pipefail
 cd "$(dirname "$0")"
-PY=.venv/bin/python
-[ -x "$PY" ] || PY=python3  # integracion continua: Python del sistema
+# Python: el de la variable PY, el del entorno virtual activo, el de .venv o el del sistema
+if [ -z "${PY:-}" ]; then
+    if [ -n "${VIRTUAL_ENV:-}" ] && [ -x "$VIRTUAL_ENV/bin/python" ]; then PY="$VIRTUAL_ENV/bin/python"
+    elif [ -x .venv/bin/python ]; then PY=.venv/bin/python
+    else PY=python3; fi
+fi
 
 echo "-- ruff"
 "$PY" -m ruff check . || { echo "ruff encontro problemas."; exit 1; }

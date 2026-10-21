@@ -6,6 +6,8 @@ Sin root, Linux no deja leer el número de serie, el UUID, los módulos de RAM n
 discos: esos datos quedan como "Sin permisos". Las temperaturas (hwmon) no necesitan root.
 """
 import glob
+import hashlib
+import hmac
 import json
 import logging
 import os
@@ -18,6 +20,7 @@ from typing import Any
 
 from app import plataforma
 
+from .ayudante_root import NO_DISCO as _NO_DISCO
 from .comun import _faltante, _num, _res, limpio, serie_valida, uuid_valido
 from .inventory import NO_AUTORIZADO, NO_COMPATIBLE, NO_DISPONIBLE, OK, fmt_bytes
 from .sensores import _cpu_sensores, _disco_sensores, _gpu_sensores, _parecido, _temp_valida
@@ -30,8 +33,6 @@ _DMI = "/sys/class/dmi/id"
 _FABRICANTE_PCI = {"0x10de": "NVIDIA", "0x1002": "AMD", "0x8086": "Intel"}
 _FABRICANTE_CPU = {"genuineintel": "Intel", "authenticamd": "AMD"}
 _ARQ = {"x86_64": "x64", "amd64": "x64", "aarch64": "ARM64", "arm64": "ARM64", "i686": "x86", "i386": "x86"}
-# Dispositivos de bloque que no son discos (memoria, imágenes, lectores ópticos, volúmenes lógicos)
-_NO_DISCO = ("loop", "ram", "zram", "sr", "fd", "dm-", "md", "nbd")
 # Sistemas de archivos que no son volúmenes de datos del usuario
 _FS_VIRTUALES = {"squashfs", "tmpfs", "devtmpfs", "overlay", "iso9660", "udf", "efivarfs", "ramfs"}
 # Chips de hwmon -> categoría propia (la misma que usa LibreHardwareMonitor en Windows)
@@ -39,6 +40,15 @@ _CHIP = {"coretemp": "cpu", "k10temp": "cpu", "zenpower": "cpu", "k8temp": "cpu"
          "amdgpu": "gpu", "radeon": "gpu", "nouveau": "gpu", "i915": "gpu", "xe": "gpu",
          "nvme": "storage", "drivetemp": "storage"}
 _ETIQUETAS = {"edge": "GPU Core", "junction": "GPU Hot Spot", "mem": "GPU Memory", "composite": "Composite Temperature"}
+# /sys/block/*/device/vendor de los discos SATA dice el bus ("ATA"), no la marca: se deduce del modelo
+_VENDOR_BUS = {"ata", "nvme", "usb", "scsi", "generic"}
+_MARCA_DISCO = (("WDC", "Western Digital"), ("WD", "Western Digital"), ("ST", "Seagate"), ("SAMSUNG", "Samsung"),
+                ("MZ", "Samsung"), ("KINGSTON", "Kingston"), ("SA400", "Kingston"), ("CT", "Crucial"),
+                ("CRUCIAL", "Crucial"), ("TOSHIBA", "Toshiba"), ("KIOXIA", "Kioxia"), ("HGST", "HGST"),
+                ("HITACHI", "Hitachi"), ("SANDISK", "SanDisk"), ("INTEL", "Intel"), ("SSDPE", "Intel"),
+                ("MICRON", "Micron"), ("SK HYNIX", "SK hynix"), ("HFM", "SK hynix"), ("ADATA", "ADATA"),
+                ("LITEON", "Lite-On"), ("PNY", "PNY"), ("TEAM", "Team Group"), ("HP SSD", "HP"),
+                ("APPLE", "Apple"), ("MAXTOR", "Maxtor"), ("LENOVO", "Lenovo"))
 _TIPO_RAM = ("LPDDR5", "LPDDR4", "LPDDR3", "LPDDR2", "LPDDR", "DDR5", "DDR4", "DDR3", "DDR2", "DDR")
 
 
@@ -52,10 +62,24 @@ class EntornoLinux:
         self.psutil = psutil
         self.lector = None
         self._cache: dict[tuple, Any] = {}
+        self._archivos: dict[str, str] = {}
+        self._privilegiado = False
 
-    @staticmethod
-    def leer(ruta: str) -> str | None:
+    def usar_privilegiados(self, datos: dict) -> None:
+        """Datos que leyó el ayudante con permisos (permisos_linux.py): los archivos protegidos de
+        /sys y las salidas de dmidecode y smartctl se usan como si este proceso fuera root."""
+        archivos = datos.get("archivos")
+        if isinstance(archivos, dict):
+            self._archivos.update({str(k): str(v).strip() for k, v in archivos.items() if isinstance(v, str)})
+        for item in datos.get("comandos") or []:
+            if isinstance(item, list) and len(item) == 2 and isinstance(item[0], list):
+                self._cache[tuple(str(a) for a in item[0])] = item[1] if isinstance(item[1], str) else None
+        self._privilegiado = True
+
+    def leer(self, ruta: str) -> str | None:
         """Contenido de un archivo de texto (sin espacios a los lados) o None si no se puede leer."""
+        if ruta in self._archivos:
+            return self._archivos[ruta]
         try:
             with open(ruta, encoding="utf-8", errors="replace") as f:
                 return f.read().strip()
@@ -120,9 +144,8 @@ class EntornoLinux:
     def release():
         return platform.release()
 
-    @staticmethod
-    def es_admin():
-        return plataforma.es_administrador()
+    def es_admin(self):
+        return self._privilegiado or plataforma.es_administrador()
 
 
 # ---------------- utilidades ----------------
@@ -267,18 +290,31 @@ def requisitos_sensores(env=None) -> list[str]:
     if not env.tiene("smartctl"):
         falta.append("instalar smartmontools (sudo apt install smartmontools) para el estado SMART de los discos")
     if _sin_root(env):
-        falta.append("ejecutar el programa con sudo (número de serie, módulos de RAM y SMART de los discos)")
+        from .permisos_linux import disponible
+        como = ("escanear con permisos de administrador (botón «Escanear con permisos»)" if disponible()
+                else "ejecutar el programa con sudo")
+        falta.append(f"{como}: número de serie, módulos de RAM y SMART de los discos")
     if not any(l["hw"] == "cpu" and l["type"] == "Temperature" for l in _hwmon(env)):
         falta.append("el sensor de temperatura de la CPU (paquete lm-sensors: sudo sensors-detect)")
     return falta
 
 
 # ---------------- colectores ----------------
+def _id_maquina(env) -> str:
+    """Identificador de esta instalación de Linux propio del programa: HMAC de /etc/machine-id (el
+    valor original no se guarda, como recomienda systemd). Legible sin root."""
+    mid = (env.leer("/etc/machine-id") or "").strip().lower()
+    if not re.fullmatch(r"[0-9a-f]{32}", mid):
+        return ""
+    return hmac.new(bytes.fromhex(mid), b"SistemaDiagnostico", hashlib.sha256).hexdigest()[:32].upper()
+
+
 def _identidad(env):
     d = {"hostname": env.hostname(), "manufacturer": _dmi(env, "sys_vendor"),
          "model": _dmi(env, "product_name"),
          "serial": serie_valida(env.leer(f"{_DMI}/product_serial")),
-         "uuid": uuid_valido(env.leer(f"{_DMI}/product_uuid")), "architecture": _arquitectura(env)}
+         "uuid": uuid_valido(env.leer(f"{_DMI}/product_uuid")), "architecture": _arquitectura(env),
+         "machine_id": _id_maquina(env)}
     faltan = []
     if not d["manufacturer"]:
         faltan.append(_faltante("Fabricante", NO_DISPONIBLE))
@@ -386,6 +422,11 @@ def _smart(env, dispositivo: str) -> dict:
     except ValueError:
         return {}
     salida: dict[str, Any] = {}
+    rpm = _num(s.get("rotation_rate"), int)
+    if rpm and rpm > 0:  # 0 = SSD
+        salida["rpm"] = rpm
+    if s.get("model_family"):
+        salida["family"] = limpio(s["model_family"])
     estado = (s.get("smart_status") or {}).get("passed")
     if estado is not None:
         salida["health"] = "Saludable" if estado else "No saludable"
@@ -413,6 +454,18 @@ def _smart(env, dispositivo: str) -> dict:
     return salida
 
 
+def _marca_disco(vendor: str, modelo: str, familia: str = "") -> str:
+    """Fabricante del disco: el de sysfs si es una marca, si no se deduce del modelo o la familia SMART."""
+    if vendor and vendor.lower() not in _VENDOR_BUS:
+        return vendor
+    for texto in (modelo, familia):
+        t = (texto or "").upper()
+        for prefijo, marca in _MARCA_DISCO:
+            if t.startswith(prefijo):
+                return marca
+    return ""
+
+
 def _discos(env) -> list[dict]:
     fisicas: list[dict] = []
     for carpeta in env.listar("/sys/block/*"):
@@ -433,6 +486,9 @@ def _discos(env) -> list[dict]:
                  "size_bytes": sectores * 512, "media": media, "bus": bus, "external": bus == "USB",
                  "rpm": None, "health": None, "health_source": None}
         smart = _smart(env, disco["device"])
+        disco["manufacturer"] = _marca_disco(disco["manufacturer"], modelo, smart.get("family", ""))
+        if smart.get("rpm"):
+            disco["rpm"] = smart["rpm"]
         disco.update({k: v for k, v in smart.items() if k in ("health", "health_source")})
         disco.update({k: v for k, v in smart.items() if k in ("temp_c", "life_pct", "spare_pct", "written_gb")})
         if any(k in smart for k in ("temp_c", "life_pct")):
@@ -534,6 +590,11 @@ def _graficos(env):
         fab_id = (env.leer(f"{dev}/vendor") or "").lower()
         fab, nombre = _lspci(env, ranura)
         fab = fab or _FABRICANTE_PCI.get(fab_id, "")
+        comercial = re.search(r"\[([^\]]+)\]\s*$", nombre)  # 'TigerLake-LP GT2 [Iris Xe Graphics]'
+        if comercial:
+            marca = _FABRICANTE_PCI.get(fab_id, "")
+            nombre = f"{marca} {comercial.group(1)}".strip() if marca and marca not in comercial.group(1) \
+                else comercial.group(1)
         nombre = nombre or (f"GPU {fab}" if fab else "")
         if not nombre:
             continue

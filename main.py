@@ -140,4 +140,7 @@ def main() -> int:
 
 if __name__ == "__main__":
     multiprocessing.freeze_support()  # la prueba de CPU usa procesos (necesario con PyInstaller)
+    if "--ayudante-root" in sys.argv[1:2]:  # Linux: lo lanza pkexec (ver app/hardware/permisos_linux.py)
+        from app.hardware import ayudante_root
+        sys.exit(ayudante_root.atender())
     sys.exit(main())

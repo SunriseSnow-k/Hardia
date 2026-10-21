@@ -32,7 +32,7 @@ from app.db.health_repo import HealthRepository
 from app.db.notes_repo import NotesRepository
 from app.db.repo import Repository
 from app.db.search_repo import SearchQueries
-from app.hardware.inventory import FUERTES, identifiers_from_scan
+from app.hardware.inventory import FUERTES_LOCAL, identifiers_from_scan
 from app.hardware.scanner import COMPONENT_NAMES, local_identifiers
 from app.health import ATENCION, BUENO, REVISAR, SIN_REF, componente, evaluate, load_references
 from app.ui.inventory_dialog import InventoryDialog
@@ -68,10 +68,10 @@ def _pct_txt(c: dict) -> str:
 def misma_maquina(scan: dict, locales) -> bool | None:
     """True si la captura es de este equipo (coincide un identificador fuerte), False si no,
     None si la captura no tiene identificadores fuertes para comprobarlo."""
-    de_captura = {(k, v) for k, v in identifiers_from_scan(scan) if k in FUERTES}
+    de_captura = {(k, v) for k, v in identifiers_from_scan(scan) if k in FUERTES_LOCAL}
     if not de_captura:
         return None
-    return bool(de_captura & {(k, v) for k, v in locales if k in FUERTES})
+    return bool(de_captura & {(k, v) for k, v in locales if k in FUERTES_LOCAL})
 
 
 # ---------------- detalle de un componente ----------------
@@ -658,7 +658,7 @@ class SaludPage(QWidget):
             return None, f"No se pudo identificar este equipo: {e}"
         if not locales:
             return None, "El sistema no informó el UUID ni el número de serie de este equipo."
-        res = HardwareRepository(self.repo).identify(locales)
+        res = HardwareRepository(self.repo).identify(locales, fuertes=FUERTES_LOCAL)
         if res["status"] == "encontrado" and res["equipment_id"] == equipo:
             return True, ""
         return False, ""

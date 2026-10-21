@@ -120,10 +120,21 @@ class ScanWorker(QThread):
     step = Signal(int, str, str, str)
     finished_scan = Signal(dict)
     failed = Signal(str)
+    aviso = Signal(str)
+
+    def __init__(self, con_permisos: bool = False):
+        super().__init__()
+        self.con_permisos = con_permisos
 
     def run(self):
         try:
-            data = run_scan(lambda i, n, d, s: self.step.emit(i, n, d, s))
+            privilegiados = None
+            if self.con_permisos:  # Linux: el escritorio pide la contraseña (pkexec)
+                from app.hardware.permisos_linux import datos_protegidos
+                privilegiados, motivo = datos_protegidos()
+                if motivo:
+                    self.aviso.emit(f"Se escaneó sin permisos de administrador: {motivo}.")
+            data = run_scan(lambda i, n, d, s: self.step.emit(i, n, d, s), privilegiados=privilegiados)
             self.finished_scan.emit(data)
         except Exception as e:  # pragma: no cover
             self.failed.emit(str(e))
@@ -307,6 +318,15 @@ class EscaneoPage(QWidget):
             b.setObjectName("Secondary")
             b.clicked.connect(self._reiniciar_admin)
             h.addWidget(b, 0, Qt.AlignVCenter)
+        self.b_scan_admin = None
+        if lhm.puede_pedir_permisos():
+            b = QPushButton("Escanear con permisos")
+            b.setObjectName("Secondary")
+            b.setToolTip("Pide la contraseña de administrador (una sola vez) para leer el número de serie, "
+                         "los módulos de RAM y el estado SMART de los discos")
+            b.clicked.connect(lambda: self._iniciar(con_permisos=True))
+            h.addWidget(b, 0, Qt.AlignVCenter)
+            self.b_scan_admin = b
         caja.setVisible(bool(falta))
         self.aviso_sensores = caja
         return caja
@@ -427,7 +447,7 @@ class EscaneoPage(QWidget):
             self.refresh_usb()
 
     # ---------- escaneo local ----------
-    def _iniciar(self):
+    def _iniciar(self, con_permisos: bool = False):
         if self.worker and self.worker.isRunning():
             return
         self.data = None
@@ -438,14 +458,19 @@ class EscaneoPage(QWidget):
         self._set_fila(0, COMPONENT_NAMES[0], "Leyendo…", "running")
         self.bar.setValue(0)
         self.b_scan.setEnabled(False)
-        self.estado.setText("Leyendo componentes…")
-        self.worker = ScanWorker()
+        if self.b_scan_admin is not None:
+            self.b_scan_admin.setEnabled(False)
+        self.estado.setText("Esperando la contraseña de administrador…" if con_permisos else "Leyendo componentes…")
+        self.worker = ScanWorker(con_permisos)
+        self.worker.aviso.connect(lambda t: self._msg(t, ok=False))
         self.worker.step.connect(self._paso)
         self.worker.finished_scan.connect(self._fin)
         self.worker.failed.connect(self._fallo)
         self.worker.start()
 
     def _paso(self, i: int, nombre: str, detalle: str, estado: str):
+        if i == 0:
+            self.estado.setText("Leyendo componentes…")
         self._set_fila(i, nombre, detalle, estado)
         self.bar.setValue(i + 1)
         if i + 1 < len(COMPONENT_NAMES):
@@ -458,12 +483,16 @@ class EscaneoPage(QWidget):
         self.estado.setText(f'Escaneo completado: {ok} de {len(data["components"])} categorías sin novedades.')
         self.b_scan.setText("Volver a escanear")
         self.b_scan.setEnabled(True)
+        if self.b_scan_admin is not None:
+            self.b_scan_admin.setEnabled(True)
         self._rol(self.b_scan, "Secondary")  # ahora la acción principal es usar los datos
         self._pintar_resultado()
         self._botones_resultado(True)
 
     def _fallo(self, texto: str):
         self.b_scan.setEnabled(True)
+        if self.b_scan_admin is not None:
+            self.b_scan_admin.setEnabled(True)
         self.estado.setText("")
         self._msg(f"El escaneo falló: {texto}", ok=False)
 

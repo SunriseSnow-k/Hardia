@@ -157,14 +157,14 @@ def _kernel32():
 
 
 def lectura_disco(indice, duracion: float = DURACION_DISCO, cancelado=lambda: False,
-                  al_avanzar=None, ruta: str | None = None) -> dict:
+                  al_avanzar=None, ruta: str | None = None, sesion=None) -> dict:
     """Lee secuencialmente la unidad física `indice` (o `ruta`, usado en las pruebas) sin caché.
     Nunca escribe. Devuelve {index, lectura_mb_s, bytes, duracion_s, estado, motivo}."""
     base = {"index": indice, "lectura_mb_s": None, "bytes": 0, "duracion_s": 0.0, "estado": "ok", "motivo": ""}
     if sys.platform != "win32":
         if not ruta:
             return {**base, "estado": "no_disponible", "motivo": "no se conoce el dispositivo de la unidad"}
-        return _lectura_linux(base, ruta, duracion, cancelado, al_avanzar)
+        return _lectura_linux(base, ruta, duracion, cancelado, al_avanzar, sesion)
     ruta = ruta or rf"\\.\PhysicalDrive{int(indice)}"
     k = _kernel32()
     h = k.CreateFileW(ruta, GENERIC_READ, FILE_SHARE_READ_WRITE, None, OPEN_EXISTING,
@@ -208,46 +208,16 @@ def lectura_disco(indice, duracion: float = DURACION_DISCO, cancelado=lambda: Fa
             "duracion_s": round(dur, 1), "cancelado": cancelada}
 
 
-def _lectura_linux(base: dict, ruta: str, duracion: float, cancelado, al_avanzar) -> dict:
-    """Lectura secuencial sin caché (O_DIRECT) de un dispositivo de bloque en Linux."""
-    if sys.platform == "win32":  # pragma: no cover (comparación literal: así la entiende mypy)
-        raise OSError("solo Linux")
-    import mmap
-    try:
-        fd = os.open(ruta, os.O_RDONLY | getattr(os, "O_DIRECT", 0))
-    except PermissionError:
-        return {**base, "estado": "no_autorizado", "motivo": "requiere ejecutar el programa con sudo"}
-    except OSError as e:
-        return {**base, "estado": "fallo", "motivo": f"Linux no permitió abrir la unidad ({e.strerror})"}
-    buf = mmap.mmap(-1, BLOQUE)  # alineado a página, como exige O_DIRECT
-    total, cancelada = 0, False
-    t0 = ultimo_aviso = time.perf_counter()
-    try:
-        while True:
-            try:
-                leidos = os.readv(fd, [buf])
-            except OSError:
-                break  # error de lectura: se usa lo leído
-            if leidos <= 0:
-                break
-            total += leidos
-            ahora = time.perf_counter()
-            if al_avanzar and ahora - ultimo_aviso >= 0.5:
-                al_avanzar(ahora - t0, total)
-                ultimo_aviso = ahora
-            if ahora - t0 >= duracion:
-                break
-            if cancelado():
-                cancelada = True
-                break
-    finally:
-        buf.close()
-        os.close(fd)
-    dur = time.perf_counter() - t0
-    if total == 0:
-        return {**base, "estado": "fallo", "motivo": "no se pudo leer la unidad", "duracion_s": round(dur, 1)}
-    return {**base, "lectura_mb_s": round(total / 1e6 / max(dur, 1e-6), 1), "bytes": total,
-            "duracion_s": round(dur, 1), "cancelado": cancelada}
+def _lectura_linux(base: dict, ruta: str, duracion: float, cancelado, al_avanzar, sesion=None) -> dict:
+    """Lectura secuencial sin caché (O_DIRECT) de un dispositivo de bloque en Linux. Sin root, la
+    hace el ayudante con permisos de la `sesion` (ver app/hardware/permisos_linux.py), si se abrió."""
+    if sesion is not None and not os.access(ruta, os.R_OK):
+        return {**base, **sesion.leer_disco(ruta, duracion, cancelado, al_avanzar)}
+    from app.hardware.ayudante_root import leer_dispositivo
+    r = leer_dispositivo(ruta, duracion, cancelado, al_avanzar)
+    if r["estado"] == "no_autorizado":
+        r["motivo"] = "requiere permisos de administrador (en Linux se piden al iniciar la prueba)"
+    return {**base, **r}
 
 
 # ---------------- condiciones ----------------
@@ -300,8 +270,9 @@ def texto_condiciones(c: dict) -> list[tuple[str, str]]:
 def ejecutar(discos: list[dict], cancelado=lambda: False, al_paso=None, al_muestrear=None,
              al_avanzar_disco=None, leer_temp=None, duracion_cpu: float = DURACION_CPU,
              duracion_disco: float = DURACION_DISCO, procesos: int | None = None,
-             cond: dict | None = None) -> dict:
-    """CPU y luego cada disco. `discos`: [{index, model}] de la captura del caso."""
+             cond: dict | None = None, sesion=None) -> dict:
+    """CPU y luego cada disco. `discos`: [{index, model}] de la captura del caso. `sesion`: ayudante
+    con permisos de Linux que lee los discos cuando el programa no es root."""
     res: dict[str, Any] = {"version": VERSION, "fecha": datetime.now().isoformat(timespec="seconds"),
            "condiciones": cond if cond is not None else condiciones(),
            "cpu": None, "discos": [], "cancelado": False,
@@ -318,7 +289,7 @@ def ejecutar(discos: list[dict], cancelado=lambda: False, al_paso=None, al_muest
             al_paso(i, f'Disco {d.get("model") or d.get("index")}: lectura secuencial (solo lectura)')
         r = lectura_disco(d.get("index"), duracion_disco, cancelado,
                           (lambda t, b, i=i: al_avanzar_disco(i, t, b)) if al_avanzar_disco else None,
-                          ruta=d.get("device") if os.name != "nt" else None)
+                          ruta=d.get("device") if os.name != "nt" else None, sesion=sesion)
         r["model"] = d.get("model")
         res["discos"].append(r)
         if r.get("cancelado") or cancelado():

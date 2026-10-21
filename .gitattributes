@@ -1,3 +1,13 @@
+# En el repositorio todos los textos se guardan con finales de línea LF: así la carpeta puede pasar de
+# Windows a Linux sin que git marque cada archivo como modificado (en Windows, autocrlf los convierte)
+* text=auto
 # Los scripts y textos de Linux deben conservar finales de línea LF aunque se clonen en Windows
 *.sh text eol=lf
 linux/** text eol=lf
+# Binarios
+*.png binary
+*.ico binary
+*.exe binary
+*.dll binary
+*.db binary
+.coverage binary

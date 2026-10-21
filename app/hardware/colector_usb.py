@@ -61,13 +61,23 @@ En el taller:
   Conecte la memoria y abra Escanear → Importar desde USB.
 """
 TEXTO_INSTRUCCIONES = TEXTO_WINDOWS if ES_WINDOWS else TEXTO_LINUX
-SCRIPT_LINUX = """#!/bin/sh
+SCRIPT_LINUX = r"""#!/bin/sh
 # Colector de diagnóstico: escanea este equipo y guarda el .diag en Resultados (junto a este archivo).
 # Uso:  sh colector.sh
 DIR=$(cd "$(dirname "$0")" && pwd)
 if [ "$(id -u)" -ne 0 ] && command -v sudo >/dev/null 2>&1; then
     echo "El colector necesita permisos de administrador (sudo) para leer todos los datos."
     exec sudo sh "$DIR/colector.sh" "$@"
+fi
+# El colector funciona con una glibc igual o más nueva que la del equipo donde se generó
+if [ -f "$DIR/glibc-minima.txt" ] && command -v ldd >/dev/null 2>&1; then
+    MINIMA=$(cat "$DIR/glibc-minima.txt")
+    ACTUAL=$(ldd --version 2>/dev/null | head -n 1 | grep -oE '[0-9]+\.[0-9]+$')
+    if [ -n "$ACTUAL" ] && [ "$(printf '%s\n%s\n' "$MINIMA" "$ACTUAL" | sort -V | head -n 1)" != "$MINIMA" ]; then
+        echo "Este Linux es demasiado antiguo para el colector (tiene glibc $ACTUAL; se necesita $MINIMA o más nueva)."
+        echo "En el taller, genere el programa con build.sh en una distribución más antigua."
+        exit 1
+    fi
 fi
 mkdir -p "$DIR/Resultados"
 if [ -x "$DIR/Colector" ]; then
@@ -86,10 +96,11 @@ chmod +x "$TMP/Colector"
 
 def origen() -> Path:
     """Carpeta del colector que acompaña al programa: junto al ejecutable instalado o, en
-    desarrollo, la que deja build.ps1 en dist\\Colector."""
+    desarrollo, la que deja build.ps1 en dist\\Colector (build.sh en dist/linux/Colector)."""
     if getattr(sys, "frozen", False):
         return Path(sys.executable).resolve().parent / CARPETA
-    return Path(__file__).resolve().parents[2] / "dist" / CARPETA
+    dist = Path(__file__).resolve().parents[2] / "dist"
+    return dist / CARPETA if ES_WINDOWS else dist / "linux" / CARPETA
 
 
 def disponible(carpeta: Path | None = None) -> bool:

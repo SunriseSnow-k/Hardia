@@ -21,7 +21,10 @@ VERSION = re.search(r'VERSION\s*=\s*"([^"]+)"', _version_py).group(1)
 NUMEROS = tuple(int(n) for n in (VERSION.split(".") + ["0", "0", "0"])[:4])
 # LibreHardwareMonitor (.NET) y pywin32 solo se usan en Windows
 LHM = [("app/vendor/lhm", "app/vendor/lhm")] if WINDOWS else []
-ICONO = str(RAIZ / "app" / "assets" / ("icono.ico" if WINDOWS else "icono.png"))
+# En Linux el ícono lo pone el lanzador .desktop (linux/instalar.sh); PyInstaller solo lo usa en Windows
+ICONO = str(RAIZ / "app" / "assets" / "icono.ico") if WINDOWS else None
+# Linux: sin símbolos de depuración (libpython de pyenv pesa 30 MB con ellos)
+STRIP = not WINDOWS
 
 
 def _version_info(interno: str, descripcion: str):
@@ -71,10 +74,11 @@ exe = EXE(
     icon=ICONO,
     version=_version_info("SistemaDiagnostico", APP_NAME),
     console=False,
+    strip=STRIP,
     upx=False,
     uac_admin=False,  # se pide administrador solo al escanear sensores (botón en Escanear)
 )
-coll = COLLECT(exe, a.binaries, a.datas, name="SistemaDiagnostico", upx=False)
+coll = COLLECT(exe, a.binaries, a.datas, name="SistemaDiagnostico", strip=STRIP, upx=False)
 
 # ---------------- Colector portátil (USB) ----------------
 # Solo escaneo por consola: sin Qt, PDF ni base de datos, para que pese poco en la memoria USB.
@@ -96,7 +100,8 @@ colector = EXE(
     icon=ICONO,
     version=_version_info("Colector", f"{APP_NAME} - Colector portátil"),
     console=True,
+    strip=STRIP,
     upx=False,
     uac_admin=True,  # Windows: temperaturas, ventiladores y SMART solo se leen como administrador
 )
-COLLECT(colector, c.binaries, c.datas, name="Colector", upx=False)
+COLLECT(colector, c.binaries, c.datas, name="Colector", strip=STRIP, upx=False)

@@ -186,7 +186,7 @@ def test_escaneo_linux_completo():
     assert d["life_pct"] == 93.0 and d["temp_c"] == 41.0 and d["written_gb"] == 10240.0
     assert [v["drive"] for v in inv["storage"]["logical"]] == ["/"]
     gpu = inv["graphics"]["adapters"][0]
-    assert gpu["name"] == "TigerLake-LP GT2 [Iris Xe Graphics]" and gpu["manufacturer"] == "Intel"
+    assert gpu["name"] == "Intel Iris Xe Graphics" and gpu["manufacturer"] == "Intel"
     assert gpu["driver_version"] == "i915"
     assert inv["motherboard"]["bios_date"] == "2023-06-12" and inv["motherboard"]["serial"] == "L1HF1234567"
     assert inv["os"] == {"name": "Ubuntu 24.04.1 LTS", "version": "24.04", "kernel": "6.8.0-45-generic",

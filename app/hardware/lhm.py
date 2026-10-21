@@ -50,8 +50,16 @@ def es_administrador() -> bool:
 
 
 def puede_reiniciar_como_administrador() -> bool:
-    """Solo Windows: en Linux la interfaz no se abre como root (se usa sudo en el colector)."""
+    """Solo Windows: en Linux la interfaz no se abre como root (ver puede_pedir_permisos)."""
     return plataforma.ES_WINDOWS
+
+
+def puede_pedir_permisos() -> bool:
+    """Solo Linux: los datos protegidos se piden con pkexec sin reiniciar (ver permisos_linux.py)."""
+    if not plataforma.ES_LINUX:
+        return False
+    from .permisos_linux import disponible
+    return disponible()
 
 
 def reiniciar_como_administrador() -> bool:

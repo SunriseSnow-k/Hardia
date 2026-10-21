@@ -244,14 +244,18 @@ def local_identifiers(env=None) -> list[tuple[str, str]]:
             pythoncom.CoUninitialize()
 
 
-def run_scan(progress=None, env=None) -> dict:
-    """Escanea el equipo. `progress(i, nombre, detalle, estado)` se llama por categoría."""
+def run_scan(progress=None, env=None, privilegiados: dict | None = None) -> dict:
+    """Escanea el equipo. `progress(i, nombre, detalle, estado)` se llama por categoría.
+    `privilegiados` (solo Linux): lo que leyó el ayudante con permisos (permisos_linux.datos_protegidos)."""
     if env is not None:
         return _escanear(progress, env)
     if pythoncom:
         pythoncom.CoInitialize()
     try:
-        return _escanear(progress, _crear_entorno())
+        entorno = _crear_entorno()
+        if privilegiados and isinstance(entorno, _linux.EntornoLinux):
+            entorno.usar_privilegiados(privilegiados)
+        return _escanear(progress, entorno)
     finally:
         gc.collect()  # libera los objetos WMI antes de cerrar COM
         if pythoncom:

@@ -20,6 +20,10 @@ CATEGORIAS = [
     ("other", "Monitor y audio"), ("sensors", "Temperaturas y ventiladores"),
 ]
 FUERTES = ("uuid", "serial", "board_serial")  # identificadores que bastan para reconocer un equipo
+# Para confirmar que una captura es de ESTA computadora también sirve el identificador de la
+# instalación de Linux (legible sin root). No se usa para reconocer equipos de clientes: dos
+# equipos con la misma imagen clonada del sistema lo comparten.
+FUERTES_LOCAL = (*FUERTES, "machine_id")
 
 
 def _d(valor) -> dict:
@@ -256,7 +260,7 @@ def identifiers_from_scan(scan: dict) -> list[tuple[str, str]]:
     resumen = _d(_d(scan).get("summary"))
     candidatos = [("uuid", ident.get("uuid")),
                   ("serial", ident.get("serial") or resumen.get("serial")),
-                  ("board_serial", placa.get("serial"))]
+                  ("board_serial", placa.get("serial")), ("machine_id", ident.get("machine_id"))]
     candidatos += [("mac", a.get("mac")) for a in _l(_d(inv.get("network")).get("adapters"))
                    if isinstance(a, dict)]
     salida = []

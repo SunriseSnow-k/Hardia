@@ -240,7 +240,7 @@ def _discos(inv, references, benchmark) -> list[dict]:
     linux = _es_linux(inv)
     origen_salud = "SMART (smartctl)" if linux else "Windows Storage"
     lector = "hwmon / smartctl" if linux else "LibreHardwareMonitor"
-    permisos = "ejecutar con sudo" if linux else "ejecutar como administrador"
+    permisos = "escanear con permisos de administrador" if linux else "ejecutar como administrador"
     for n, u in enumerate(fisicos, 1):
         salud = u.get("health")
         e_salud = _estado_salud_disco(salud)

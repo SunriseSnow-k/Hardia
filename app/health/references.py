@@ -1,19 +1,17 @@
 """Base local de referencias de fábrica (sin Qt). Nunca inventa valores: si un modelo no
 está en la base, la búsqueda devuelve None y la pantalla muestra "Sin referencia"."""
 import json
-import os
 import re
 from pathlib import Path
 
-from app.paths import APP_NAME
+from app.paths import data_dir
 
 PAQUETE = Path(__file__).with_name("references.json")
-NOMBRE_TALLER = "references.json"  # copia editable del taller en %APPDATA%\SistemaDiagnostico
+NOMBRE_TALLER = "references.json"  # copia editable del taller en la carpeta de datos
 
 
 def ruta_taller() -> Path:
-    base = Path(os.environ.get("APPDATA", Path.home()))
-    return base / APP_NAME / NOMBRE_TALLER
+    return data_dir() / NOMBRE_TALLER
 
 
 def ruta_activa() -> Path:
