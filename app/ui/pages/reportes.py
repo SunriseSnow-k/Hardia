@@ -67,6 +67,7 @@ def _tarjeta(titulo: str, puntos, boton: QPushButton) -> QFrame:
 
 
 class ReportesPage(QWidget):
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """Generación de reportes PDF y búsqueda de los ya generados."""
 
     def __init__(self, repo: Repository, user_id: str):

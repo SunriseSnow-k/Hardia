@@ -13,6 +13,7 @@ TIMEOUT_RESPUESTA = 300  # segundos máximos de espera sin datos de Ollama
 
 
 class AiError(Exception):
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """Error al hablar con el motor de IA (el mensaje se muestra al usuario)."""
 
 
@@ -57,6 +58,7 @@ def _mensaje_error(texto: str, status: int, model: str) -> str:
 
 
 class ChatStream:
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """Respuesta de chat por streaming, cancelable desde cualquier hilo.
 
     La lectura de red ocurre en un hilo auxiliar. `chunks()` espera los datos

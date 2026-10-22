@@ -11,3 +11,7 @@ dist/
 # Editores
 .vscode/
 .idea/
+
+# Resultados de las pruebas
+.coverage
+htmlcov/

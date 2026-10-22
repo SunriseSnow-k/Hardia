@@ -5,6 +5,7 @@ from .search_repo import _CAPTURA, _ESC, MAX_PALABRAS, _like
 
 
 class EquipmentRepository:
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """Consultas de la pantalla Equipos (solo lectura)."""
 
     _CAMPOS = ("e.serial", "e.description", "cl.name", "cl.phone", "cl.doc_id", _CAPTURA)

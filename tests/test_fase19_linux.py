@@ -118,6 +118,7 @@ def _psutil():
 
 
 class LinuxSimulado:
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     sistema = "linux"
 
     def __init__(self, root=True, archivos=None, comandos=None, programas=("smartctl", "dmidecode", "lspci")):

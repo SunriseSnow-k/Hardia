@@ -8,6 +8,7 @@ _COLOR = {NO_COMPATIBLE: T.texto_suave, NO_DISPONIBLE: T.aviso, NO_AUTORIZADO: T
 
 
 class InventoryDialog(QDialog):
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """Inventario de hardware de una captura, por categorías. Lo no detectado se muestra
     con su motivo (no disponible, no aplica, sin permisos o fallo)."""
 

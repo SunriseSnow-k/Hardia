@@ -48,6 +48,7 @@ def repo(tmp_path):
 
 # ---------- Servidor de archivos falso (con Range) ----------
 class Archivos(BaseHTTPRequestHandler):
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     protocol_version = "HTTP/1.0"
     archivos: dict[str, bytes] = {}
     rangos: list[str] = []
@@ -221,6 +222,7 @@ def test_crear_stream_elige_el_motor():
 
 # ---------- Cliente del motor (eventos «data:») ----------
 class Llama(BaseHTTPRequestHandler):
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     protocol_version = "HTTP/1.0"
     auth: list[str] = []
 

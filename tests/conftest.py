@@ -5,6 +5,8 @@ import pytest
 
 # Las pruebas de interfaz se ejecutan sin abrir ventanas reales.
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+# El colector nunca abre una terminal real durante las pruebas (ver cli.relanzar_en_terminal)
+os.environ["DIAG_COLECTOR_EN_TERMINAL"] = "1"
 
 
 @pytest.fixture(autouse=True)

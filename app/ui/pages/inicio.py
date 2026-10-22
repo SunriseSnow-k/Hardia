@@ -25,6 +25,7 @@ def _texto_tiempo(row) -> str:
 
 
 class CaseCard(QFrame):
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     clicked = Signal(str)
 
     def __init__(self, row):
@@ -64,6 +65,7 @@ class CaseCard(QFrame):
 
 
 class InicioPage(QWidget):
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     open_case = Signal(str)
     new_intake = Signal()
 

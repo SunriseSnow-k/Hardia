@@ -54,6 +54,7 @@ def _lista(puntos, signo: str, color: str) -> QLabel:
 
 
 class DescargaWorker(QThread):
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """Instala el motor (si falta) y un modelo del paquete, en segundo plano."""
     progreso = Signal(str, float)  # (texto, fracción 0..1)
     terminado = Signal(bool, str)  # (ok, mensaje)
@@ -96,6 +97,7 @@ class DescargaWorker(QThread):
 
 
 class FilaModelo(QFrame):
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """Un modelo del catálogo con su estado y su botón de descargar o eliminar."""
     descargar = Signal(str)
     eliminar = Signal(str)
@@ -147,6 +149,7 @@ class FilaModelo(QFrame):
 
 
 class IaLocalPage(QWidget):
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     settings_changed = Signal()
 
     def __init__(self, repo: Repository):

@@ -6,12 +6,13 @@ import pytest
 
 from app.hardware import cli, colector_usb, diag_file
 from app.paths import VAR_DATOS
-from app.plataforma import ES_WINDOWS
+from app.plataforma import ES_WINDOWS, SISTEMA
 
 # Lo que el técnico ejecuta en el PC del cliente: Colector.exe en Windows, colector.sh en Linux
-PARA_EJECUTAR = colector_usb.EXE if ES_WINDOWS else colector_usb.LANZADOR
+PARA_EJECUTAR = colector_usb.PARA_EJECUTAR[SISTEMA]
 # Dónde queda el programa del colector en la memoria (el de Linux va en Colector/linux)
-PROGRAMA = ("Colector", "Colector.exe") if ES_WINDOWS else ("Colector", "linux", "Colector")
+PROGRAMA = {"windows": ("Colector", "Colector.exe"),
+            "linux": ("Colector", "linux", "Colector-Linux.com")}[SISTEMA]
 
 ESCANEO = {"format": diag_file.FORMAT, "version": diag_file.VERSION, "scanned_at": "2026-10-15T10:00:00",
            "host": "PC-CLIENTE", "summary": {"serial": "ABC 123"}, "components": [], "metrics": {}}
@@ -43,6 +44,7 @@ def test_colector_informa_el_error_y_espera_enter(tmp_path, monkeypatch, capsys)
     monkeypatch.setattr(cli, "run_scan", falla)
     monkeypatch.setattr(cli.lhm, "es_administrador", lambda: True)
     monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(cli, "_interactivo", lambda: True)  # abierto en una consola
     esperas = []
     monkeypatch.setattr("builtins.input", lambda texto: esperas.append(texto))
     assert cli.main(["Colector.exe", str(tmp_path)]) == 1
@@ -111,9 +113,9 @@ def test_una_memoria_lleva_los_dos_colectores(tmp_path):
     usb = tmp_path / "usb"
     (usb / "Colector" / "Resultados").mkdir(parents=True)
     (usb / "Colector" / "Resultados" / "CLIENTE.diag").write_text("{}")
-    assert colector_usb.preparar(usb, win, windows=True) == usb / "Colector" / "Colector.exe"
-    assert colector_usb.preparar(usb, lin, windows=False) == usb / "Colector" / "colector.sh"
-    colector_usb.preparar(usb, win, windows=True)  # actualizar el de Windows no borra el de Linux
+    assert colector_usb.preparar(usb, win, sistema="windows") == usb / "Colector" / "Colector.exe"
+    assert colector_usb.preparar(usb, lin, sistema="linux") == usb / "Colector" / "colector.sh"
+    colector_usb.preparar(usb, win, sistema="windows")  # actualizar el de Windows no borra el de Linux
     c = usb / "Colector"
     assert sorted(p.name for p in c.iterdir()) == ["Colector.exe", "Resultados", "_internal", "colector.sh", "linux"]
     assert (c / "_internal" / "lhm.dll").exists() and (c / "linux" / "_internal" / "libpython.so").exists()
@@ -128,7 +130,7 @@ def test_linux_pasa_la_version_anterior_a_su_carpeta(tmp_path):
     usb = tmp_path / "usb"
     _colector(usb / "Colector", False)
     (usb / "Colector" / "glibc-minima.txt").write_text("2.39")
-    colector_usb.preparar(usb, lin, windows=False)
+    colector_usb.preparar(usb, lin, sistema="linux")
     assert sorted(p.name for p in (usb / "Colector").iterdir()) == ["Resultados", "colector.sh", "linux"]
 
 
@@ -164,7 +166,7 @@ def test_origen_empaquetado(monkeypatch, tmp_path):
 def test_preparar_en_linux_deja_el_lanzador(tmp_path, fuente):
     usb = tmp_path / "usb"
     usb.mkdir()
-    lanzador = colector_usb.preparar(usb, fuente)
+    lanzador = colector_usb.preparar(usb, fuente, sistema="linux")
     texto = lanzador.read_text(encoding="utf-8")
     assert lanzador.name == "colector.sh" and texto.startswith("#!/bin/sh") and "\r" not in texto
     assert "sudo" in texto and '"$DIR/Resultados"' in texto
@@ -182,7 +184,7 @@ def pagina(monkeypatch):
 
 def test_boton_preparar_usb(pagina, fuente, tmp_path, monkeypatch):
     from PySide6.QtWidgets import QMessageBox
-    monkeypatch.setattr(colector_usb, "origen", lambda: fuente)
+    monkeypatch.setattr(colector_usb, "origen", lambda sistema=SISTEMA: fuente if sistema == SISTEMA else fuente / "otro")
     monkeypatch.setattr(diag_file, "removable_drives", lambda: [])
     pagina._preparar_usb()
     assert "Conecte una memoria USB" in pagina.msg.text()
@@ -197,11 +199,11 @@ def test_boton_preparar_usb(pagina, fuente, tmp_path, monkeypatch):
 
 def test_boton_preparar_usb_elige_unidad_o_avisa(pagina, fuente, tmp_path, monkeypatch):
     from PySide6.QtWidgets import QInputDialog
-    monkeypatch.setattr(colector_usb, "origen", lambda: tmp_path / "sin-colector")
+    monkeypatch.setattr(colector_usb, "origen", lambda sistema=SISTEMA: tmp_path / "sin-colector")
     pagina._preparar_usb()
     assert "no está incluido" in pagina.msg.text()
 
-    monkeypatch.setattr(colector_usb, "origen", lambda: fuente)
+    monkeypatch.setattr(colector_usb, "origen", lambda sistema=SISTEMA: fuente if sistema == SISTEMA else fuente / "otro")
     e, f = tmp_path / "E", tmp_path / "F"
     e.mkdir()
     f.mkdir()
@@ -254,6 +256,7 @@ def test_quiere_prueba(monkeypatch):
 
 
 class _Lector:
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     def __enter__(self):
         return self
 
@@ -336,3 +339,60 @@ def test_importar_diag_con_prueba_la_vincula_a_la_captura(tmp_path, monkeypatch)
         assert sin["benchmark_id"] is None
     finally:
         db.close()
+
+
+# ---------------- doble clic en Linux ----------------
+def test_en_la_memoria_el_colector_de_linux_termina_en_com(tmp_path):
+    """FAT32 solo deja ejecutar .exe, .com y .bat: con .com se abre con doble clic."""
+    lin = _colector(tmp_path / "l" / "Colector", False)
+    usb = tmp_path / "usb"
+    usb.mkdir()
+    colector_usb.preparar(usb, lin, sistema="linux")
+    assert sorted(p.name for p in (usb / "Colector" / "linux").iterdir()) == ["Colector-Linux.com", "_internal"]
+    texto = (usb / "Colector" / "colector.sh").read_text(encoding="utf-8")
+    assert '"$BIN/Colector-Linux.com"' in texto and 'EXE="$BIN/Colector"' in texto  # también la versión anterior
+    assert "Colector-Linux.com" in (usb / colector_usb.INSTRUCCIONES).read_text(encoding="utf-8-sig")
+
+
+def test_resultados_del_colector_de_linux_van_a_la_carpeta_comun(monkeypatch, tmp_path):
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(sys, "executable", str(tmp_path / "Colector" / "linux" / "Colector-Linux.com"))
+    assert cli.destino_predeterminado() == tmp_path / "Colector" / "Resultados"
+    monkeypatch.setattr(sys, "executable", str(tmp_path / "Colector" / "Colector.exe"))
+    assert cli.destino_predeterminado() == tmp_path / "Colector" / "Resultados"
+
+
+def test_orden_para_abrir_una_terminal():
+    hay = {"/usr/bin/x-terminal-emulator": "/usr/bin/cosmic-term", "/usr/bin/konsole": "/usr/bin/konsole",
+           "/usr/bin/xterm": "/usr/bin/xterm"}
+
+    def which(n):
+        return next((r for r in hay if r.endswith("/" + n)), None)
+    real = hay.get
+    assert cli.orden_en_terminal(["sh", "c.sh"], "COSMIC", which, real) == \
+        ["/usr/bin/x-terminal-emulator", "--", "sh", "c.sh"]
+    assert cli.orden_en_terminal(["sh", "c.sh"], "KDE", which, real) == ["/usr/bin/konsole", "-e", "sh", "c.sh"]
+    del hay["/usr/bin/x-terminal-emulator"], hay["/usr/bin/konsole"]
+    assert cli.orden_en_terminal(["sh", "c.sh"], "GNOME", which, real) == ["/usr/bin/xterm", "-e", "sh", "c.sh"]
+    hay.clear()
+    assert cli.orden_en_terminal(["sh"], "", which, real) is None
+
+
+def test_doble_clic_abre_el_colector_en_una_terminal(monkeypatch, tmp_path):
+    exe = tmp_path / "Colector" / "linux" / "Colector-Linux.com"
+    exe.parent.mkdir(parents=True)
+    (tmp_path / "Colector" / "colector.sh").write_text("#!/bin/sh")
+    monkeypatch.setattr(sys, "platform", "linux")
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(sys, "executable", str(exe))
+    monkeypatch.setattr(cli, "_interactivo", lambda: False)
+    monkeypatch.setenv("WAYLAND_DISPLAY", "wayland-0")
+    monkeypatch.delenv("DIAG_COLECTOR_EN_TERMINAL", raising=False)
+    monkeypatch.setattr(cli, "orden_en_terminal", lambda orden, _e: ["terminal", "--", *orden])
+    abiertas = []
+    monkeypatch.setattr(cli.subprocess, "Popen", lambda orden, **k: abiertas.append((orden, k["env"])))
+    assert cli.main([str(exe)]) == 0
+    assert abiertas[0][0] == ["terminal", "--", "sh", str(tmp_path / "Colector" / "colector.sh")]
+    assert abiertas[0][1]["DIAG_COLECTOR_EN_TERMINAL"] == "1"
+    monkeypatch.setenv("DIAG_COLECTOR_EN_TERMINAL", "1")  # ya está en la terminal: no abre otra
+    assert not cli.relanzar_en_terminal([str(exe)])

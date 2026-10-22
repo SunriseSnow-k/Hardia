@@ -25,6 +25,7 @@ COL_RENDIMIENTO, COL_ACCIONES = 5, 6
 
 
 class EquiposPage(QWidget):
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     open_case = Signal(str)
     new_intake = Signal(str)
     ver_salud = Signal(str)  # código del último caso del equipo

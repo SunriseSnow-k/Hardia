@@ -84,6 +84,19 @@ Ejecutan `ruff check`, `mypy` y `pytest` con una cobertura mínima del 80 %. La 
 ./build.sh         # Linux: genera dist/instalador/SistemaDiagnostico-<versión>-linux-x86_64.tar.gz
 ```
 
+### Los dos colectores en cada instalador
+
+Cada instalador incluye los colectores de Windows y Linux, para preparar desde cualquiera de los dos
+sistemas una memoria USB que sirva en cualquier PC del cliente. PyInstaller no compila para otro sistema, así que
+cada colector se genera en su sistema y se lleva al otro como `dist/colectores/Colector-<sistema>.tar.gz`
+(ver `tools/colectores.py`):
+
+- **Automático:** en GitHub, Actions → **Paquetes** → *Run workflow* (o publicar una etiqueta `v*`). Genera
+  los dos colectores y luego los dos instaladores con ambos dentro, como artefactos de la ejecución.
+- **A mano:** en cada sistema ejecute `.\build.ps1 -SoloColector` o `./build.sh --solo-colector`, copie los
+  `.tar.gz` de `dist/colectores` a la misma carpeta del otro equipo y genere los instaladores. Si falta
+  el colector del otro sistema, el build avisa y el instalador se genera sin él.
+
 ## Datos del programa
 
 | Sistema | Carpeta |

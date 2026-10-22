@@ -13,6 +13,7 @@ def validar_password(nueva: str) -> None:
 
 
 class UsersRepository:
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """Cuentas de los técnicos: listado, roles, activación, contraseñas e intentos fallidos.
     Los permisos (quién puede hacer qué) se comprueban en app/servicios/cuentas.py."""
 

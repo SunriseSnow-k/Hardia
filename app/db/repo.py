@@ -9,6 +9,7 @@ PRIORIDADES = ("Alta", "Media", "Baja")
 
 
 class Repository:
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     def __init__(self, db: Database):
         self.db = db
         self.c = db.conn

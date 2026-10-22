@@ -53,6 +53,7 @@ _TIPO_RAM = ("LPDDR5", "LPDDR4", "LPDDR3", "LPDDR2", "LPDDR", "DDR5", "DDR4", "D
 
 
 class EntornoLinux:
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """Acceso al sistema en Linux. Las pruebas lo sustituyen por uno simulado con los mismos métodos."""
 
     sistema = "linux"

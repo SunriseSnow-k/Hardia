@@ -68,6 +68,7 @@ def simbolo(repo: Repository) -> str:
 # ---------------- consulta ----------------
 @dataclass
 class Resumen:
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     estado: str  # estado del presupuesto ("Sin presupuesto" si aún no tiene líneas)
     subtotal: int
     descuento: int

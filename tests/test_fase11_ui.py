@@ -63,6 +63,7 @@ def _caso_con_captura(repo, full=None, serie="SN-1"):
 
 
 class _LectorFalso:
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     def __init__(self, temp=60.0):
         self.temp = temp
 
@@ -323,6 +324,7 @@ def test_prueba_escanea_primero_y_luego_abre_el_dialogo(repo, monkeypatch):
     abiertos = []
 
     class _Dialogo:
+        # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
         def __init__(self, repo_, code_, captura, parent=None):
             abiertos.append((code_, captura["id"]))
             self.saved = False

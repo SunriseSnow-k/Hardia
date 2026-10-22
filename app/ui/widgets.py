@@ -93,6 +93,7 @@ def chip_html(texto: str, fondo: str | None = None, color: str | None = None) ->
 
 
 class ChipEstado(QLabel):
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """Rectángulo de radio 3 px con el estado escrito (nunca solo color)."""
 
     def __init__(self, texto: str = "", fondo: str | None = None, color: str | None = None,
@@ -112,6 +113,7 @@ class ChipEstado(QLabel):
 
 # ---------------- barra de porcentaje ----------------
 class BarraPorcentaje(QWidget):
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """Carril gris con relleno de color y el número a la derecha ('83 %').
     Sin valor muestra el texto alternativo (por ejemplo 'Sin medición')."""
 
@@ -180,6 +182,7 @@ class BarraPorcentaje(QWidget):
 
 # ---------------- indicador de etapas ----------------
 class IndicadorEtapas(QWidget):
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """Recibido → En diagnóstico → Listo → Entregado, con la etapa actual resaltada."""
 
     def __init__(self, etapas, actual: str = "", parent=None):
@@ -218,6 +221,7 @@ class IndicadorEtapas(QWidget):
 
 # ---------------- contenedores ----------------
 class AreaDesplazable(QScrollArea):
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """QScrollArea vertical que respeta la altura de los textos con salto de línea.
 
     Con setWidgetResizable(True), Qt no usa heightForWidth para la altura mínima del

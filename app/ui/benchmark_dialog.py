@@ -15,6 +15,7 @@ discos_de_captura = bm.discos_de  # nombre usado por las pruebas y la pantalla d
 
 
 class BenchmarkWorker(QThread):
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     paso = Signal(int, str)
     muestra = Signal(float, float, object, object)  # t, ops/s, temp, fuente
     avance_disco = Signal(int, float, int)
@@ -63,6 +64,7 @@ class BenchmarkWorker(QThread):
 
 
 class BenchmarkDialog(QDialog):
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     def __init__(self, repo, code: str, captura: dict, parent=None, duracion_cpu: float = bm.DURACION_CPU,
                  duracion_disco: float = bm.DURACION_DISCO, procesos: int | None = None,
                  lector=LectorTemperatura, condiciones=None):

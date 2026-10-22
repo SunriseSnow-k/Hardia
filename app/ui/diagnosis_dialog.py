@@ -48,6 +48,7 @@ def dividir_respuesta_ia(texto: str) -> dict | None:
 
 
 class DiagnosisDialog(QDialog):
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """Ejecuta el motor de reglas sobre un caso y muestra posibles causas.
     El análisis de IA local es opcional y no bloquea el resultado."""
 

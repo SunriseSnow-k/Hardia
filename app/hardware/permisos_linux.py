@@ -22,6 +22,7 @@ _MOTIVOS = {126: "se canceló el pedido de contraseña", 127: "no se pudo verifi
 
 
 class PermisoDenegado(Exception):
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """No se obtuvieron los permisos (se canceló, la contraseña no fue válida o no hay pkexec)."""
 
 
@@ -38,6 +39,7 @@ def orden_ayudante() -> list[str]:
 
 
 class SesionAdmin:
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """Ayudante abierto con permisos. Usar con `with SesionAdmin.abrir() as s:`."""
 
     def __init__(self, proc: subprocess.Popen):

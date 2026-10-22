@@ -13,6 +13,9 @@ El resumen es orientativo; la evaluación completa se ve en el taller al importa
 En desarrollo:  python -m app.hardware.cli [carpeta_destino] [--con-prueba | --sin-prueba] [--sin-pausa]
 """
 import multiprocessing
+import os
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -25,8 +28,13 @@ from app.plataforma import ES_WINDOWS
 
 
 def destino_predeterminado() -> Path:
-    """Carpeta Resultados junto a Colector.exe (en desarrollo, dentro de la carpeta actual)."""
-    base = Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else Path.cwd()
+    """Carpeta Resultados del colector en la memoria: Colector/Resultados, junto a Colector.exe; el de
+    Linux está en Colector/linux y guarda en la misma carpeta (en desarrollo, en la carpeta actual)."""
+    if not getattr(sys, "frozen", False):
+        return Path.cwd() / diag_file.CARPETA_RESULTADOS
+    base = Path(sys.executable).resolve().parent
+    if base.name == diag_file.SUBCARPETA_LINUX:
+        base = base.parent
     return base / diag_file.CARPETA_RESULTADOS
 
 
@@ -38,6 +46,53 @@ def ruta_libre(carpeta: Path, nombre: str) -> Path:
         ruta = carpeta / f"{Path(nombre).stem}-{n}{Path(nombre).suffix}"
         n += 1
     return ruta
+
+
+# ---------------- abrir en una terminal (Linux) ----------------
+# Terminales y cómo reciben el programa a ejecutar. Primero la del escritorio en uso.
+TERMINALES = {"cosmic-term": ["--"], "ptyxis": ["--"], "gnome-terminal": ["--"], "kgx": ["--"],
+              "konsole": ["-e"], "xfce4-terminal": ["-x"], "mate-terminal": ["-x"], "tilix": ["-e"],
+              "alacritty": ["-e"], "kitty": [], "xterm": ["-e"]}
+_DEL_ESCRITORIO = {"COSMIC": "cosmic-term", "GNOME": "ptyxis", "KDE": "konsole", "XFCE": "xfce4-terminal",
+                   "MATE": "mate-terminal"}
+_EN_TERMINAL = "DIAG_COLECTOR_EN_TERMINAL"  # evita volver a abrir otra terminal
+
+
+def orden_en_terminal(orden: list[str], escritorio: str = "", which=shutil.which,
+                      real=os.path.realpath) -> list[str] | None:
+    """Orden para ejecutar `orden` en una terminal nueva (None si no hay ninguna conocida)."""
+    preferidas = [t for clave, t in _DEL_ESCRITORIO.items() if clave in escritorio.upper()]
+    x = which("x-terminal-emulator")  # Debian/Ubuntu: la terminal elegida en el sistema
+    x_nombre = Path(real(x)).name.removesuffix(".wrapper") if x else ""
+    if x_nombre in TERMINALES:
+        preferidas.append(x_nombre)
+    for nombre in [*preferidas, *TERMINALES]:
+        ruta = x if nombre == x_nombre else which(nombre)
+        if ruta:
+            return [ruta, *TERMINALES[nombre], *orden]
+    return [x, "-e", *orden] if x else None
+
+
+def relanzar_en_terminal(argv: list[str]) -> bool:
+    """Linux: si el colector se abrió con doble clic (sin terminal), lo vuelve a abrir en una terminal
+    con colector.sh, que pide sudo y muestra el avance. True si se abrió la terminal."""
+    if (not sys.platform.startswith("linux") or not getattr(sys, "frozen", False) or _interactivo()
+            or os.environ.get(_EN_TERMINAL) or not (os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))):
+        return False
+    exe = Path(sys.executable).resolve()
+    lanzador = exe.parent.parent / "colector.sh"
+    orden = (["sh", str(lanzador), *argv[1:]] if exe.parent.name == diag_file.SUBCARPETA_LINUX and lanzador.is_file()
+             else [str(exe), *argv[1:]])
+    completa = orden_en_terminal(orden, os.environ.get("XDG_CURRENT_DESKTOP", ""))
+    if completa is None:
+        return False
+    try:
+        subprocess.Popen(completa, cwd=str(exe.parent), env={**os.environ, _EN_TERMINAL: "1"},  # noqa: S603 (terminal y colector propios)
+                         stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                         start_new_session=True)
+    except OSError:
+        return False
+    return True
 
 
 # ---------------- resumen de salud ----------------
@@ -113,8 +168,10 @@ def main(argv: list[str]) -> int:
     for flujo in (sys.stdout, sys.stderr):  # una consola con otra página de códigos no debe romper el escaneo
         if hasattr(flujo, "reconfigure"):
             flujo.reconfigure(errors="replace")
+    if relanzar_en_terminal(argv):
+        return 0
     args = [a for a in argv[1:] if not a.startswith("--")]
-    pausa = getattr(sys, "frozen", False) and "--sin-pausa" not in argv
+    pausa = getattr(sys, "frozen", False) and "--sin-pausa" not in argv and _interactivo()
     try:
         destino = Path(args[0]) if args else destino_predeterminado()
         print("Colector de diagnóstico — escaneo de este equipo\n")

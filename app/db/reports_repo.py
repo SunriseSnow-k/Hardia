@@ -4,6 +4,7 @@ from .repo import Repository
 
 
 class ReportsRepository:
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """Registro de los reportes PDF generados."""
 
     def __init__(self, repo: Repository):

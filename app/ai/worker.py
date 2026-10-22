@@ -11,6 +11,7 @@ def crear_stream(model: str, messages: list[dict]) -> ChatStream:
 
 
 class AiWorker(QThread):
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     chunk = Signal(int, str)       # (run_id, texto)
     completed = Signal(int)
     failed = Signal(int, str)

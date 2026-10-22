@@ -90,6 +90,7 @@ def datos_equipo(scan: dict) -> list[tuple[str, str]]:
 
 
 class RecepcionPage(QWidget):
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     case_created = Signal(str)
     open_case = Signal(str)
     go_scan = Signal()

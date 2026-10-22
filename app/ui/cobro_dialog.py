@@ -58,6 +58,7 @@ def _item(texto: str, dato=None, derecha: bool = False) -> QTableWidgetItem:
 
 
 class CobroDialog(QDialog):
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     def __init__(self, repo: Repository, code: str, parent=None):
         super().__init__(parent)
         self.repo = repo

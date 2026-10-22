@@ -215,14 +215,20 @@ Sirve para escanear el PC de un cliente sin llevarlo al taller y sin instalar na
 1. En **Escanear equipo**, pulse **Preparar USB colector…** y elija la memoria. Los escaneos anteriores
    de la memoria se conservan. En Linux, si la memoria está conectada pero no la abrió en el explorador
    de archivos, el programa la monta solo.
-   El programa de Windows copia el colector de Windows y el de Linux, el de Linux. **Una misma memoria
-   puede llevar los dos:** prepárela desde cada programa y cada uno reemplaza solo el suyo.
+   El instalador trae los colectores de **Windows y Linux**, así que desde el programa de cualquiera de los
+   dos sistemas puede elegir **Todos** (una memoria sirve para cualquier PC del cliente) o **Solo** uno. Cada
+   colector escanea únicamente equipos de su sistema. Preparar uno reemplaza solo ese colector en la
+   memoria y conserva el otro y los escaneos. Use una memoria **FAT32 o exFAT**: es la que los dos
+   sistemas pueden leer y escribir.
 2. En el PC del cliente:
    - **Windows:** abra `Colector\Colector.exe` y acepte el permiso de administrador.
-   - **Linux:** abra una terminal en la carpeta `Colector` y ejecute `sh colector.sh`, que le pedirá
-     `sudo`. El programa del colector de Linux está en `Colector/linux`.
+   - **Linux:** abra `Colector/linux` y haga doble clic en `Colector-Linux.com`. Se abre una terminal que
+     pide la contraseña de `sudo` y muestra el avance. Si el explorador de archivos no lo abre, abra una
+     terminal en la carpeta `Colector` y ejecute `sh colector.sh`. (El nombre termina en `.com` porque en
+     las memorias FAT32 Linux solo permite ejecutar archivos `.exe`, `.com` y `.bat`.)
 3. El colector muestra un resumen de salud y ofrece la prueba de rendimiento opcional. El resultado se
-   guarda en `Colector\Resultados` como archivo `.diag`.
+   guarda en `Colector\Resultados` como archivo `.diag`. Los colectores de Windows y Linux usan la
+   misma carpeta, y el programa importa desde ahí los escaneos de los dos.
 4. En el taller, conecte la memoria e impórtela desde **Escanear equipo → Importar desde USB (.diag)**.
 
 ## 9. IA local (opcional)

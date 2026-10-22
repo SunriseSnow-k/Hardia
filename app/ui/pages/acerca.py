@@ -43,6 +43,7 @@ CONTEOS = (("cases", "Casos registrados"), ("equipment", "Equipos"), ("clients",
 
 
 class AcercaPage(QWidget):
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     def __init__(self, repo: Repository):
         super().__init__()
         self.repo = repo

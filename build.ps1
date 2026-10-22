@@ -1,9 +1,13 @@
 # Genera el instalador de Sistema Inteligente Offline en un solo paso:
 #   1. calidad (ruff, mypy, pruebas con cobertura)   2. programa (PyInstaller)   3. instalador (Inno Setup)
-# Uso:  .\build.ps1            (todo)
+# Uso:  .\build.ps1               (todo)
 #       .\build.ps1 -SinPruebas
+#       .\build.ps1 -SoloColector  (solo el colector, para incluirlo en el instalador de Linux)
 # Resultado: dist\instalador\SistemaDiagnostico-Setup-<version>.exe
-param([switch]$SinPruebas)
+# El instalador incluye el colector de Linux si esta en dist\colectores (Colector-linux.tar.gz,
+# generado por build.sh en Linux: ver tools\colectores.py); asi desde Windows se preparan memorias
+# USB con los dos colectores.
+param([switch]$SinPruebas, [switch]$SoloColector)
 
 $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot
@@ -13,7 +17,7 @@ if (-not (Test-Path $py)) { throw "No se encontro el entorno .venv. Cree uno e i
 $version = (Select-String -Path "app\version.py" -Pattern 'VERSION\s*=\s*"([^"]+)"').Matches[0].Groups[1].Value
 Write-Host "== Sistema Inteligente Offline $version ==" -ForegroundColor Cyan
 
-if (-not $SinPruebas) {
+if (-not $SinPruebas -and -not $SoloColector) {
     Write-Host "-- Calidad" -ForegroundColor Cyan
     & (Join-Path $PSScriptRoot "calidad.ps1")  # lanza un error (y no se genera el instalador) si algo falla
 }
@@ -29,6 +33,15 @@ if (Test-Path $colector) { Remove-Item -Recurse -Force $colector }
 Copy-Item -Recurse "dist\Colector" $colector
 $mb = (Get-ChildItem -Recurse -File $colector | Measure-Object -Sum Length).Sum / 1MB
 Write-Host ("Colector portatil: {0:N1} MB (tambien en dist\Colector para copiarlo a mano)" -f $mb)
+& $py tools\colectores.py empaquetar windows dist\Colector
+if ($LASTEXITCODE -ne 0) { throw "No se pudo empaquetar el colector." }
+if ($SoloColector) {
+    Write-Host "Listo: dist\colectores\Colector-windows.tar.gz (copielo a dist/colectores en Linux)" -ForegroundColor Green
+    exit 0
+}
+Write-Host "-- Colector de Linux" -ForegroundColor Cyan
+& $py tools\colectores.py incluir windows dist\SistemaDiagnostico
+if ($LASTEXITCODE -ne 0) { throw "No se pudo incluir el colector de Linux." }
 
 Write-Host "-- Instalador (Inno Setup)" -ForegroundColor Cyan
 # Controlador de sensores incluido en el instalador (version y SHA-256 fijos, como el paquete de IA)

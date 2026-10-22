@@ -20,6 +20,7 @@ _ZOMBIES: list = []  # hilos que tardaron en terminar: se conservan hasta que ac
 
 
 class AiStreamPanel(QFrame):
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """Muestra una respuesta de la IA en vivo, con tiempo transcurrido y cancelación."""
     text_ready = Signal(str)  # texto completo, solo si terminó bien
 
@@ -154,6 +155,7 @@ class AiStreamPanel(QFrame):
 
 
 class AiDialog(QDialog):
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """Ventana para una tarea de IA (resumen del historial, mensaje al cliente…)."""
 
     def __init__(self, repo, titulo: str, subtitulo: str, mensajes: list[dict],

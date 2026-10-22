@@ -17,11 +17,13 @@ def _db_file(conn):
 
 
 class _Senales(QObject):
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     listo = Signal(int, object)
     fallo = Signal(int, str)
 
 
 class _Tarea(QRunnable):
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """Ejecuta una consulta en un hilo del pool, con su propia conexión de SOLO LECTURA."""
 
     def __init__(self, archivo, metodo, kwargs, run_id, senales):
@@ -44,6 +46,7 @@ class _Tarea(QRunnable):
 
 
 class AsyncSearch(QObject):
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """Lanza consultas de búsqueda sin bloquear la interfaz. Solo se entrega el
     resultado de la última consulta: las anteriores se descartan."""
     resultado = Signal(object)
@@ -88,6 +91,7 @@ class AsyncSearch(QObject):
 
 
 class DateRangeFilter(QWidget):
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """Filtro opcional por rango de fechas."""
     changed = Signal()
 
@@ -144,6 +148,7 @@ class DateRangeFilter(QWidget):
 
 
 class PagerBar(QWidget):
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """Navegación por páginas."""
     cambiar = Signal(int)
 

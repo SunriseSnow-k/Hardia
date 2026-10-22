@@ -25,7 +25,7 @@ from PySide6.QtWidgets import (
 from app.hardware import colector_usb, diag_file, lhm
 from app.hardware.inventory import CATEGORIAS, ESTADO_TEXTO, FALLO, NO_AUTORIZADO, NO_COMPATIBLE, NO_DISPONIBLE, OK
 from app.hardware.scanner import COLECTORES_NOMBRES, COMPONENT_NAMES, run_scan
-from app.plataforma import ES_WINDOWS
+from app.plataforma import SISTEMA
 from app.ui.inventory_dialog import InventoryDialog
 from app.ui.tema import T
 from app.ui.widgets import AreaDesplazable, ChipEstado, cabecera, fecha_corta, muted, panel
@@ -91,6 +91,7 @@ def no_leido(scan: dict) -> list[tuple[str, str, str]]:
 
 
 class _FilaCategoria(QFrame):
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """Icono de estado, nombre, detalle y estado escrito de una categoría."""
 
     def __init__(self, nombre: str):
@@ -117,6 +118,7 @@ class _FilaCategoria(QFrame):
 
 
 class ScanWorker(QThread):
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     step = Signal(int, str, str, str)
     finished_scan = Signal(dict)
     failed = Signal(str)
@@ -141,6 +143,7 @@ class ScanWorker(QThread):
 
 
 class EscaneoPage(QWidget):
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     use_data = Signal(dict)
     ver_salud = Signal(dict)
 
@@ -210,7 +213,8 @@ class EscaneoPage(QWidget):
         usb = QWidget()
         uv = QVBoxLayout(usb)
         uv.setContentsMargins(0, 0, 0, 0)
-        programa = colector_usb.EXE if ES_WINDOWS else colector_usb.LANZADOR
+        programa = " / ".join(colector_usb.PARA_EJECUTAR[x] for x in colector_usb.disponibles()) \
+            or colector_usb.PARA_EJECUTAR[SISTEMA]
         info = muted(f"En el PC del cliente se ejecuta {programa} desde el USB: escanea el equipo y guarda un "
                      f"archivo .diag en la carpeta Colector{os.sep}Resultados de la memoria. Conéctela aquí e "
                      "impórtelo. Para llevar el colector, use «Preparar USB colector».")
@@ -513,9 +517,24 @@ class EscaneoPage(QWidget):
             self.lista.addItem(item)
         self.lista.setCurrentRow(0)
 
+    def _sistemas_a_preparar(self) -> list[str] | None:
+        """Colectores a copiar: todos los que trae la instalación o uno solo (None si se canceló)."""
+        hay = colector_usb.disponibles()
+        if len(hay) <= 1:
+            return hay
+        nombres = [colector_usb.NOMBRES[s] for s in hay]
+        opciones = [f"Todos: {', '.join(nombres)}"] + [f"Solo {n}" for n in nombres]
+        elegida, ok = QInputDialog.getItem(
+            self, "Preparar USB colector", "Cada colector escanea equipos de su sistema. ¿Cuáles copiar?",
+            opciones, 0, False)
+        if not ok:
+            return None
+        return hay if elegida == opciones[0] else [hay[opciones.index(elegida) - 1]]
+
     def _preparar_usb(self):
-        """Copia Colector.exe a la memoria USB elegida para escanear el PC del cliente."""
-        if not colector_usb.disponible():
+        """Copia los colectores (Windows y Linux, los que traiga esta instalación) a la memoria
+        USB elegida para escanear el PC del cliente."""
+        if not colector_usb.disponibles():
             self._msg("El colector no está incluido en esta instalación. Reinstale el programa con la "
                       "versión más reciente.", ok=False)
             return
@@ -523,11 +542,15 @@ class EscaneoPage(QWidget):
         if not unidades:
             self._msg("Conecte una memoria USB para preparar el colector.", ok=False)
             return
+        sistemas = self._sistemas_a_preparar()
+        if not sistemas:
+            return
+        cuales = ", ".join(colector_usb.NOMBRES[s] for s in sistemas)
         if len(unidades) == 1:
             unidad = unidades[0]
             if QMessageBox.question(self, "Preparar USB colector",
-                                    f"Se copiará el colector a la unidad {unidad} (carpeta Colector).\n"
-                                    "Los archivos que ya tiene la memoria no se tocan. ¿Continuar?",
+                                    f"Se copiará el colector ({cuales}) a la unidad {unidad} (carpeta "
+                                    "Colector).\nLos archivos que ya tiene la memoria no se tocan. ¿Continuar?",
                                     QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes) != QMessageBox.Yes:
                 return
         else:
@@ -538,15 +561,21 @@ class EscaneoPage(QWidget):
         QGuiApplication.setOverrideCursor(Qt.WaitCursor)
         QApplication.processEvents()
         try:
-            exe = colector_usb.preparar(unidad)
+            preparados = colector_usb.preparar_varios(unidad, sistemas)
         except OSError as e:
             self._msg(f"No se pudo preparar el USB: {e}", ok=False)
             return
         finally:
             QGuiApplication.restoreOverrideCursor()
-        como = f"ejecute {exe}" if ES_WINDOWS else f"abra una terminal en {exe.parent} y ejecute: sh {exe.name}"
-        self._msg(f"USB listo: en el PC del cliente {como}. El escaneo quedará en la carpeta "
-                  f"Colector{os.sep}Resultados de la memoria.")
+        if len(preparados) == 1:
+            [(sistema, exe)] = preparados.items()
+            como = f"en el PC del cliente {colector_usb.como_ejecutar(exe, sistema)}"
+        else:
+            como = "en el PC del cliente " + "; ".join(
+                f"con {colector_usb.NOMBRES[s]}, {colector_usb.como_ejecutar(exe, s)}" for s, exe in preparados.items())
+        self._msg(f"USB listo ({cuales}): {como}. El escaneo quedará en la carpeta "
+                  f"Colector{os.sep}Resultados de la memoria (las instrucciones están en "
+                  f"«{colector_usb.INSTRUCCIONES}»).")
 
     def _buscar_archivo(self):
         ruta, _ = QFileDialog.getOpenFileName(self, "Seleccionar escaneo", "", "Escaneo (*.diag)")

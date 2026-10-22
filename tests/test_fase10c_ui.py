@@ -24,6 +24,7 @@ def entorno(monkeypatch, tmp_path):
     abiertos = []
 
     class _SinVisor:  # no abre el visor de PDF durante las pruebas
+        # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
         @staticmethod
         def openUrl(url):
             abiertos.append(url)

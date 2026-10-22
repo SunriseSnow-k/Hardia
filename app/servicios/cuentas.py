@@ -23,6 +23,7 @@ CREDENCIALES_INVALIDAS = "ID o contraseña incorrectos."
 
 
 class AccesoBloqueado(ValueError):
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     def __init__(self, segundos: int):
         self.segundos = segundos
         espera = f"{segundos} segundos" if segundos < 120 else f"{(segundos + 59) // 60} minutos"
@@ -30,11 +31,13 @@ class AccesoBloqueado(ValueError):
 
 
 class SinPermiso(PermissionError):
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     pass
 
 
 @dataclass
 class Sesion:
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     tech_id: str
     role: str
 

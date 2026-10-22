@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
 # Genera el paquete de Sistema Inteligente Offline para Linux en un solo paso:
 #   1. calidad (ruff, mypy, pruebas con cobertura)   2. programa (PyInstaller)   3. paquete .tar.gz
-# Uso:  ./build.sh              (todo)
+# Uso:  ./build.sh                 (todo)
 #       ./build.sh --sin-pruebas
+#       ./build.sh --solo-colector   (solo el colector, para incluirlo en el instalador de Windows)
+# El paquete incluye el colector de Windows si está en dist/colectores (Colector-windows.tar.gz,
+# generado por build.ps1 en Windows: ver tools/colectores.py); así desde Linux se preparan memorias
+# USB con los dos colectores.
 # Resultado: dist/instalador/SistemaDiagnostico-<version>-linux-<arquitectura>.tar.gz
 # (dentro: el programa, instalar.sh, desinstalar.sh y LEAME.txt). El programa queda en dist/linux y
 # lo intermedio en build/linux: no pisa lo generado en Windows. Debe ejecutarse en Linux: el
@@ -24,7 +28,17 @@ VERSION=$(sed -n 's/^VERSION *= *"\(.*\)"/\1/p' app/version.py)
 ARQ=$(uname -m)
 echo "== Sistema Inteligente Offline $VERSION (Linux $ARQ) =="
 
-if [ "${1:-}" != "--sin-pruebas" ]; then
+PRUEBAS=si
+SOLO_COLECTOR=no
+for a in "$@"; do
+    case "$a" in
+        --sin-pruebas) PRUEBAS=no ;;
+        --solo-colector) SOLO_COLECTOR=si; PRUEBAS=no ;;
+        *) echo "Opcion desconocida: $a"; exit 2 ;;
+    esac
+done
+
+if [ "$PRUEBAS" = si ]; then
     echo "-- Calidad"
     bash ./calidad.sh
 fi
@@ -45,9 +59,16 @@ echo "Colector portatil: $(du -sh "$SALIDA_LINUX/Colector" | cut -f1) (tambien e
 
 echo "-- Prueba rapida de lo empaquetado"
 PRUEBA=$(mktemp -d)
-"$SALIDA_LINUX/Colector/Colector" "$PRUEBA" --sin-prueba --sin-pausa >/dev/null \
+DIAG_COLECTOR_EN_TERMINAL=1 "$SALIDA_LINUX/Colector/Colector" "$PRUEBA" --sin-prueba --sin-pausa >/dev/null \
     && ls "$PRUEBA"/*.diag >/dev/null 2>&1 || { echo "El colector empaquetado no genero el .diag."; exit 1; }
 rm -rf "$PRUEBA"
+"$PY" tools/colectores.py empaquetar linux "$SALIDA_LINUX/Colector"
+if [ "$SOLO_COLECTOR" = si ]; then
+    echo "Listo: dist/colectores/Colector-linux.tar.gz (copielo a dist/colectores en Windows)"
+    exit 0
+fi
+echo "-- Colector de Windows"
+"$PY" tools/colectores.py incluir linux "$SALIDA_LINUX/SistemaDiagnostico"
 printf '' | "$SALIDA_LINUX/SistemaDiagnostico/SistemaDiagnostico" --ayudante-root | grep -q '"listo"' \
     || { echo "El ayudante con permisos empaquetado no responde."; exit 1; }
 

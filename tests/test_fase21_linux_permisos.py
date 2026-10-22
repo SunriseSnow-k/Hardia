@@ -102,6 +102,7 @@ def test_escaneo_con_permisos_desde_la_interfaz(monkeypatch):
     sim = LinuxSimulado(root=False)
 
     class Entorno(linux.EntornoLinux):  # el Linux simulado, con la capa de datos protegidos real
+        # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
         def __init__(self):
             super().__init__()
             self.psutil = sim.psutil
@@ -179,6 +180,7 @@ def test_prueba_de_discos_con_la_sesion(monkeypatch, tmp_path):
     sin_permiso.chmod(0)
 
     class Sesion:
+        # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
         def leer_disco(self, ruta, duracion, cancelado, al_avanzar):
             al_avanzar(0.5, 10)
             return {"lectura_mb_s": 500.0, "bytes": 10, "duracion_s": duracion, "estado": "ok", "motivo": ""}
@@ -240,6 +242,7 @@ LSBLK = {"blockdevices": [
 
 
 class Montador:
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     def __init__(self, udisks=True):
         self.ordenes, self.udisks = [], udisks
 
@@ -265,6 +268,7 @@ def test_memorias_sin_montar_se_montan_sin_contrasena():
 
 def test_lsblk_ausente_o_roto():
     class Roto(Montador):
+        # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
         def ejecutar(self, *args):
             return "no es json"
     assert linux.extraibles_sin_montar(Roto()) == []

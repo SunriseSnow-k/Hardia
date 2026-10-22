@@ -259,7 +259,7 @@ def test_configuracion_guarda_moneda(ui):
     from app.ui.pages.configuracion import ConfiguracionPage
     page = ConfiguracionPage(ui, "ADM")
     assert page.moneda.text() == "S/"
-    page.nombre.setText("Taller Kevin")
+    page.nombre.setText("Taller Central")
     page.moneda.setText("$")
     page._guardar_negocio()
     assert cobro.simbolo(ui) == "$"

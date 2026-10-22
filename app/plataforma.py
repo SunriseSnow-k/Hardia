@@ -8,6 +8,8 @@ import sys
 
 ES_WINDOWS = sys.platform == "win32"
 ES_LINUX = sys.platform.startswith("linux")
+# Clave del sistema: la usa el colector USB (una carpeta por sistema)
+SISTEMA = "windows" if ES_WINDOWS else "linux"
 
 # Fuente de la interfaz: Segoe UI en Windows; en Linux, la sans-serif del escritorio (fontconfig)
 FUENTE = "Segoe UI" if ES_WINDOWS else "Sans Serif"

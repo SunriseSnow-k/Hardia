@@ -50,6 +50,7 @@ COMPONENT_NAMES = [n for n, _ in COLECTORES_NOMBRES]
 
 
 class _Entorno:
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """Acceso al sistema. Las pruebas lo sustituyen por uno simulado."""
 
     def __init__(self, c, ns):
@@ -180,6 +181,7 @@ def read_cpu_temperature(env=None) -> tuple[float | None, str | None]:
 
 
 class LectorTemperatura:
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """Lecturas repetidas de temperatura desde un hilo: abre WMI y LibreHardwareMonitor una sola vez.
     Uso: with LectorTemperatura() as lt: temp, fuente = lt.leer()"""
 

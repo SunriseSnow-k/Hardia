@@ -10,6 +10,7 @@ from string import Template
 
 @dataclass(frozen=True)
 class Paleta:
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     # Texto
     texto: str
     texto_suave: str
@@ -55,6 +56,7 @@ CLARO = Paleta(
 
 
 class _Activa:
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """Acceso a la paleta activa: `T.acento`. Se usa siempre a través de este objeto."""
 
     _paleta: Paleta = CLARO

@@ -101,6 +101,7 @@ def _rango(campo: str, desde, hasta):
 
 
 class SearchQueries:
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """Consultas de búsqueda. Solo ejecuta SELECT; funciona con una conexión de solo lectura."""
 
     def __init__(self, conn: sqlite3.Connection):

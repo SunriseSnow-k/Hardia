@@ -76,6 +76,7 @@ def misma_maquina(scan: dict, locales) -> bool | None:
 
 # ---------------- detalle de un componente ----------------
 class DetalleComponenteDialog(QDialog):
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """% grande, cálculo, barras medido/referencia, datos de Windows, evolución entre
     inspecciones, qué significa y qué hacer."""
 
@@ -264,6 +265,7 @@ class DetalleComponenteDialog(QDialog):
 
 # ---------------- pantalla ----------------
 class SaludPage(QWidget):
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """Si `embebida` es True (dentro del detalle del caso) no muestra el selector de casos."""
     changed = Signal()
 
@@ -772,6 +774,7 @@ class SaludPage(QWidget):
 
 
 class SaludDialog(QDialog):
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """La misma pantalla dentro de un diálogo (desde el detalle del caso)."""
 
     def __init__(self, repo: Repository, code: str, parent=None):

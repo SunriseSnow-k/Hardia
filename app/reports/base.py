@@ -150,6 +150,7 @@ def _canvas_numerado(pie: str):
     """Canvas que escribe 'Página X de N' (necesita conocer el total al final)."""
 
     class _Canvas(rl_canvas.Canvas):
+        # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
         def __init__(self, *args, **kwargs):
             super().__init__(*args, **kwargs)
             self._estados = []

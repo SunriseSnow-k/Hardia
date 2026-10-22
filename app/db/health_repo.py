@@ -17,6 +17,7 @@ def _json(d) -> str:
 
 
 class HealthRepository:
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     def __init__(self, repo: Repository):
         self.repo = repo
         self.c = repo.c

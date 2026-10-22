@@ -10,6 +10,7 @@ from .ollama_client import TIMEOUT_RESPUESTA, AiError, ChatStream
 
 
 class PaqueteStream(ChatStream):
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     def _conexion(self):
         if not paquete.servidor.asegurar(self.model, lambda: self.cancelled):
             return None

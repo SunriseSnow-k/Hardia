@@ -10,6 +10,7 @@ from app.ui.tema import T
 
 
 class WelcomeDialog(QDialog):
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """Asistente de configuración inicial (2 pasos)."""
 
     def __init__(self, repo: Repository, parent=None):

@@ -36,6 +36,7 @@ def _chip_celda(texto: str) -> QWidget:
 
 
 class HistorialPage(QWidget):
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """Historial de casos con búsqueda, filtros combinables y paginación."""
     open_case = Signal(str)
 

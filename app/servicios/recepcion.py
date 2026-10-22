@@ -20,6 +20,7 @@ log = logging.getLogger(__name__)
 
 @dataclass
 class DatosRecepcion:
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     cliente: str
     equipo: str
     serie: str
@@ -36,6 +37,7 @@ class DatosRecepcion:
 
 @dataclass
 class ResultadoRecepcion:
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     code: str
     avisos: list[str] = field(default_factory=list)
     orden_guardada: bool = False

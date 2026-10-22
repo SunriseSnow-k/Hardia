@@ -25,6 +25,7 @@ Linux protege algunos datos: el número de serie, el UUID, los módulos de RAM y
 leen como administrador. En el taller use Escanear → «Escanear con permisos»: el escritorio pide la
 contraseña una vez y el programa sigue abierto como usuario normal (lo mismo al medir los discos en
 la prueba de rendimiento). Para el PC de un cliente use el colector desde una memoria USB
-(Escanear → Preparar USB colector): allí se ejecuta  sh colector.sh  y pide sudo.
+(Escanear → Preparar USB colector): allí se ejecuta  sh colector.sh  y pide sudo. El programa trae
+también el colector de Windows: puede preparar una memoria con los dos.
 
 Datos del programa: ~/.local/share/SistemaDiagnostico (base de datos, reportes, copias, IA).

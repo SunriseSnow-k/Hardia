@@ -15,6 +15,7 @@ from app.paths import VAR_DATOS
 
 
 class Falso(BaseHTTPRequestHandler):
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     protocol_version = "HTTP/1.0"
 
     def log_message(self, *a):

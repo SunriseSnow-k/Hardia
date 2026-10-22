@@ -16,6 +16,9 @@ _DANADO = "El archivo está incompleto o dañado."
 # El colector portátil guarda sus escaneos en <unidad>\Colector\Resultados
 CARPETA_COLECTOR = "Colector"
 CARPETA_RESULTADOS = "Resultados"
+# El colector de Linux va en <unidad>/Colector/linux (el de Windows, suelto en Colector); los dos
+# guardan en Colector/Resultados
+SUBCARPETA_LINUX = "linux"
 
 
 def save_scan(data: dict, path) -> Path:

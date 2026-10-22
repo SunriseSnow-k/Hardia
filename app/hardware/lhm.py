@@ -216,6 +216,7 @@ def _num(v):
 
 
 class Lector:
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """Computer de LHM abierto. Abrirlo cuesta 1-3 s: para lecturas repetidas se reutiliza.
     Uso: with Lector() as l: lecturas = l.leer()"""
 

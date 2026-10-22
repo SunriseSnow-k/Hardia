@@ -42,6 +42,7 @@ from app.ui.widgets import (
 
 
 class CaseDialog(QDialog):
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """Detalle de un caso: datos, estado, diagnóstico, IA, notas, reportes y casos anteriores."""
 
     def __init__(self, repo: Repository, code: str, parent=None):

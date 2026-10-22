@@ -20,6 +20,7 @@ from app.ui.widgets import AreaDesplazable, ChipEstado, cabecera, chip_html, col
 
 
 class ConocimientoPage(QWidget):
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """Consulta de solo lectura de la base de conocimiento local."""
 
     def __init__(self):

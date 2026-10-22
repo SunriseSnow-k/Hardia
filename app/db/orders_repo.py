@@ -28,6 +28,7 @@ def _limpio(texto, campo: str) -> str:
 
 
 class OrdersRepository:
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     def __init__(self, repo: Repository):
         self.repo = repo
         self.c = repo.c

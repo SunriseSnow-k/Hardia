@@ -105,10 +105,12 @@ _MARGEN_DISCO = 300 * 1024 * 1024
 
 
 class PaqueteError(AiError):
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """Error de instalación o de ejecución del paquete (el mensaje se muestra al usuario)."""
 
 
 class Cancelado(Exception):
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """El usuario canceló la descarga."""
 
 
@@ -370,6 +372,7 @@ def _hilos() -> int:
 
 
 class Servidor:
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """llama-server en segundo plano, con un modelo cargado. Se inicia al primer uso y se
     reinicia si se pide otro modelo. Si el programa se cierra de golpe, el sistema lo termina
     (Windows: objeto de trabajo con KILL_ON_JOB_CLOSE; Linux: señal al morir el proceso padre)."""

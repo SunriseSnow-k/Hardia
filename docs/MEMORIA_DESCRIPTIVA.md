@@ -10,8 +10,6 @@
 | Fecha de inicio del desarrollo | 10 de octubre de 2026 |
 | Fecha de conclusión de la versión 1.0.0 | 17 de octubre de 2026 |
 | País de creación | Perú |
-| Autor | Kevin Quiza |
-| Titular de los derechos patrimoniales | *[completar: el autor o la empresa a la que se cedan]* |
 | Lenguaje de programación | Python 3.13 |
 | Plataformas | Windows 10 (1803 o posterior) y Windows 11 de 64 bits; Linux de 64 bits |
 | Tamaño del código propio | 88 archivos de código Python (unas 15 300 líneas), más 33 archivos de pruebas automáticas (unas 5 300 líneas) y 2 bases de conocimiento en JSON |

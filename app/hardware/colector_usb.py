@@ -1,31 +1,39 @@
 """Prepara una memoria USB con el colector portátil (Colector.exe en Windows, Colector en Linux).
 
-El instalador trae el colector en la subcarpeta Colector del programa (build.ps1 lo genera con
-PyInstaller y lo copia allí). Preparar el USB es copiar esa carpeta a <unidad>\\Colector junto
+El instalador trae el colector de su sistema en la subcarpeta Colector del programa (build.ps1 o
+build.sh lo generan con PyInstaller y lo copian allí) y, si se generó en su sistema, el del otro en
+Colectores/<sistema> (ver dist/colectores en build.sh y build.ps1). Así, desde un solo programa se
+prepara una memoria con los dos. Preparar el USB es copiar esa carpeta a <unidad>\\Colector junto
 con un archivo de instrucciones. Los escaneos se guardan en <unidad>\\Colector\\Resultados, donde
 la pantalla Escanear los busca; al actualizar el colector esa carpeta se conserva.
 
-El colector es del mismo sistema que el programa: el de Windows escanea PCs con Windows y el de
-Linux, PCs con Linux. Una misma memoria puede llevar los dos, y cada sistema reemplaza solo el suyo:
+Cada colector escanea solo el sistema en que se ejecuta: el de Windows PCs con Windows y el de Linux
+PCs con Linux. Una misma memoria puede llevar los dos, y preparar uno reemplaza solo ese:
   Colector/Colector.exe, Colector/_internal   colector de Windows
-  Colector/colector.sh, Colector/linux/       colector de Linux
+  Colector/colector.sh, Colector/linux/       colector de Linux (Colector-Linux.com: doble clic)
   Colector/Resultados                         escaneos de los dos (se conservan siempre)
 Las memorias FAT32/exFAT suelen montarse en Linux sin permiso de ejecución: colector.sh pide sudo
 y, si hace falta, ejecuta una copia temporal.
 """
+import os
 import shutil
 import sys
 from pathlib import Path
 
-from app.plataforma import ES_WINDOWS, ejecutable
+from app.plataforma import SISTEMA, ejecutable
 
-from .diag_file import CARPETA_COLECTOR, CARPETA_RESULTADOS
+from .diag_file import CARPETA_COLECTOR, CARPETA_RESULTADOS, SUBCARPETA_LINUX
 
 CARPETA = CARPETA_COLECTOR
+CARPETA_OTROS = "Colectores"  # en el programa: los colectores de los otros sistemas, uno por subcarpeta
+SISTEMAS = ("windows", "linux")
+NOMBRES = {"windows": "Windows", "linux": "Linux"}
 EXE = ejecutable("Colector")
 LANZADOR = "colector.sh"  # solo Linux
-SUBCARPETA_LINUX = "linux"  # el colector de Linux, dentro de Colector (el de Windows va en la raíz)
 EXE_WINDOWS = "Colector.exe"
+# En la memoria el colector de Linux termina en .com: las memorias FAT32 se montan sin permiso de
+# ejecución salvo para .exe, .com y .bat (opción showexec), y así se abre con doble clic
+EXE_USB_LINUX = "Colector-Linux.com"
 INSTRUCCIONES = "LEAME - Colector.txt"
 TEXTO_WINDOWS = """COLECTOR DE DIAGNÓSTICO
 
@@ -48,17 +56,19 @@ En el taller:
 TEXTO_LINUX = """COLECTOR DE DIAGNÓSTICO (Linux)
 
 En el PC del cliente (con Linux):
-  1. Conecte esta memoria USB y abra una terminal en la carpeta Colector
-     (clic derecho en la carpeta → «Abrir en una terminal»).
-  2. Ejecute:  sh colector.sh
-  3. Escriba la contraseña de sudo cuando se la pida (sin ella no se leen el
+  1. Conecte esta memoria USB, abra la carpeta Colector/linux y haga doble
+     clic en Colector-Linux.com: se abre una terminal con el colector.
+     Si el explorador de archivos no lo abre, abra una terminal en la carpeta
+     Colector (clic derecho → «Abrir en una terminal») y ejecute:
+         sh colector.sh
+  2. Escriba la contraseña de sudo cuando se la pida (sin ella no se leen el
      número de serie, los módulos de RAM ni el estado SMART de los discos).
      Para el SMART conviene tener instalado smartmontools.
-  4. Espere a que termine el escaneo: verá un resumen de la salud del equipo.
-  5. Si lo desea, acepte la prueba de rendimiento (unos 2 minutos: mide el
+  3. Espere a que termine el escaneo: verá un resumen de la salud del equipo.
+  4. Si lo desea, acepte la prueba de rendimiento (unos 2 minutos: mide el
      procesador y la velocidad de los discos, solo lectura). Conviene tener el
      cargador conectado y los programas cerrados.
-  6. El archivo .diag queda en la carpeta Colector/Resultados de esta memoria.
+  5. El archivo .diag queda en la carpeta Colector/Resultados de esta memoria.
 
 El colector no instala nada en el PC del cliente (si la memoria no permite
 ejecutar programas, usa una copia temporal que se borra al terminar).
@@ -66,7 +76,7 @@ ejecutar programas, usa una copia temporal que se borra al terminar).
 En el taller:
   Conecte la memoria y abra Escanear → Importar desde USB.
 """
-TEXTO_INSTRUCCIONES = TEXTO_WINDOWS if ES_WINDOWS else TEXTO_LINUX
+TEXTO_INSTRUCCIONES = TEXTO_WINDOWS if SISTEMA == "windows" else TEXTO_LINUX
 SCRIPT_LINUX = r"""#!/bin/sh
 # Colector de diagnóstico: escanea este equipo y guarda el .diag en Resultados (junto a este archivo).
 # Uso:  sh colector.sh
@@ -86,34 +96,57 @@ if [ -f "$BIN/glibc-minima.txt" ] && command -v ldd >/dev/null 2>&1; then
         exit 1
     fi
 fi
-if [ ! -f "$BIN/Colector" ]; then
+EXE="$BIN/Colector-Linux.com"
+[ -f "$EXE" ] || EXE="$BIN/Colector"  # memorias preparadas con una versión anterior
+if [ ! -f "$EXE" ]; then
     echo "No se encontró el colector de Linux en $BIN. Vuelva a preparar la memoria desde el programa."
     exit 1
 fi
 mkdir -p "$DIR/Resultados"
-if [ -x "$BIN/Colector" ]; then
-    exec "$BIN/Colector" "$DIR/Resultados" "$@"
+if [ -x "$EXE" ]; then
+    exec "$EXE" "$DIR/Resultados" "$@"
 fi
-# Memoria sin permiso de ejecución (FAT32/exFAT): copia temporal que se borra al terminar
+# Memoria sin permiso de ejecución: copia temporal que se borra al terminar
 TMP=$(mktemp -d) || exit 1
 trap 'rm -rf "$TMP"' EXIT INT TERM
 cp -r "$BIN"/. "$TMP/"
-chmod +x "$TMP/Colector"
-"$TMP/Colector" "$DIR/Resultados" "$@"
+NOMBRE=$(basename "$EXE")
+chmod +x "$TMP/$NOMBRE"
+"$TMP/$NOMBRE" "$DIR/Resultados" "$@"
 """
 
 
-def origen() -> Path:
-    """Carpeta del colector que acompaña al programa: junto al ejecutable instalado o, en
-    desarrollo, la que deja build.ps1 en dist\\Colector (build.sh en dist/linux/Colector)."""
+# Lo que el técnico ejecuta en el PC del cliente, según el sistema del colector
+PARA_EJECUTAR = {"windows": EXE_WINDOWS, "linux": LANZADOR}
+
+
+def como_ejecutar(ruta: Path, sistema: str = SISTEMA) -> str:
+    """Instrucción breve para abrir el colector que dejó preparar() en `ruta`."""
+    if sistema == "windows":
+        return f"ejecute {ruta}"
+    return (f"abra {ruta.parent / SUBCARPETA_LINUX} y haga doble clic en {EXE_USB_LINUX} "
+            f"(o, en una terminal en {ruta.parent}: sh {ruta.name})")
+
+
+def origen(sistema: str = SISTEMA) -> Path:
+    """Carpeta del colector de `sistema` que acompaña al programa: el de este sistema en Colector y
+    el otro en Colectores/<sistema>. En desarrollo, la que deja el build de ese sistema
+    (dist\\Colector, dist/linux/Colector) o la traída del otro equipo en dist/colectores/<sistema>."""
     if getattr(sys, "frozen", False):
-        return Path(sys.executable).resolve().parent / CARPETA
+        base = Path(sys.executable).resolve().parent
+        return base / CARPETA if sistema == SISTEMA else base / CARPETA_OTROS / sistema
     dist = Path(__file__).resolve().parents[2] / "dist"
-    return dist / CARPETA if ES_WINDOWS else dist / "linux" / CARPETA
+    propia = dist / CARPETA if sistema == "windows" else dist / sistema / CARPETA
+    return propia if disponible(propia, sistema) else dist / "colectores" / sistema
 
 
-def disponible(carpeta: Path | None = None, windows: bool = ES_WINDOWS) -> bool:
-    return ((carpeta or origen()) / (EXE_WINDOWS if windows else "Colector")).is_file()
+def disponible(carpeta: Path | None = None, sistema: str = SISTEMA) -> bool:
+    return ((carpeta or origen(sistema)) / (EXE_WINDOWS if sistema == "windows" else "Colector")).is_file()
+
+
+def disponibles() -> list[str]:
+    """Sistemas cuyos colectores trae esta instalación (el de este sistema primero)."""
+    return [s for s in (SISTEMA, *(x for x in SISTEMAS if x != SISTEMA)) if disponible(sistema=s)]
 
 
 def _tamano(ruta: Path) -> int:
@@ -141,6 +174,9 @@ def _de_windows(destino: Path) -> list[Path]:
     return [p for p in destino.iterdir() if p.name not in ajenas]
 
 
+_PARTES = {"windows": _de_windows, "linux": _de_linux}
+
+
 def _borrar(ruta: Path) -> None:
     if ruta.is_dir() and not ruta.is_symlink():
         shutil.rmtree(ruta)
@@ -153,25 +189,26 @@ def _instrucciones(destino: Path) -> str:
     textos = []
     if (destino / EXE_WINDOWS).is_file():
         textos.append(TEXTO_WINDOWS)
-    if (destino / SUBCARPETA_LINUX / "Colector").is_file():
+    if any((destino / SUBCARPETA_LINUX / n).is_file() for n in (EXE_USB_LINUX, "Colector")):
         textos.append(TEXTO_LINUX)
     return "\n\n".join(textos) or TEXTO_INSTRUCCIONES
 
 
-def preparar(unidad, carpeta: Path | None = None, windows: bool = ES_WINDOWS) -> Path:
+def preparar(unidad, carpeta: Path | None = None, sistema: str = SISTEMA) -> Path:
     """Copia el colector de este sistema a <unidad>\\Colector. Reemplaza solo su versión anterior:
     los escaneos de Resultados y el colector del otro sistema se conservan. Deja las instrucciones
     en la raíz. Devuelve lo que hay que ejecutar en el PC del cliente: Colector.exe en Windows,
     colector.sh en Linux."""
-    fuente = carpeta or origen()
-    if not disponible(fuente, windows):
+    windows = sistema == "windows"
+    fuente = carpeta or origen(sistema)
+    if not disponible(fuente, sistema):
         raise FileNotFoundError("El colector no está incluido en esta instalación. "
                                 "Reinstale el programa con la versión más reciente.")
     unidad = Path(unidad)
     if not unidad.is_dir():
         raise OSError(f"No se encuentra la unidad {unidad}.")
     destino = unidad / CARPETA
-    anteriores = _de_windows(destino) if windows else _de_linux(destino)
+    anteriores = _PARTES[sistema](destino)
     nuevo = _tamano(fuente) - _tamano(fuente / CARPETA_RESULTADOS)
     necesario = nuevo - sum(_tamano(p) for p in anteriores)
     if necesario > shutil.disk_usage(unidad).free:
@@ -182,7 +219,16 @@ def preparar(unidad, carpeta: Path | None = None, windows: bool = ES_WINDOWS) ->
     # de la carpeta de origen (serían de otros equipos)
     temporal = unidad / f"{CARPETA}.nuevo"
     _borrar(temporal)
-    shutil.copytree(fuente, temporal, ignore=lambda c, _n: [CARPETA_RESULTADOS] if Path(c) == fuente else [])
+    no_copiar = [CARPETA_RESULTADOS, "Colector"] if sistema == "linux" else [CARPETA_RESULTADOS]
+
+    def ignorar(carpeta, nombres):
+        rotos = [n for n in nombres if os.path.islink(os.path.join(carpeta, n))
+                 and not os.path.exists(os.path.join(carpeta, n))]
+        return rotos + (no_copiar if Path(carpeta) == fuente else [])
+    # Los enlaces simbólicos se copian como archivos: FAT32 no los admite
+    shutil.copytree(fuente, temporal, ignore=ignorar)
+    if sistema == "linux":  # FAT32 decide el permiso de ejecución al crear el archivo: se crea con su nombre final
+        shutil.copy2(fuente / "Colector", temporal / EXE_USB_LINUX)
     for p in anteriores:
         _borrar(p)
     if windows:
@@ -192,7 +238,24 @@ def preparar(unidad, carpeta: Path | None = None, windows: bool = ES_WINDOWS) ->
     else:
         temporal.rename(destino / SUBCARPETA_LINUX)
     (destino / CARPETA_RESULTADOS).mkdir(exist_ok=True)  # los escaneos ya guardados se conservan
-    if not windows:
+    if sistema == "linux":
         (destino / LANZADOR).write_bytes(SCRIPT_LINUX.encode("utf-8"))  # finales de línea de Unix
     (unidad / INSTRUCCIONES).write_text(_instrucciones(destino), encoding="utf-8-sig")
-    return destino / (EXE_WINDOWS if windows else LANZADOR)
+    return destino / PARA_EJECUTAR[sistema]
+
+
+def preparar_varios(unidad, sistemas: list[str] | None = None) -> dict[str, Path]:
+    """Prepara en la memoria los colectores de `sistemas` (por defecto, todos los que trae esta
+    instalación). Devuelve {sistema: lo que hay que ejecutar}. Si falta espacio para todos, no copia
+    ninguno."""
+    sistemas = sistemas or disponibles()
+    unidad = Path(unidad)
+    if unidad.is_dir():
+        destino = unidad / CARPETA
+        necesario = sum(_tamano(origen(s)) - _tamano(origen(s) / CARPETA_RESULTADOS)
+                        - sum(_tamano(p) for p in _PARTES[s](destino)) for s in sistemas)
+        if necesario > shutil.disk_usage(unidad).free:
+            raise OSError(f"No hay espacio suficiente en {unidad} para los colectores de "
+                          f"{', '.join(NOMBRES[s] for s in sistemas)} "
+                          f"(se necesitan {max(necesario, 0) / 1024 ** 2:.0f} MB).")
+    return {s: preparar(unidad, sistema=s) for s in sistemas}

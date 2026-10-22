@@ -15,6 +15,7 @@ SAFETY_PREFIX = "antes_de_actualizar_"
 
 
 class BaseMasNueva(RuntimeError):
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """La base de datos fue creada por una versión más nueva del programa."""
 
 

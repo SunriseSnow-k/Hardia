@@ -41,6 +41,7 @@ def _abrir(ruta):
 
 
 class ConfiguracionPage(QWidget):
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     restored = Signal()
 
     def __init__(self, repo: Repository, user_id: str):

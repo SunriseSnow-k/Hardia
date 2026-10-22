@@ -1,5 +1,6 @@
 ﻿; Instalador de Sistema Inteligente Offline (Inno Setup 6).
-; Se compila con build.ps1, que primero genera dist\SistemaDiagnostico con PyInstaller.
+; Se compila con build.ps1, que primero genera dist\SistemaDiagnostico con PyInstaller (con el colector
+; de Windows en Colector y, si se generó en Linux, el de Linux en Colectores).
 ; Los datos del usuario (base de datos, reportes, copias y paquete de IA) viven en
 ; %APPDATA%\SistemaDiagnostico y no se tocan al actualizar.
 
@@ -49,6 +50,7 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 ; Al actualizar se eliminan los archivos de la versión anterior (los datos no están aquí)
 Type: filesandordirs; Name: "{app}\_internal"
 Type: filesandordirs; Name: "{app}\Colector"
+Type: filesandordirs; Name: "{app}\Colectores"
 
 [Files]
 Source: "dist\SistemaDiagnostico\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs

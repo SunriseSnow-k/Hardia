@@ -45,6 +45,7 @@ log = logging.getLogger(__name__)
 
 
 class MainWindow(QMainWindow):
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     closed = Signal()  # la ventana terminó de cerrarse (para salir o volver al login)
 
     def __init__(self, repo: Repository, user_id: str):

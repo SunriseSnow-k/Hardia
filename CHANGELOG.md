@@ -7,6 +7,10 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y l
 ## Sin publicar
 
 ### Agregado
+- Cada instalador (Windows y Linux) incluye los colectores de los dos sistemas: desde el programa de
+  cualquiera se prepara una memoria con **Todos** o con uno solo. Los colectores se generan cada uno en su
+  sistema (`build.ps1 -SoloColector`, `build.sh --solo-colector`) y `tools/colectores.py` los incluye en el
+  otro; el flujo **Paquetes** de GitHub Actions hace todo el proceso y publica los dos instaladores.
 - README, memoria descriptiva, manual de usuario y este historial de cambios.
 - Linux: botón **Escanear con permisos** en Escanear equipo. Pide la contraseña de administrador con
   pkexec una sola vez y lee el número de serie, el UUID, los módulos de RAM y el SMART de los discos sin
@@ -26,6 +30,11 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y l
 - Linux: las memorias USB conectadas pero sin montar no se reconocían para preparar el colector ni para
   importar escaneos. Ahora se montan solas con udisksctl (sin contraseña).
 - Preparar el colector de Linux borraba el colector de Windows que ya tenía la memoria.
+- Linux: el colector no se podía abrir con doble clic desde una memoria FAT32 («Permiso denegado»). En la
+  memoria se llama `Colector-Linux.com` (FAT32 solo permite ejecutar .exe, .com y .bat) y, abierto sin
+  terminal, abre una (COSMIC, GNOME, KDE, XFCE…) con `colector.sh`, que pide sudo.
+- Linux: el colector ejecutado directamente guardaba en `Colector/linux/Resultados` en lugar de la carpeta
+  común `Colector/Resultados`.
 - Linux: la copia de la base de referencias del taller se buscaba en `%APPDATA%` y no en
   `~/.local/share/SistemaDiagnostico`.
 - Linux: el instalador y el desinstalador no detectaban el programa abierto (el nombre del proceso se corta

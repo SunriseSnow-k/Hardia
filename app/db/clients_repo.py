@@ -19,6 +19,7 @@ def normalize_doc(doc: str) -> str:
 
 
 class ClientsRepository:
+    # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     def __init__(self, repo: Repository):
         self.c = repo.c
 
