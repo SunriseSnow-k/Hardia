@@ -1,11 +1,11 @@
-SISTEMA INTELIGENTE OFFLINE — LINUX
+HARDIA — LINUX
 
 Instalar (el programa no necesita sudo):
   1. Descomprima este archivo en una carpeta de Linux (no en una memoria FAT32 o NTFS).
   2. Abra una terminal en la carpeta descomprimida y ejecute:  sh instalar.sh
      Al final ofrece instalar los paquetes recomendados (pide sudo; puede omitirlo).
      Opciones: --con-dependencias (sin preguntar) o --sin-dependencias.
-  3. Abra «Sistema Inteligente Offline» desde el menú de aplicaciones.
+  3. Abra «Hardia» desde el menú de aplicaciones.
 
 Desinstalar:  sh desinstalar.sh   (sus datos se conservan)
 

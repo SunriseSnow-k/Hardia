@@ -184,7 +184,7 @@ def _construir(story: list, path, titulo: str, autor: str, code: str) -> None:
     doc = SimpleDocTemplate(
         str(path), pagesize=A4, leftMargin=20 * mm, rightMargin=20 * mm,
         topMargin=18 * mm, bottomMargin=20 * mm, title=titulo,
-        author=autor or "Sistema Inteligente Offline",
+        author=autor or "Hardia",
     )
-    pie = f"Sistema Inteligente Offline · Caso {code} · Documento generado localmente"
+    pie = f"Hardia · Caso {code} · Documento generado localmente"
     doc.build(story, canvasmaker=_canvas_numerado(pie))

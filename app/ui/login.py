@@ -23,7 +23,7 @@ class LoginDialog(QDialog):
         self.first_run = repo.count_users() == 0
         self.user_id = ""
         self.sesion: cuentas.Sesion | None = None
-        self.setWindowTitle("Sistema Inteligente Offline — Iniciar sesión")
+        self.setWindowTitle("Hardia — Iniciar sesión")
         self.setFixedSize(900, 560)
 
         root = QHBoxLayout(self)
@@ -40,7 +40,7 @@ class LoginDialog(QDialog):
         icon = QLabel()
         icon.setPixmap(QIcon(str(recurso("assets", "icono.png"))).pixmap(72, 72))
         icon.setFixedSize(72, 72)
-        title = QLabel("Sistema Inteligente Offline")
+        title = QLabel("Hardia")
         title.setStyleSheet("font-size:22px; font-weight:600;")
         subtitle = QLabel("Diagnóstico asistido y mantenimiento de computadoras. "
                           "Funciona sin Internet: los datos se quedan en este equipo.")

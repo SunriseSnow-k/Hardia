@@ -1,4 +1,4 @@
-# Manual de usuario — Sistema Inteligente Offline 1.0
+# Manual de usuario — Hardia 1.0
 
 ## Contenido
 1. [Introducción](#1-introducción)
@@ -19,7 +19,7 @@
 
 ## 1. Introducción
 
-Sistema Inteligente Offline ayuda a los talleres de mantenimiento de computadoras a registrar los equipos
+Hardia ayuda a los talleres de mantenimiento de computadoras a registrar los equipos
 que reciben, leer su hardware, evaluar su estado, diagnosticar la falla, presupuestar, cobrar y entregar.
 Funciona **sin Internet** y todos los datos quedan en la computadora del taller.
 
@@ -50,7 +50,7 @@ Funciona **sin Internet** y todos los datos quedan en la computadora del taller.
 3. Al final, el instalador ofrece instalar los paquetes recomendados (`smartmontools`, `dmidecode`,
    `pciutils`, `lm-sensors` y `libxcb-cursor0`); para eso sí pide la contraseña de `sudo`. Puede omitirlos
    y el programa funciona igual, con menos datos del hardware.
-4. Abra «Sistema Inteligente Offline» desde el menú de aplicaciones o escriba `sistemadiagnostico`.
+4. Abra «Hardia» desde el menú de aplicaciones o escriba `sistemadiagnostico`.
 
 El paquete funciona en distribuciones con una versión de glibc igual o más nueva que la del equipo donde se
 generó; el instalador lo comprueba y avisa si el equipo es demasiado antiguo.

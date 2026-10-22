@@ -54,7 +54,7 @@ class MainWindow(QMainWindow):
         self._hits: dict[str, str] = {}
         self._skip_backup = False
         self.logout_requested = False
-        self.setWindowTitle("Sistema Inteligente Offline")
+        self.setWindowTitle("Hardia")
         self.resize(1280, 780)
 
         central = QWidget()
@@ -147,7 +147,7 @@ class MainWindow(QMainWindow):
         tl = QHBoxLayout(top)
         tl.setContentsMargins(18, 10, 18, 10)
         tl.setSpacing(10)
-        name = QLabel("Sistema Inteligente Offline")
+        name = QLabel("Hardia")
         name.setObjectName("AppName")
         tl.addWidget(name)
         offline = QLabel("● Modo Offline")

@@ -1,4 +1,4 @@
-﻿; Instalador de Sistema Inteligente Offline (Inno Setup 6).
+﻿; Instalador de Hardia (Inno Setup 6).
 ; Se compila con build.ps1, que primero genera dist\SistemaDiagnostico con PyInstaller (con el colector
 ; de Windows en Colector y, si se generó en Linux, el de Linux en Colectores).
 ; Los datos del usuario (base de datos, reportes, copias y paquete de IA) viven en
@@ -7,7 +7,7 @@
 #ifndef AppVersion
   #define AppVersion "1.0.0"
 #endif
-#define AppName "Sistema Inteligente Offline"
+#define AppName "Hardia"
 #define AppExe "SistemaDiagnostico.exe"
 
 [Setup]

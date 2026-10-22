@@ -4,7 +4,7 @@
 
 | Campo | Dato |
 |---|---|
-| Título | Sistema Inteligente Offline |
+| Título | Hardia |
 | Versión | 1.0.0 |
 | Tipo de obra | Programa de ordenador (software) |
 | Fecha de inicio del desarrollo | 10 de octubre de 2026 |

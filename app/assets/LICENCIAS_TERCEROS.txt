@@ -1,5 +1,5 @@
-Sistema Inteligente Offline - Componentes de terceros
-======================================================
+Hardia - Componentes de terceros
+================================
 
 El programa incluye o descarga los siguientes componentes. Cada uno conserva su propia licencia.
 

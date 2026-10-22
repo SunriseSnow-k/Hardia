@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Genera el paquete de Sistema Inteligente Offline para Linux en un solo paso:
+# Genera el paquete de Hardia para Linux en un solo paso:
 #   1. calidad (ruff, mypy, pruebas con cobertura)   2. programa (PyInstaller)   3. paquete .tar.gz
 # Uso:  ./build.sh                 (todo)
 #       ./build.sh --sin-pruebas
@@ -26,7 +26,7 @@ export PY  # calidad.sh usa el mismo Python
 
 VERSION=$(sed -n 's/^VERSION *= *"\(.*\)"/\1/p' app/version.py)
 ARQ=$(uname -m)
-echo "== Sistema Inteligente Offline $VERSION (Linux $ARQ) =="
+echo "== Hardia $VERSION (Linux $ARQ) =="
 
 PRUEBAS=si
 SOLO_COLECTOR=no

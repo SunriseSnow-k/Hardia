@@ -1,4 +1,4 @@
-# Genera el instalador de Sistema Inteligente Offline en un solo paso:
+# Genera el instalador de Hardia en un solo paso:
 #   1. calidad (ruff, mypy, pruebas con cobertura)   2. programa (PyInstaller)   3. instalador (Inno Setup)
 # Uso:  .\build.ps1               (todo)
 #       .\build.ps1 -SinPruebas
@@ -15,7 +15,7 @@ $py = Join-Path $PSScriptRoot ".venv\Scripts\python.exe"
 if (-not (Test-Path $py)) { throw "No se encontro el entorno .venv. Cree uno e instale requirements-dev.txt" }
 
 $version = (Select-String -Path "app\version.py" -Pattern 'VERSION\s*=\s*"([^"]+)"').Matches[0].Groups[1].Value
-Write-Host "== Sistema Inteligente Offline $version ==" -ForegroundColor Cyan
+Write-Host "== Hardia $version ==" -ForegroundColor Cyan
 
 if (-not $SinPruebas -and -not $SoloColector) {
     Write-Host "-- Calidad" -ForegroundColor Cyan

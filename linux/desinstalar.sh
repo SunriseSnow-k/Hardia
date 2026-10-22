@@ -1,5 +1,5 @@
 #!/bin/sh
-# Desinstala Sistema Inteligente Offline del usuario actual. Los datos NO se borran:
+# Desinstala Hardia del usuario actual. Los datos NO se borran:
 # quedan en ~/.local/share/SistemaDiagnostico (bórrelos a mano si ya no los necesita).
 # Uso:  sh desinstalar.sh
 DATOS="${XDG_DATA_HOME:-$HOME/.local/share}"

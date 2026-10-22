@@ -1,6 +1,6 @@
-# Sistema Inteligente Offline
+# Hardia
 
-Sistema de diagnóstico asistido para talleres de mantenimiento de computadoras. Funciona **sin conexión a
+Hardia es un sistema de diagnóstico asistido para talleres de mantenimiento de computadoras. Funciona **sin conexión a
 Internet**: registra la recepción de equipos, lee el hardware, evalúa la salud de cada componente, propone
 posibles causas con un motor de reglas propio y, de forma opcional, con una IA local. Genera los documentos
 del taller en PDF (reporte técnico, informe para el cliente, orden de servicio, presupuesto y estado de cuenta).

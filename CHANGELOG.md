@@ -26,6 +26,11 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y l
 - Una misma memoria USB puede llevar el colector de Windows y el de Linux: cada programa reemplaza solo el
   suyo (el de Linux va en `Colector/linux`) y los escaneos de `Colector/Resultados` se conservan.
 
+### Cambiado
+- El programa se llama ahora **Hardia** (antes, Sistema Inteligente Offline). Cambian el nombre
+  visible en las ventanas, el instalador, el menú de aplicaciones y los PDF; las carpetas de datos y los
+  ejecutables conservan sus nombres, así que una instalación anterior se actualiza sin perder datos.
+
 ### Corregido
 - Linux: las memorias USB conectadas pero sin montar no se reconocían para preparar el colector ni para
   importar escaneos. Ahora se montan solas con udisksctl (sin contraseña).

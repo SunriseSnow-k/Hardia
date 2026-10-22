@@ -1,5 +1,5 @@
 #!/bin/sh
-# Instala Sistema Inteligente Offline en Linux para el usuario actual (el programa no necesita sudo).
+# Instala Hardia en Linux para el usuario actual (el programa no necesita sudo).
 #   Programa:  ~/.local/opt/SistemaDiagnostico
 #   Menú:      ~/.local/share/applications/sistemadiagnostico.desktop
 #   Ícono:     ~/.local/share/icons/hicolor/256x256/apps/sistemadiagnostico.png
@@ -84,7 +84,7 @@ cp "$DESTINO/_internal/app/assets/icono.png" "$ICONOS/sistemadiagnostico.png"
 cat > "$MENU/sistemadiagnostico.desktop" <<EOF
 [Desktop Entry]
 Type=Application
-Name=Sistema Inteligente Offline
+Name=Hardia
 GenericName=Diagnóstico de computadoras
 Comment=Diagnóstico de computadoras para talleres de servicio técnico
 Exec="$DESTINO/SistemaDiagnostico"
@@ -99,7 +99,7 @@ ln -sf "$DESTINO/SistemaDiagnostico" "$BIN/sistemadiagnostico"
 command -v update-desktop-database >/dev/null 2>&1 && update-desktop-database "$MENU" >/dev/null 2>&1 || true
 command -v gtk-update-icon-cache >/dev/null 2>&1 && gtk-update-icon-cache -q -t "$DATOS/icons/hicolor" >/dev/null 2>&1 || true
 
-echo "Listo. Abra «Sistema Inteligente Offline» desde el menú de aplicaciones"
+echo "Listo. Abra «Hardia» desde el menú de aplicaciones"
 echo "o escriba sistemadiagnostico en una terminal."
 case ":$PATH:" in
     *":$BIN:"*) ;;
