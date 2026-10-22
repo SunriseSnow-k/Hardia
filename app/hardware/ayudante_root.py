@@ -85,6 +85,8 @@ def leer_dispositivo(ruta: str, duracion: float, cancelado=lambda: False, al_ava
     """Lectura secuencial sin caché (O_DIRECT) de un dispositivo de bloque, solo lectura.
     Devuelve {lectura_mb_s, bytes, duracion_s, estado, motivo[, cancelado]}."""
     base = {"lectura_mb_s": None, "bytes": 0, "duracion_s": 0.0, "estado": "ok", "motivo": ""}
+    if sys.platform == "win32":  # solo Linux (os.readv no existe en Windows)
+        return {**base, "estado": "fallo", "motivo": "solo disponible en Linux"}
     try:
         fd = os.open(ruta, os.O_RDONLY | getattr(os, "O_DIRECT", 0))
     except PermissionError:
