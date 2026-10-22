@@ -7,7 +7,7 @@ del taller en PDF (reporte técnico, informe para el cliente, orden de servicio,
 
 La validación final del diagnóstico siempre la realiza el técnico.
 
-- Versión actual: **1.0.0** (ver [CHANGELOG.md](CHANGELOG.md))
+- Versión actual: **1.1.0** (ver [CHANGELOG.md](CHANGELOG.md))
 - Sistemas: Windows 10 (1803 o posterior) y Windows 11 de 64 bits; Linux de 64 bits (Ubuntu 22.04 o posterior)
 - Documentación:
   - [Manual de usuario](docs/MANUAL_DE_USUARIO.md)

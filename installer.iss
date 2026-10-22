@@ -5,7 +5,7 @@
 ; %APPDATA%\SistemaDiagnostico y no se tocan al actualizar.
 
 #ifndef AppVersion
-  #define AppVersion "1.0.0"
+  #define AppVersion "1.1.0"
 #endif
 #define AppName "Hardia"
 #define AppExe "SistemaDiagnostico.exe"

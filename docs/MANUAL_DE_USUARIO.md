@@ -1,4 +1,4 @@
-# Manual de usuario — Hardia 1.0
+# Manual de usuario — Hardia 1.1
 
 ## Contenido
 1. [Introducción](#1-introducción)
@@ -37,7 +37,7 @@ Funciona **sin Internet** y todos los datos quedan en la computadora del taller.
 ## 3. Instalación
 
 ### Windows
-1. Ejecute `SistemaDiagnostico-Setup-1.0.0.exe`.
+1. Ejecute `SistemaDiagnostico-Setup-1.1.0.exe`.
 2. Siga los pasos del asistente. Si quiere, marque la opción de crear un acceso directo en el escritorio.
 3. Si Windows pide permiso para instalar el controlador de sensores **PawnIO**, acéptelo. Este
    controlador permite leer la temperatura del procesador. Si lo cancela, puede instalarlo más tarde desde

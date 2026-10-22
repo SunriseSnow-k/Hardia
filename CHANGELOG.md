@@ -6,6 +6,8 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y l
 
 ## Sin publicar
 
+## 1.1.0 - 2026-10-22
+
 ### Agregado
 - Cada instalador (Windows y Linux) incluye los colectores de los dos sistemas: desde el programa de
   cualquiera se prepara una memoria con **Todos** o con uno solo. Los colectores se generan cada uno en su

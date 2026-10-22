@@ -5,15 +5,15 @@
 | Campo | Dato |
 |---|---|
 | Título | Hardia |
-| Versión | 1.0.0 |
+| Versión | 1.1.0 |
 | Tipo de obra | Programa de ordenador (software) |
 | Fecha de inicio del desarrollo | 10 de octubre de 2026 |
-| Fecha de conclusión de la versión 1.0.0 | 17 de octubre de 2026 |
+| Fecha de conclusión de la versión 1.1.0 | 22 de octubre de 2026 |
 | País de creación | Perú |
 | Lenguaje de programación | Python 3.13 |
 | Plataformas | Windows 10 (1803 o posterior) y Windows 11 de 64 bits; Linux de 64 bits |
-| Tamaño del código propio | 88 archivos de código Python (unas 15 300 líneas), más 33 archivos de pruebas automáticas (unas 5 300 líneas) y 2 bases de conocimiento en JSON |
-| Forma de distribución | Instalador de Windows (`SistemaDiagnostico-Setup-1.0.0.exe`) y paquete `.tar.gz` para Linux |
+| Tamaño del código propio | 91 archivos de código Python (unas 16 100 líneas), más 34 archivos de pruebas automáticas (unas 5 800 líneas) y 2 bases de conocimiento en JSON |
+| Forma de distribución | Instalador de Windows (`SistemaDiagnostico-Setup-1.1.0.exe`) y paquete `.tar.gz` para Linux |
 
 ## 2. Objeto y finalidad
 
@@ -56,9 +56,10 @@ realiza el técnico.
   y así se evita duplicar equipos o mezclar sus historiales.
 - **Archivo `.diag`**: formato propio en JSON (identificador `SD-DIAG`, versión 2) que permite llevar un
   escaneo en una memoria USB e importarlo después en el taller.
-- **Colector portátil**: un segundo ejecutable (`Colector.exe` en Windows, `colector.sh` en Linux) que se
-  ejecuta desde la memoria USB en el PC del cliente sin instalar nada. Escanea el equipo, muestra un
-  resumen de salud y guarda el `.diag`.
+- **Colector portátil**: un segundo ejecutable (`Colector.exe` en Windows; en Linux, `Colector-Linux.com`,
+  que se abre con doble clic, o `colector.sh`) que se ejecuta desde la memoria USB en el PC del cliente sin
+  instalar nada. Escanea el equipo, muestra un resumen de salud y guarda el `.diag`. Cada instalador trae
+  los colectores de los dos sistemas, así que una misma memoria sirve para PCs con Windows o con Linux.
 
 ### 3.4 Salud del equipo
 - Evalúa cada componente (batería, memoria, discos, refrigeración, procesador) y le asigna uno de estos
@@ -187,18 +188,20 @@ El programa usa estos componentes, cada uno con su propia licencia. **No se recl
 
 ## 8. Aseguramiento de la calidad
 
-- 382 pruebas automáticas con pytest. Cubren la base de datos, las migraciones, las transacciones, las
+- 417 pruebas automáticas con pytest. Cubren la base de datos, las migraciones, las transacciones, las
   cuentas, el motor de reglas, la salud, el cobro, el colector, Linux y la interfaz.
 - Cobertura de código mínima del 80 %, exigida por la herramienta.
 - Análisis estático con ruff (estilo, errores probables y reglas de seguridad) y verificación de tipos con mypy.
 - Integración continua en Windows y en Ubuntu 22.04 en cada cambio.
-- El empaquetado (`build.ps1`) solo genera el instalador si antes pasan todos los controles.
+- El empaquetado (`build.ps1` en Windows, `build.sh` en Linux) solo genera el instalador si antes pasan
+  todos los controles.
 
 ## 9. Ejemplar de la obra
 
 El ejemplar que acompaña esta memoria contiene el código fuente propio:
 - `main.py`
 - Todos los archivos `.py` de la carpeta `app`, excepto `app/vendor`
+- Las herramientas de la carpeta `tools` (generación del ícono y empaquetado de los colectores)
 - Las bases de conocimiento `app/diagnosis/rules.json` y `app/health/references.json`
 
 Quedan excluidas las bibliotecas de terceros: las carpetas `app/vendor`, `redist` y `.venv`, y los

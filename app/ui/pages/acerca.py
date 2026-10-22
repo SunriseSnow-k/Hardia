@@ -112,8 +112,9 @@ class AcercaPage(QWidget):
         lay.addWidget(p2)
 
         p3, v3 = panel("Evolución prevista")
-        evo = QLabel("<b>1.0</b> (actual): recepción, escaneo, reglas, IA local acotada, reportes y copias.<br>"
-                     "<b>1.1</b>: más cobertura de componentes. <i>Próximamente</i><br>"
+        evo = QLabel("<b>1.0</b>: recepción, escaneo, reglas, IA local acotada, reportes y copias.<br>"
+                     "<b>1.1</b> (actual): Linux completo y colector USB de Windows y Linux en una misma memoria.<br>"
+                     "<b>1.2</b>: más cobertura de componentes. <i>Próximamente</i><br>"
                      "<b>2.0</b>: aprendizaje automático local. <i>Próximamente</i><br>"
                      "<b>2.5</b>: predicción de fallas. <i>Próximamente</i>")
         evo.setTextFormat(Qt.RichText)
