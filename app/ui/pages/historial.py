@@ -14,12 +14,12 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from app.db.repo import ESTADOS, PRIORIDADES, Repository
+from app.db.repo import ESTADOS, PRIORIDADES, QAKM_Repository
 from app.db.search_repo import PAGE_SIZE, pages
-from app.ui.search_widgets import AsyncSearch, DateRangeFilter, PagerBar
+from app.ui.search_widgets import MVCD_AsyncSearch, MVCD_DateRangeFilter, MVCD_PagerBar
 from app.ui.styles import ACCENT
 from app.ui.tema import T
-from app.ui.widgets import ChipEstado, cabecera, fecha_corta, panel
+from app.ui.widgets import MVCD_ChipEstado, cabecera, fecha_corta, panel
 
 COLUMNAS = ["Código", "Fecha", "Cliente", "Equipo", "Serie", "Problema",
             "Prioridad", "Estado", "Método de análisis"]
@@ -30,21 +30,21 @@ def _chip_celda(texto: str) -> QWidget:
     w = QWidget()
     h = QHBoxLayout(w)
     h.setContentsMargins(8, 0, 8, 0)
-    h.addWidget(ChipEstado(texto))
+    h.addWidget(MVCD_ChipEstado(texto))
     h.addStretch()
     return w
 
 
-class HistorialPage(QWidget):
+class MVCD_HistorialPage(QWidget):
     # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """Historial de casos con búsqueda, filtros combinables y paginación."""
     open_case = Signal(str)
 
-    def __init__(self, repo: Repository):
+    def __init__(self, repo: QAKM_Repository):
         super().__init__()
         self.repo = repo
         self._pagina = 0
-        self.busqueda = AsyncSearch(repo, self)
+        self.busqueda = MVCD_AsyncSearch(repo, self)
         self.busqueda.resultado.connect(self._on_resultado)
         self.busqueda.error.connect(self._on_error)
         self._timer = QTimer(self)
@@ -74,7 +74,7 @@ class HistorialPage(QWidget):
         self.f_prio = self._combo(["Todas las prioridades", *PRIORIDADES])
         self.f_diag = self._combo(["Con o sin diagnóstico", "Con diagnóstico", "Sin diagnóstico"])
         self.f_metodo = self._combo(["Todos los métodos", "Reglas", "Reglas + IA local"])
-        self.fechas = DateRangeFilter()
+        self.fechas = MVCD_DateRangeFilter()
         self.fechas.changed.connect(self._nueva_busqueda)
         b_limpiar = QPushButton("Limpiar filtros")
         b_limpiar.setObjectName("Secondary")
@@ -110,7 +110,7 @@ class HistorialPage(QWidget):
         self.tabla.cellDoubleClicked.connect(self._doble_clic)
         root.addWidget(self.tabla, 1)
 
-        self.pager = PagerBar()
+        self.pager = MVCD_PagerBar()
         self.pager.cambiar.connect(self._ir_pagina)
         root.addWidget(self.pager)
 

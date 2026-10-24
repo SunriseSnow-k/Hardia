@@ -1,15 +1,15 @@
 """Chat con el motor del paquete de IA (llama-server, API compatible con OpenAI).
 
-Reutiliza el hilo lector y la cancelación de ChatStream; solo cambia cómo se conecta y
+Reutiliza el hilo lector y la cancelación de VONF_ChatStream; solo cambia cómo se conecta y
 cómo se lee la respuesta (eventos «data: …» en lugar de líneas JSON de Ollama)."""
 import http.client
 import json
 
 from . import paquete
-from .ollama_client import TIMEOUT_RESPUESTA, AiError, ChatStream
+from .ollama_client import TIMEOUT_RESPUESTA, VONF_AiError, VONF_ChatStream
 
 
-class PaqueteStream(ChatStream):
+class VONF_PaqueteStream(VONF_ChatStream):
     # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     def _conexion(self):
         if not paquete.servidor.asegurar(self.model, lambda: self.cancelled):
@@ -32,11 +32,11 @@ class PaqueteStream(ChatStream):
                 return
             resp = conn.getresponse()
         except TimeoutError as e:
-            raise AiError("El motor de IA tardó demasiado en responder.") from e
+            raise VONF_AiError("El motor de IA tardó demasiado en responder.") from e
         except (OSError, http.client.HTTPException) as e:
             if self.cancelled:
                 return
-            raise AiError("No se pudo conectar con el motor de IA.") from e
+            raise VONF_AiError("No se pudo conectar con el motor de IA.") from e
 
         if resp.status != 200:
             try:
@@ -44,17 +44,17 @@ class PaqueteStream(ChatStream):
                 texto = error.get("message", "") if isinstance(error, dict) else str(error)
             except (ValueError, OSError, http.client.HTTPException):
                 texto = ""
-            raise AiError(texto or f"El motor de IA respondió con el código {resp.status}.")
+            raise VONF_AiError(texto or f"El motor de IA respondió con el código {resp.status}.")
 
         while not self.cancelled:
             try:
                 linea = resp.readline()
             except TimeoutError as e:
-                raise AiError("El motor de IA tardó demasiado en responder.") from e
+                raise VONF_AiError("El motor de IA tardó demasiado en responder.") from e
             except (OSError, http.client.HTTPException) as e:
                 if self.cancelled:
                     return
-                raise AiError("Se perdió la conexión con el motor de IA.") from e
+                raise VONF_AiError("Se perdió la conexión con el motor de IA.") from e
             if not linea:
                 return
             linea = linea.strip()
@@ -69,7 +69,7 @@ class PaqueteStream(ChatStream):
                 continue
             if "error" in data:
                 error = data["error"]
-                raise AiError(error.get("message", str(error)) if isinstance(error, dict) else str(error))
+                raise VONF_AiError(error.get("message", str(error)) if isinstance(error, dict) else str(error))
             for opcion in data.get("choices") or []:
                 texto = (opcion.get("delta") or {}).get("content") or ""
                 if texto:

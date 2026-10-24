@@ -14,7 +14,7 @@ from pathlib import Path
 SAFETY_PREFIX = "antes_de_actualizar_"
 
 
-class BaseMasNueva(RuntimeError):
+class QAKM_BaseMasNueva(RuntimeError):
     # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """La base de datos fue creada por una versión más nueva del programa."""
 
@@ -260,7 +260,7 @@ def migrar(conn, carpeta_copias=None) -> list[int]:
     indica `carpeta_copias`, antes se guarda una copia de seguridad de la base tal como estaba."""
     actual = version(conn)
     if actual > VERSION_ACTUAL:
-        raise BaseMasNueva(
+        raise QAKM_BaseMasNueva(
             f"La base de datos fue creada por una versión más nueva del programa (esquema {actual}; "
             f"esta versión conoce hasta el {VERSION_ACTUAL}). Instale la versión más reciente.")
     pendientes = [m for m in MIGRACIONES if m[0] > actual]

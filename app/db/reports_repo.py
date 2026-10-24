@@ -1,13 +1,13 @@
 import sqlite3
 
-from .repo import Repository
+from .repo import QAKM_Repository
 
 
-class ReportsRepository:
+class QAKM_ReportsRepository:
     # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """Registro de los reportes PDF generados."""
 
-    def __init__(self, repo: Repository):
+    def __init__(self, repo: QAKM_Repository):
         self.c = repo.c
 
     def add(self, case_code: str, kind: str, path: str) -> None:

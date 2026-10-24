@@ -17,18 +17,18 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from app.db.clients_repo import ClientsRepository
-from app.db.hardware_repo import HardwareRepository
-from app.db.health_repo import HealthRepository
+from app.db.clients_repo import QAKM_ClientsRepository
+from app.db.hardware_repo import QAKM_HardwareRepository
+from app.db.health_repo import QAKM_HealthRepository
 from app.db.orders_repo import ACCESORIOS
-from app.db.repo import PRIORIDADES, Repository
-from app.db.reports_repo import ReportsRepository
+from app.db.repo import PRIORIDADES, QAKM_Repository
+from app.db.reports_repo import QAKM_ReportsRepository
 from app.hardware.inventory import fmt_bytes
 from app.reports.service import generate_report
 from app.servicios import recepcion
-from app.servicios.recepcion import DatosRecepcion
+from app.servicios.recepcion import VONF_DatosRecepcion
 from app.ui.tema import T
-from app.ui.widgets import AreaDesplazable, cabecera, campo, fecha_corta, limpiar_layout, lista_dato_valor, muted, panel
+from app.ui.widgets import MVCD_AreaDesplazable, cabecera, campo, fecha_corta, limpiar_layout, lista_dato_valor, muted, panel
 
 log = logging.getLogger(__name__)
 TIPOS_ID = {"uuid": "UUID", "serial": "número de serie", "board_serial": "serie de la placa", "mac": "MAC"}
@@ -89,7 +89,7 @@ def datos_equipo(scan: dict) -> list[tuple[str, str]]:
             ("Sistema", sistema), ("Origen", origen)]
 
 
-class RecepcionPage(QWidget):
+class MVCD_RecepcionPage(QWidget):
     # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     case_created = Signal(str)
     open_case = Signal(str)
@@ -97,13 +97,13 @@ class RecepcionPage(QWidget):
 
     CHIPS = ["Lento", "Se apaga", "No enciende", "Se calienta", "Disco lleno", "Pantalla azul"]
 
-    def __init__(self, repo: Repository, tech_id: str = ""):
+    def __init__(self, repo: QAKM_Repository, tech_id: str = ""):
         super().__init__()
         self.repo = repo
         self.tech_id = tech_id
-        self.hwr = HardwareRepository(repo)
-        self.clients = ClientsRepository(repo)
-        self.health = HealthRepository(repo)
+        self.hwr = QAKM_HardwareRepository(repo)
+        self.clients = QAKM_ClientsRepository(repo)
+        self.health = QAKM_HealthRepository(repo)
         self._prev_code = None
         self.hw: dict | None = None
 
@@ -119,7 +119,7 @@ class RecepcionPage(QWidget):
         root = QVBoxLayout(cuerpo_w)
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(12)
-        scroll = AreaDesplazable(cuerpo_w)
+        scroll = MVCD_AreaDesplazable(cuerpo_w)
         outer.addWidget(scroll, 1)
 
         # Aviso de reingreso
@@ -416,7 +416,7 @@ class RecepcionPage(QWidget):
         acc = [b.text() for b in self.accesorios if b.isChecked()]
         if self.otros_acc.text().strip():
             acc.append(self.otros_acc.text().strip())
-        datos = DatosRecepcion(
+        datos = VONF_DatosRecepcion(
             cliente=self.cliente.text().strip(), telefono=self.telefono.text().strip(),
             documento=self.documento.text(), equipo=self.equipo.text().strip(),
             serie=self.serie.text().strip(), problema=", ".join(partes),
@@ -438,7 +438,7 @@ class RecepcionPage(QWidget):
         avisos = [f"Aviso: {a}" for a in res.avisos]
         if self.chk_orden.isChecked() and res.orden_guardada:
             try:
-                ruta = generate_report(self.repo, ReportsRepository(self.repo), res.code, "orden", self.tech_id)
+                ruta = generate_report(self.repo, QAKM_ReportsRepository(self.repo), res.code, "orden", self.tech_id)
                 QDesktopServices.openUrl(QUrl.fromLocalFile(str(ruta)))
             except Exception as e:
                 log.exception("No se pudo generar la orden de servicio")

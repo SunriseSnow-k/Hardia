@@ -74,11 +74,11 @@ def test_instalar_pawnio_eleva_y_espera(monkeypatch):
 def test_boton_instalar_controlador(monkeypatch):
     from PySide6.QtWidgets import QApplication, QPushButton
     QApplication.instance() or QApplication([])
-    from app.ui.pages.escaneo import EscaneoPage
+    from app.ui.pages.escaneo import MVCD_EscaneoPage
     estado = {"instalado": False}
     monkeypatch.setattr(lhm, "pawnio_instalado", lambda: estado["instalado"])
     monkeypatch.setattr(lhm, "es_administrador", lambda: True)
-    pagina = EscaneoPage()
+    pagina = MVCD_EscaneoPage()
     botones = [b for b in pagina.aviso_sensores.findChildren(QPushButton) if b.text() == "Instalar controlador"]
     assert len(botones) == 1 and not pagina.aviso_sensores.isHidden()
 

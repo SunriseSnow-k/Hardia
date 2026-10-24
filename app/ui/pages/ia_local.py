@@ -21,11 +21,11 @@ from PySide6.QtWidgets import (
 from app.ai import config as ia_config
 from app.ai import paquete, prompts
 from app.ai.ollama_client import TIMEOUT_RESPUESTA, OllamaError, has_model, list_models
-from app.db.repo import Repository
+from app.db.repo import QAKM_Repository
 from app.diagnosis.engine import load_rules
-from app.ui.ai_widgets import AiStreamPanel
+from app.ui.ai_widgets import MVCD_AiStreamPanel
 from app.ui.tema import T
-from app.ui.widgets import AreaDesplazable, cabecera, campo, muted, panel
+from app.ui.widgets import MVCD_AreaDesplazable, cabecera, campo, muted, panel
 
 log = logging.getLogger(__name__)
 
@@ -53,7 +53,7 @@ def _lista(puntos, signo: str, color: str) -> QLabel:
     return lbl
 
 
-class DescargaWorker(QThread):
+class MVCD_DescargaWorker(QThread):
     # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """Instala el motor (si falta) y un modelo del paquete, en segundo plano."""
     progreso = Signal(str, float)  # (texto, fracción 0..1)
@@ -87,16 +87,16 @@ class DescargaWorker(QThread):
             nombre = paquete.MODELOS[self.modelo_id]["nombre"]
             paquete.instalar_modelo(self.modelo_id, lambda h, t: self._emitir(nombre, h, t), cancelado)
             self.terminado.emit(True, f"{nombre} instalado. La IA ya funciona sin Internet.")
-        except paquete.Cancelado:
+        except paquete.VONF_Cancelado:
             self.terminado.emit(False, "Descarga pausada. Pulse «Descargar» para continuar donde quedó.")
-        except paquete.PaqueteError as e:
+        except paquete.VONF_PaqueteError as e:
             self.terminado.emit(False, str(e))
         except Exception as e:  # imprevisto: se registra y se informa, no cierra el programa
             log.exception("Fallo al instalar el paquete de IA")
             self.terminado.emit(False, f"Error inesperado: {e}")
 
 
-class FilaModelo(QFrame):
+class MVCD_FilaModelo(QFrame):
     # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """Un modelo del catálogo con su estado y su botón de descargar o eliminar."""
     descargar = Signal(str)
@@ -106,7 +106,7 @@ class FilaModelo(QFrame):
         super().__init__()
         self.modelo_id = modelo_id
         m = paquete.MODELOS[modelo_id]
-        self.setStyleSheet(f"FilaModelo{{border:1px solid {T.borde};border-radius:6px;}}")
+        self.setStyleSheet(f"MVCD_FilaModelo{{border:1px solid {T.borde};border-radius:6px;}}")
         h = QHBoxLayout(self)
         h.setContentsMargins(12, 10, 12, 10)
         textos = QVBoxLayout()
@@ -148,14 +148,14 @@ class FilaModelo(QFrame):
         (self.eliminar if self._listo else self.descargar).emit(self.modelo_id)
 
 
-class IaLocalPage(QWidget):
+class MVCD_IaLocalPage(QWidget):
     # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     settings_changed = Signal()
 
-    def __init__(self, repo: Repository):
+    def __init__(self, repo: QAKM_Repository):
         super().__init__()
         self.repo = repo
-        self.descarga: DescargaWorker | None = None
+        self.descarga: MVCD_DescargaWorker | None = None
         self._ollama: list[str] | None = None  # modelos de Ollama (None: no disponible)
         outer = QVBoxLayout(self)
         outer.setContentsMargins(26, 22, 26, 22)
@@ -170,7 +170,7 @@ class IaLocalPage(QWidget):
         lay = QVBoxLayout(inner)
         lay.setContentsMargins(0, 8, 0, 0)
         lay.setSpacing(12)
-        scroll = AreaDesplazable(inner)
+        scroll = MVCD_AreaDesplazable(inner)
         outer.addWidget(scroll, 1)
 
         # --- Paquete de IA ---
@@ -178,9 +178,9 @@ class IaLocalPage(QWidget):
         vp.addWidget(muted("Elija un modelo y pulse «Descargar». Se descarga una sola vez (necesita "
                            "Internet solo en ese momento); después la IA funciona sin conexión. "
                            "Si la descarga se interrumpe, continúa donde quedó."))
-        self.filas: list[FilaModelo] = []
+        self.filas: list[MVCD_FilaModelo] = []
         for modelo_id in paquete.MODELOS:
-            fila = FilaModelo(modelo_id)
+            fila = MVCD_FilaModelo(modelo_id)
             fila.descargar.connect(self._descargar)
             fila.eliminar.connect(self._eliminar)
             self.filas.append(fila)
@@ -257,7 +257,7 @@ class IaLocalPage(QWidget):
         self.msg = QLabel("")
         self.msg.setWordWrap(True)
         v1.addWidget(self.msg)
-        self.test_panel = AiStreamPanel(altura=50, msg_cancel="Prueba cancelada.")
+        self.test_panel = MVCD_AiStreamPanel(altura=50, msg_cancel="Prueba cancelada.")
         v1.addWidget(self.test_panel)
         arriba.addWidget(p1, 0, 0)
 
@@ -286,7 +286,7 @@ class IaLocalPage(QWidget):
         fila_p.addWidget(self.pregunta, 1)
         fila_p.addWidget(b_ask)
         v3.addLayout(fila_p)
-        self.soporte = AiStreamPanel(vacio="La respuesta aparecerá aquí.", altura=130,
+        self.soporte = MVCD_AiStreamPanel(vacio="La respuesta aparecerá aquí.", altura=130,
                                      msg_cancel="Consulta cancelada.")
         v3.addWidget(self.soporte)
         lay.addWidget(p3)
@@ -412,7 +412,7 @@ class IaLocalPage(QWidget):
         if self._ocupado():
             return
         self._set_msg_paquete("")
-        w = DescargaWorker(modelo_id)
+        w = MVCD_DescargaWorker(modelo_id)
         w.progreso.connect(self._progreso)
         w.terminado.connect(self._fin_descarga)
         self.descarga = w

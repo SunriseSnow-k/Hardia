@@ -4,9 +4,9 @@ pytest.importorskip("PySide6")
 
 from PySide6.QtWidgets import QApplication
 
-from app.db.database import Database
-from app.db.hardware_repo import HardwareRepository
-from app.db.repo import Repository
+from app.db.database import QAKM_Database
+from app.db.hardware_repo import QAKM_HardwareRepository
+from app.db.repo import QAKM_Repository
 from app.hardware import diag_file
 from app.hardware.scanner import run_scan
 from app.paths import VAR_DATOS
@@ -25,8 +25,8 @@ def entorno(monkeypatch, tmp_path):
 
 @pytest.fixture
 def repo(tmp_path, qapp):
-    db = Database(tmp_path / "ui.db")
-    yield Repository(db)
+    db = QAKM_Database(tmp_path / "ui.db")
+    yield QAKM_Repository(db)
     db.close()
 
 
@@ -37,8 +37,8 @@ def _scan(**kw):
 
 
 def test_inventario_detallado(qapp):
-    from app.ui.inventory_dialog import InventoryDialog
-    dlg = InventoryDialog(run_scan(env=_env(psutil=_psutil(bateria=False))))
+    from app.ui.inventory_dialog import MVCD_InventoryDialog
+    dlg = MVCD_InventoryDialog(run_scan(env=_env(psutil=_psutil(bateria=False))))
     grupos = {dlg.arbol.topLevelItem(i).text(0): dlg.arbol.topLevelItem(i)
               for i in range(dlg.arbol.topLevelItemCount())}
     assert len(grupos) == 11 and "Procesador" in grupos and "Batería" in grupos
@@ -50,13 +50,13 @@ def test_inventario_detallado(qapp):
 
 
 def test_importar_archivo_nuevo_y_antiguo(repo, tmp_path):
-    from app.ui.pages.escaneo import EscaneoPage
+    from app.ui.pages.escaneo import MVCD_EscaneoPage
     nuevo = diag_file.save_scan(run_scan(env=_env()), tmp_path / "nuevo.diag")
     viejo = diag_file.save_scan({"format": "SD-DIAG", "version": 1, "scanned_at": "2026-09-01T08:00:00",
                                  "summary": {}, "metrics": {},
                                  "components": [{"name": "CPU", "detail": "i5", "status": "ok"}]},
                                 tmp_path / "viejo.diag")
-    page = EscaneoPage()
+    page = MVCD_EscaneoPage()
     capturado = []
     page.use_data.connect(capturado.append)
     page._importar(nuevo)
@@ -71,11 +71,11 @@ def test_importar_archivo_nuevo_y_antiguo(repo, tmp_path):
 
 
 def test_recepcion_reconoce_el_equipo_registrado(repo):
-    from app.ui.pages.recepcion import RecepcionPage
-    hwr = HardwareRepository(repo)
+    from app.ui.pages.recepcion import MVCD_RecepcionPage
+    hwr = QAKM_HardwareRepository(repo)
     code = repo.register_intake("Luis Paredes", "987", "SN-1", "Laptop HP 15", "Lento")
     hwr.save_capture(code, _scan())
-    page = RecepcionPage(repo)
+    page = MVCD_RecepcionPage(repo)
     page.set_hardware(_scan())
     assert "Equipo ya registrado" in page.ident_lbl.text()
     assert page.serie.text() == "SN-1"  # la serie registrada, no la del BIOS
@@ -83,27 +83,27 @@ def test_recepcion_reconoce_el_equipo_registrado(repo):
 
 
 def test_recepcion_equipo_nuevo_y_ambiguo(repo):
-    from app.ui.pages.recepcion import RecepcionPage
-    page = RecepcionPage(repo)
+    from app.ui.pages.recepcion import MVCD_RecepcionPage
+    page = MVCD_RecepcionPage(repo)
     page.set_hardware(_scan())
     assert "Equipo nuevo" in page.ident_lbl.text()
     assert page.serie.text() == "5CD1234ABC" and page.equipo.text() == "HP Laptop 15-dw"
     # ambiguo: el UUID es de un equipo y la serie de otro
-    hwr = HardwareRepository(repo)
+    hwr = QAKM_HardwareRepository(repo)
     a = repo.register_intake("Ana", "1", "SN-A", "PC A", "x")
     b = repo.register_intake("Beto", "2", "SN-B", "PC B", "y")
     ea = repo.c.execute("SELECT equipment_id FROM cases WHERE code=?", (a,)).fetchone()[0]
     eb = repo.c.execute("SELECT equipment_id FROM cases WHERE code=?", (b,)).fetchone()[0]
     hwr.add_identifiers(ea, [("uuid", "4C4C4544-0042-4A10-8057-B8C04F4D3532")])
     hwr.add_identifiers(eb, [("serial", "5CD1234ABC")])
-    page2 = RecepcionPage(repo)
+    page2 = MVCD_RecepcionPage(repo)
     page2.set_hardware(_scan())
     assert "varios equipos" in page2.ident_lbl.text() and page2.serie.text() == ""
 
 
 def test_recepcion_guarda_capturas_sin_perder_las_anteriores(repo):
-    from app.ui.pages.recepcion import RecepcionPage
-    page = RecepcionPage(repo)
+    from app.ui.pages.recepcion import MVCD_RecepcionPage
+    page = MVCD_RecepcionPage(repo)
     for problema in ("Lento", "Se calienta"):
         page.set_hardware(_scan())
         page.cliente.setText("Luis Paredes")
@@ -113,7 +113,7 @@ def test_recepcion_guarda_capturas_sin_perder_las_anteriores(repo):
         page.problema.setText(problema)
         page._guardar()
         assert page.ok.text().startswith("Caso C-") and "Aviso" not in page.ok.text()
-    hwr = HardwareRepository(repo)
+    hwr = QAKM_HardwareRepository(repo)
     eq = repo.c.execute("SELECT id FROM equipment").fetchall()
     assert len(eq) == 1
     assert len(hwr.captures_for_equipment(eq[0][0])) == 2
@@ -122,12 +122,12 @@ def test_recepcion_guarda_capturas_sin_perder_las_anteriores(repo):
 
 
 def test_conflicto_de_identificadores_se_avisa(repo):
-    from app.ui.pages.recepcion import RecepcionPage
-    hwr = HardwareRepository(repo)
+    from app.ui.pages.recepcion import MVCD_RecepcionPage
+    hwr = QAKM_HardwareRepository(repo)
     otro = repo.register_intake("Ana", "1", "SN-OTRO", "PC", "x")
     eo = repo.c.execute("SELECT equipment_id FROM cases WHERE code=?", (otro,)).fetchone()[0]
     hwr.add_identifiers(eo, [("uuid", "4C4C4544-0042-4A10-8057-B8C04F4D3532")])
-    page = RecepcionPage(repo)
+    page = MVCD_RecepcionPage(repo)
     page.set_hardware(_scan())
     page.cliente.setText("Luis")
     page.equipo.setText("Laptop")

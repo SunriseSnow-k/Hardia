@@ -13,13 +13,13 @@ from PySide6.QtWidgets import (
 )
 
 from app.ai import config as ia_config
-from app.ai.worker import AiWorker
+from app.ai.worker import VONF_AiWorker
 from app.ui.tema import T
 
 _ZOMBIES: list = []  # hilos que tardaron en terminar: se conservan hasta que acaben
 
 
-class AiStreamPanel(QFrame):
+class MVCD_AiStreamPanel(QFrame):
     # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """Muestra una respuesta de la IA en vivo, con tiempo transcurrido y cancelación."""
     text_ready = Signal(str)  # texto completo, solo si terminó bien
@@ -83,7 +83,7 @@ class AiStreamPanel(QFrame):
         self._texto = ""
         self._seg = 0
         self.salida.clear()
-        w = AiWorker(self._run, model, messages)
+        w = VONF_AiWorker(self._run, model, messages)
         w.chunk.connect(self._chunk)
         w.completed.connect(self._fin)
         w.failed.connect(self._error)
@@ -154,7 +154,7 @@ class AiStreamPanel(QFrame):
         self._estado(mensaje, error=True)
 
 
-class AiDialog(QDialog):
+class MVCD_AiDialog(QDialog):
     # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """Ventana para una tarea de IA (resumen del historial, mensaje al cliente…)."""
 
@@ -175,7 +175,7 @@ class AiDialog(QDialog):
         s.setWordWrap(True)
         lay.addWidget(t)
         lay.addWidget(s)
-        self.panel = AiStreamPanel(altura=220, msg_cancel="Generación cancelada.")
+        self.panel = MVCD_AiStreamPanel(altura=220, msg_cancel="Generación cancelada.")
         lay.addWidget(self.panel, 1)
         if nota:
             n = QLabel(nota)

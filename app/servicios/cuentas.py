@@ -9,9 +9,9 @@ import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
-from app.db.audit_repo import AuditRepository
-from app.db.repo import Repository
-from app.db.users_repo import ROLES, UsersRepository, validar_password
+from app.db.audit_repo import QAKM_AuditRepository
+from app.db.repo import QAKM_Repository
+from app.db.users_repo import ROLES, QAKM_UsersRepository, validar_password
 
 log = logging.getLogger(__name__)
 
@@ -22,7 +22,7 @@ FORMATO = "%Y-%m-%d %H:%M:%S"
 CREDENCIALES_INVALIDAS = "ID o contraseña incorrectos."
 
 
-class AccesoBloqueado(ValueError):
+class VONF_AccesoBloqueado(ValueError):
     # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     def __init__(self, segundos: int):
         self.segundos = segundos
@@ -30,13 +30,13 @@ class AccesoBloqueado(ValueError):
         super().__init__(f"Demasiados intentos fallidos. Espere {espera} antes de volver a intentarlo.")
 
 
-class SinPermiso(PermissionError):
+class VONF_SinPermiso(PermissionError):
     # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     pass
 
 
 @dataclass
-class Sesion:
+class VONF_Sesion:
     # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     tech_id: str
     role: str
@@ -54,28 +54,28 @@ def segundos_de_bloqueo(fallos: int) -> int:
 
 def _auditar(repo, accion, tech_id="", detalle=""):
     try:
-        AuditRepository(repo).registrar(accion, tech_id, detalle)
+        QAKM_AuditRepository(repo).registrar(accion, tech_id, detalle)
     except Exception:  # la auditoría nunca debe impedir la operación; queda en el registro de eventos
         log.exception("No se pudo registrar la auditoría %s", accion)
 
 
-def iniciar_sesion(repo: Repository, tech_id: str, password: str, ahora: datetime | None = None) -> Sesion:
+def iniciar_sesion(repo: QAKM_Repository, tech_id: str, password: str, ahora: datetime | None = None) -> VONF_Sesion:
     ahora = ahora or datetime.now()
     tech_id = (tech_id or "").strip().upper()
     if not tech_id or not password:
         raise ValueError("Ingrese su ID y su contraseña.")
-    users = UsersRepository(repo)
+    users = QAKM_UsersRepository(repo)
     u = users.get(tech_id)
     if u and u["locked_until"]:
         hasta = datetime.strptime(u["locked_until"], FORMATO)
         if hasta > ahora:
-            raise AccesoBloqueado(int((hasta - ahora).total_seconds()) + 1)
+            raise VONF_AccesoBloqueado(int((hasta - ahora).total_seconds()) + 1)
     if u and users.password_ok(tech_id, password):
         if not u["active"]:
             raise ValueError("Esta cuenta está desactivada. Pida ayuda a un administrador.")
         users.reset_failures(tech_id)
         _auditar(repo, "sesion_iniciada", tech_id)
-        return Sesion(tech_id, u["role"])
+        return VONF_Sesion(tech_id, u["role"])
     _auditar(repo, "sesion_fallida", tech_id)
     if u:
         espera = segundos_de_bloqueo(u["failed_attempts"] + 1)
@@ -83,26 +83,26 @@ def iniciar_sesion(repo: Repository, tech_id: str, password: str, ahora: datetim
         users.register_failure(tech_id, bloqueo)
         if espera:
             _auditar(repo, "cuenta_bloqueada", tech_id, f"{espera} s")
-            raise AccesoBloqueado(espera)
+            raise VONF_AccesoBloqueado(espera)
     raise ValueError(CREDENCIALES_INVALIDAS)
 
 
-def crear_cuenta_inicial(repo: Repository, tech_id: str, password: str) -> Sesion:
+def crear_cuenta_inicial(repo: QAKM_Repository, tech_id: str, password: str) -> VONF_Sesion:
     """Primer uso: la primera cuenta es administrador. Falla si ya hay cuentas."""
     if repo.count_users():
-        raise SinPermiso("Ya existen cuentas en este programa.")
+        raise VONF_SinPermiso("Ya existen cuentas en este programa.")
     repo.create_user(tech_id, password, role="admin")
     _auditar(repo, "usuario_creado", tech_id, "cuenta inicial (administrador)")
-    return Sesion(tech_id.strip().upper(), "admin")
+    return VONF_Sesion(tech_id.strip().upper(), "admin")
 
 
 # ---------------- Gestión (solo administradores) ----------------
-def requerir_admin(repo: Repository, actor: str) -> None:
-    if UsersRepository(repo).role(actor) != "admin":
-        raise SinPermiso("Solo un administrador puede realizar esta acción.")
+def requerir_admin(repo: QAKM_Repository, actor: str) -> None:
+    if QAKM_UsersRepository(repo).role(actor) != "admin":
+        raise VONF_SinPermiso("Solo un administrador puede realizar esta acción.")
 
 
-def crear_tecnico(repo: Repository, actor: str, tech_id: str, password: str, role: str = "tecnico") -> None:
+def crear_tecnico(repo: QAKM_Repository, actor: str, tech_id: str, password: str, role: str = "tecnico") -> None:
     requerir_admin(repo, actor)
     if role not in ROLES:
         raise ValueError("Rol no válido.")
@@ -110,10 +110,10 @@ def crear_tecnico(repo: Repository, actor: str, tech_id: str, password: str, rol
     _auditar(repo, "usuario_creado", actor, f"{tech_id.strip().upper()} ({ROLES[role]})")
 
 
-def restablecer_password(repo: Repository, actor: str, tech_id: str, nueva: str) -> None:
+def restablecer_password(repo: QAKM_Repository, actor: str, tech_id: str, nueva: str) -> None:
     """Para el técnico que olvidó su contraseña: el administrador le asigna una nueva."""
     requerir_admin(repo, actor)
-    users = UsersRepository(repo)
+    users = QAKM_UsersRepository(repo)
     if users.get(tech_id) is None:
         raise ValueError("No existe ese técnico.")
     with repo.transaccion():
@@ -122,15 +122,15 @@ def restablecer_password(repo: Repository, actor: str, tech_id: str, nueva: str)
         _auditar(repo, "contrasena_restablecida", actor, tech_id.strip().upper())
 
 
-def _no_dejar_sin_admin(users: UsersRepository, tech_id: str) -> None:
+def _no_dejar_sin_admin(users: QAKM_UsersRepository, tech_id: str) -> None:
     u = users.get(tech_id)
     if u and u["role"] == "admin" and u["active"] and users.active_admins() <= 1:
         raise ValueError("Debe quedar al menos un administrador activo.")
 
 
-def cambiar_rol(repo: Repository, actor: str, tech_id: str, role: str) -> None:
+def cambiar_rol(repo: QAKM_Repository, actor: str, tech_id: str, role: str) -> None:
     requerir_admin(repo, actor)
-    users = UsersRepository(repo)
+    users = QAKM_UsersRepository(repo)
     if users.get(tech_id) is None:
         raise ValueError("No existe ese técnico.")
     if role != "admin":
@@ -140,9 +140,9 @@ def cambiar_rol(repo: Repository, actor: str, tech_id: str, role: str) -> None:
         _auditar(repo, "rol_cambiado", actor, f"{tech_id.strip().upper()} → {ROLES[role]}")
 
 
-def cambiar_activo(repo: Repository, actor: str, tech_id: str, activo: bool) -> None:
+def cambiar_activo(repo: QAKM_Repository, actor: str, tech_id: str, activo: bool) -> None:
     requerir_admin(repo, actor)
-    users = UsersRepository(repo)
+    users = QAKM_UsersRepository(repo)
     if users.get(tech_id) is None:
         raise ValueError("No existe ese técnico.")
     if not activo:
@@ -154,13 +154,13 @@ def cambiar_activo(repo: Repository, actor: str, tech_id: str, activo: bool) -> 
         _auditar(repo, "usuario_activado" if activo else "usuario_desactivado", actor, tech_id.strip().upper())
 
 
-def cambiar_mi_password(repo: Repository, tech_id: str, actual: str, nueva: str) -> None:
+def cambiar_mi_password(repo: QAKM_Repository, tech_id: str, actual: str, nueva: str) -> None:
     validar_password(nueva)
     with repo.transaccion():
-        UsersRepository(repo).change_password(tech_id, actual, nueva)
+        QAKM_UsersRepository(repo).change_password(tech_id, actual, nueva)
         _auditar(repo, "contrasena_cambiada", tech_id)
 
 
-def auditar(repo: Repository, accion: str, tech_id: str = "", detalle: str = "") -> None:
+def auditar(repo: QAKM_Repository, accion: str, tech_id: str = "", detalle: str = "") -> None:
     """Para acciones registradas desde otras pantallas (copias, datos del taller)."""
     _auditar(repo, accion, tech_id, detalle)

@@ -1,6 +1,6 @@
 import sqlite3
 
-from .repo import Repository
+from .repo import QAKM_Repository
 from .security import hash_password, verify_password
 
 ROLES = {"admin": "Administrador", "tecnico": "Técnico"}
@@ -12,12 +12,12 @@ def validar_password(nueva: str) -> None:
         raise ValueError(f"La contraseña debe tener al menos {MIN_PASSWORD} caracteres.")
 
 
-class UsersRepository:
+class QAKM_UsersRepository:
     # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """Cuentas de los técnicos: listado, roles, activación, contraseñas e intentos fallidos.
     Los permisos (quién puede hacer qué) se comprueban en app/servicios/cuentas.py."""
 
-    def __init__(self, repo: Repository):
+    def __init__(self, repo: QAKM_Repository):
         self.repo = repo
         self.c = repo.c
 

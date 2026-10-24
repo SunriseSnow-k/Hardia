@@ -13,27 +13,27 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from app.db.equipment_repo import EquipmentRepository
-from app.db.health_repo import HealthRepository
-from app.db.repo import Repository
+from app.db.equipment_repo import QAKM_EquipmentRepository
+from app.db.health_repo import QAKM_HealthRepository
+from app.db.repo import QAKM_Repository
 from app.health import estado_por_pct
 from app.ui.tema import T
-from app.ui.widgets import BarraPorcentaje, cabecera, celda, color_estado, fecha_corta, item_medida, muted, panel
+from app.ui.widgets import MVCD_BarraPorcentaje, cabecera, celda, color_estado, fecha_corta, item_medida, muted, panel
 
 COLUMNAS = ["Equipo", "Serie", "Cliente", "Casos", "Último caso", "Rendimiento", "Acciones"]
 COL_RENDIMIENTO, COL_ACCIONES = 5, 6
 
 
-class EquiposPage(QWidget):
+class MVCD_EquiposPage(QWidget):
     # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     open_case = Signal(str)
     new_intake = Signal(str)
     ver_salud = Signal(str)  # código del último caso del equipo
 
-    def __init__(self, repo: Repository):
+    def __init__(self, repo: QAKM_Repository):
         super().__init__()
-        self.er = EquipmentRepository(repo)
-        self.hr = HealthRepository(repo)
+        self.er = QAKM_EquipmentRepository(repo)
+        self.hr = QAKM_HealthRepository(repo)
         self._filas = []
         self._timer = QTimer(self)
         self._timer.setSingleShot(True)
@@ -124,7 +124,7 @@ class EquiposPage(QWidget):
         w = QWidget()
         h = QHBoxLayout(w)
         h.setContentsMargins(8, 0, 8, 0)
-        barra = BarraPorcentaje(valor, color=color_estado(estado_por_pct(valor)), texto_alt="Sin medición")
+        barra = MVCD_BarraPorcentaje(valor, color=color_estado(estado_por_pct(valor)), texto_alt="Sin medición")
         if salud:
             barra.setToolTip(f'Índice de salud del caso {salud["case_code"]} '
                              f'({fecha_corta(salud["created_at"], con_hora=False)}); orientativo'

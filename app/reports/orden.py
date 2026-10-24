@@ -4,8 +4,8 @@ from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import mm
 from reportlab.platypus import KeepTogether, Spacer, Table, TableStyle
 
-from app.db.clients_repo import ClientsRepository
-from app.db.orders_repo import OrdersRepository
+from app.db.clients_repo import QAKM_ClientsRepository
+from app.db.orders_repo import QAKM_OrdersRepository
 
 from . import base
 from .base import TEXTO, _fecha, _kv, _p, _styles
@@ -16,10 +16,10 @@ def load_order_data(repo, code: str) -> dict:
     caso = repo.get_case(code)
     if caso is None:
         raise ValueError(f"No existe el caso {code}.")
-    orders = OrdersRepository(repo)
+    orders = QAKM_OrdersRepository(repo)
     orden = orders.get(code)
     return {
-        "caso": caso, "doc_id": ClientsRepository(repo).doc_for_case(code),
+        "caso": caso, "doc_id": QAKM_ClientsRepository(repo).doc_for_case(code),
         "order": dict(orden) if orden else {}, "terms": orders.terms(),
         "business": repo.get_setting("business_name", "Mi taller"),
         "phone": repo.get_setting("business_phone", ""),

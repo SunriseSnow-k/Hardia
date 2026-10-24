@@ -2,7 +2,7 @@
 el programa no ofrece forma de editarlas ni borrarlas."""
 import sqlite3
 
-from .repo import Repository
+from .repo import QAKM_Repository
 
 ACCIONES = {
     "sesion_iniciada": "Inicio de sesión",
@@ -25,9 +25,9 @@ ACCIONES = {
 }
 
 
-class AuditRepository:
+class QAKM_AuditRepository:
     # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
-    def __init__(self, repo: Repository):
+    def __init__(self, repo: QAKM_Repository):
         self.c = repo.c
 
     def registrar(self, accion: str, tech_id: str = "", detalle: str = "") -> None:

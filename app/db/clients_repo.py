@@ -3,7 +3,7 @@ migración 3 (app/db/migraciones.py); los clientes anteriores quedan con el docu
 import re
 import sqlite3
 
-from .repo import Repository
+from .repo import QAKM_Repository
 
 MAX_DOC = 20
 
@@ -18,9 +18,9 @@ def normalize_doc(doc: str) -> str:
     return d
 
 
-class ClientsRepository:
+class QAKM_ClientsRepository:
     # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
-    def __init__(self, repo: Repository):
+    def __init__(self, repo: QAKM_Repository):
         self.c = repo.c
 
     def set_doc(self, client_id: int, doc: str) -> None:

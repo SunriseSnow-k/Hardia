@@ -8,8 +8,8 @@ import pytest
 import app.ai.config as ia_config
 from app.ai import ollama_client as oc
 from app.ai import prompts
-from app.db.database import Database
-from app.db.repo import Repository
+from app.db.database import QAKM_Database
+from app.db.repo import QAKM_Repository
 from app.diagnosis.engine import diagnose, load_rules
 from app.paths import VAR_DATOS
 
@@ -71,8 +71,8 @@ def servidor(monkeypatch):
 
 @pytest.fixture
 def repo(tmp_path):
-    db = Database(tmp_path / "test.db")
-    yield Repository(db)
+    db = QAKM_Database(tmp_path / "test.db")
+    yield QAKM_Repository(db)
     db.close()
 
 
@@ -86,16 +86,16 @@ def test_listar_modelos_y_has_model(servidor):
 
 
 def test_stream_completo(servidor):
-    assert "".join(oc.ChatStream("llama3.2:3b", []).chunks()) == "Hola"
+    assert "".join(oc.VONF_ChatStream("llama3.2:3b", []).chunks()) == "Hola"
 
 
 def test_modelo_inexistente(servidor):
     with pytest.raises(oc.OllamaError, match="ollama pull"):
-        list(oc.ChatStream("no-existe", []).chunks())
+        list(oc.VONF_ChatStream("no-existe", []).chunks())
 
 
 def test_cancelar_es_rapido(servidor):
-    flujo = oc.ChatStream("lento", [])
+    flujo = oc.VONF_ChatStream("lento", [])
     inicio, partes = time.time(), []
     for t in flujo.chunks():
         partes.append(t)

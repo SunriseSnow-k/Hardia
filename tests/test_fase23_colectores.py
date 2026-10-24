@@ -115,8 +115,8 @@ def pagina():
     pytest.importorskip("PySide6")
     from PySide6.QtWidgets import QApplication
     QApplication.instance() or QApplication([])
-    from app.ui.pages.escaneo import EscaneoPage
-    return EscaneoPage()
+    from app.ui.pages.escaneo import MVCD_EscaneoPage
+    return MVCD_EscaneoPage()
 
 
 def test_boton_prepara_todos_o_uno(pagina, monkeypatch, tmp_path, dos):

@@ -6,10 +6,10 @@ from types import SimpleNamespace as NS
 
 import pytest
 
-from app.db.database import Database
-from app.db.hardware_repo import HardwareRepository
-from app.db.health_repo import HealthRepository
-from app.db.repo import Repository
+from app.db.database import QAKM_Database
+from app.db.hardware_repo import QAKM_HardwareRepository
+from app.db.health_repo import QAKM_HealthRepository
+from app.db.repo import QAKM_Repository
 from app.hardware.inventory import inventory_rows
 from app.hardware.scanner import read_cpu_temperature, run_scan
 from app.health import ATENCION, BUENO, REVISAR, SIN_REF, componente, estado_por_pct, evaluate, load_references
@@ -30,8 +30,8 @@ def refs():
 @pytest.fixture
 def repo(tmp_path, monkeypatch):
     monkeypatch.setenv(VAR_DATOS, str(tmp_path / "appdata"))
-    db = Database(tmp_path / "t.db")
-    yield Repository(db)
+    db = QAKM_Database(tmp_path / "t.db")
+    yield QAKM_Repository(db)
     db.close()
 
 
@@ -203,14 +203,14 @@ def test_captura_antigua_v1_sin_inventario(refs):
 
 # ---------------- repositorio ----------------
 def test_migracion_idempotente_y_resultados(repo, refs):
-    HealthRepository(repo)
-    HealthRepository(repo)  # segunda vez: sin errores ni duplicados
+    QAKM_HealthRepository(repo)
+    QAKM_HealthRepository(repo)  # segunda vez: sin errores ni duplicados
     tablas = {f[0] for f in repo.c.execute("SELECT name FROM sqlite_master WHERE type='table'")}
     assert {"health_results", "health_benchmarks", "health_diag_items"} <= tablas
-    hr = HealthRepository(repo)
+    hr = QAKM_HealthRepository(repo)
     code = repo.register_intake("Luis", "1", "SN-1", "Laptop", "Lento")
     assert hr.evaluate_case(code)["result_id"] is None  # sin captura no se guarda nada
-    HardwareRepository(repo).save_capture(code, _scan())
+    QAKM_HardwareRepository(repo).save_capture(code, _scan())
     a = hr.evaluate_case(code)
     b = hr.evaluate_case(code)
     assert a["result_id"] == b["result_id"]  # sin cambios no se duplica
@@ -226,8 +226,8 @@ def test_migracion_idempotente_y_resultados(repo, refs):
 
 
 def test_historial_por_equipo_e_inclusion_en_diagnostico(repo, refs):
-    hr = HealthRepository(repo)
-    hw = HardwareRepository(repo)
+    hr = QAKM_HealthRepository(repo)
+    hw = QAKM_HardwareRepository(repo)
     c1 = repo.register_intake("Luis", "1", "SN-1", "Laptop", "Lento")
     hw.save_capture(c1, _con_bateria(_scan(), 45000))
     c2 = repo.register_intake("Luis", "1", "SN-1", "Laptop", "Lento")
@@ -301,10 +301,10 @@ def test_reportes_incluyen_la_salud(repo, tmp_path):
     from app.reports.cliente import build_client, salud_para_cliente
     from app.reports.datos import load_report_data
     from app.reports.tecnico import build_technical
-    hw = HardwareRepository(repo)
+    hw = QAKM_HardwareRepository(repo)
     code = repo.register_intake("Luis", "1", "SN-1", "Laptop", "Lento")
     hw.save_capture(code, _scan())
-    HealthRepository(repo).include_in_diagnosis(code, "disco:1", "Disco con advertencia")
+    QAKM_HealthRepository(repo).include_in_diagnosis(code, "disco:1", "Disco con advertencia")
     data = load_report_data(repo, code)
     assert data["health"]["resultado"]["indice"]["valor"] == 85.0
     assert data["health"]["incluidos"][0]["texto"] == "Disco con advertencia"

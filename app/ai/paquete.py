@@ -27,7 +27,7 @@ from typing import Any
 from app.paths import data_dir
 from app.version import APP_NAME, VERSION
 
-from .ollama_client import AiError
+from .ollama_client import VONF_AiError
 
 log = logging.getLogger(__name__)
 
@@ -104,12 +104,12 @@ ESPERA_CARGA = 300  # segundos máximos para que el motor cargue el modelo
 _MARGEN_DISCO = 300 * 1024 * 1024
 
 
-class PaqueteError(AiError):
+class VONF_PaqueteError(VONF_AiError):
     # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """Error de instalación o de ejecución del paquete (el mensaje se muestra al usuario)."""
 
 
-class Cancelado(Exception):
+class VONF_Cancelado(Exception):
     # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """El usuario canceló la descarga."""
 
@@ -177,7 +177,7 @@ def _sha256(path: Path, cancelado) -> str:
     with open(path, "rb") as f:
         while bloque := f.read(4 * 1024 * 1024):
             if cancelado():
-                raise Cancelado
+                raise VONF_Cancelado
             h.update(bloque)
     return h.hexdigest()
 
@@ -187,7 +187,7 @@ def _validar_url(url: str) -> None:
     p = urllib.parse.urlsplit(url)
     if p.scheme == "https" or (p.scheme == "http" and p.hostname in ("127.0.0.1", "localhost")):
         return
-    raise PaqueteError(f"Dirección de descarga no permitida: {url}")
+    raise VONF_PaqueteError(f"Dirección de descarga no permitida: {url}")
 
 
 def descargar(url: str, destino: Path, sha256: str, tamano: int, progreso=None, cancelado=lambda: False):
@@ -201,7 +201,7 @@ def descargar(url: str, destino: Path, sha256: str, tamano: int, progreso=None, 
         hecho = 0
     libre = shutil.disk_usage(destino.parent).free
     if libre < tamano - hecho + _MARGEN_DISCO:
-        raise PaqueteError(f"No hay espacio suficiente en el disco: se necesitan "
+        raise VONF_PaqueteError(f"No hay espacio suficiente en el disco: se necesitan "
                            f"{tamano_texto(tamano - hecho + _MARGEN_DISCO)} libres.")
 
     if hecho < tamano:
@@ -217,7 +217,7 @@ def descargar(url: str, destino: Path, sha256: str, tamano: int, progreso=None, 
                 with open(parcial, "ab" if hecho else "wb") as f:
                     while True:
                         if cancelado():
-                            raise Cancelado
+                            raise VONF_Cancelado
                         bloque = resp.read1(256 * 1024)  # devuelve lo que haya llegado
                         if not bloque:
                             break
@@ -225,15 +225,15 @@ def descargar(url: str, destino: Path, sha256: str, tamano: int, progreso=None, 
                         hecho += len(bloque)
                         progreso(hecho, tamano)
         except urllib.error.HTTPError as e:
-            raise PaqueteError(f"El servidor de descarga respondió con el código {e.code}. "
+            raise VONF_PaqueteError(f"El servidor de descarga respondió con el código {e.code}. "
                                "Inténtelo más tarde.") from e
         except (urllib.error.URLError, OSError, http.client.HTTPException) as e:
-            raise PaqueteError("Se interrumpió la descarga. Revise la conexión a Internet y pulse "
+            raise VONF_PaqueteError("Se interrumpió la descarga. Revise la conexión a Internet y pulse "
                                "de nuevo «Descargar»: continuará donde quedó.") from e
 
     if _sha256(parcial, cancelado) != sha256:
         parcial.unlink(missing_ok=True)
-        raise PaqueteError("El archivo descargado está dañado o no es el esperado y se descartó. "
+        raise VONF_PaqueteError("El archivo descargado está dañado o no es el esperado y se descartó. "
                            "Inténtelo de nuevo.")
     os.replace(parcial, destino)
 
@@ -295,7 +295,7 @@ def instalar_motor(progreso=None, cancelado=lambda: False):
     if motor_instalado():
         return
     if not MOTOR["url"]:
-        raise PaqueteError("El paquete de IA integrado no está disponible para este sistema o procesador. "
+        raise VONF_PaqueteError("El paquete de IA integrado no está disponible para este sistema o procesador. "
                            "Puede usar Ollama (motor avanzado).")
     archivo = carpeta() / Path(MOTOR["url"]).name
     descargar(MOTOR["url"], archivo, MOTOR["sha256"], MOTOR["tamano"], progreso, cancelado)
@@ -308,7 +308,7 @@ def instalar_motor(progreso=None, cancelado=lambda: False):
         else:
             _extraer_tar(archivo, tmp)
     except (zipfile.BadZipFile, tarfile.TarError, OSError) as e:
-        raise PaqueteError(f"No se pudo descomprimir el motor de IA: {e}") from e
+        raise VONF_PaqueteError(f"No se pudo descomprimir el motor de IA: {e}") from e
     if sys.platform == "win32":
         for dll in _runtime_vc():
             shutil.copy2(dll, tmp / dll.name)
@@ -344,7 +344,7 @@ def desinstalar():
         raise OSError("Algunos archivos están en uso; cierre el programa e inténtelo de nuevo.")
 
 
-# ---------- Servidor local ----------
+# ---------- VONF_Servidor local ----------
 def _puerto_libre() -> int:
     with socket.socket() as s:
         s.bind(("127.0.0.1", 0))
@@ -371,7 +371,7 @@ def _hilos() -> int:
         return max(1, (os.cpu_count() or 2) // 2)
 
 
-class Servidor:
+class VONF_Servidor:
     # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """llama-server en segundo plano, con un modelo cargado. Se inicia al primer uso y se
     reinicia si se pide otro modelo. Si el programa se cierra de golpe, el sistema lo termina
@@ -395,24 +395,24 @@ class Servidor:
                 self._detener()
                 self._iniciar(modelo_id)
             proc, puerto = self._proc, self.puerto
-        assert proc is not None  # _iniciar lanza PaqueteError si no puede arrancar
+        assert proc is not None  # _iniciar lanza VONF_PaqueteError si no puede arrancar
         limite = time.monotonic() + ESPERA_CARGA
         while time.monotonic() < limite:
             if cancelado():
                 return False
             if proc.poll() is not None:
-                raise PaqueteError("El motor de IA se cerró al cargar el modelo. Puede faltar memoria: "
+                raise VONF_PaqueteError("El motor de IA se cerró al cargar el modelo. Puede faltar memoria: "
                                    "pruebe el modelo Ligero. Detalle en " + str(carpeta() / "motor.log"))
             if _estado_salud(puerto) == 200:
                 return True
             time.sleep(0.3)
-        raise PaqueteError("El motor de IA tardó demasiado en cargar el modelo.")
+        raise VONF_PaqueteError("El motor de IA tardó demasiado en cargar el modelo.")
 
     def _iniciar(self, modelo_id: str):
         if not motor_instalado():
-            raise PaqueteError("El paquete de IA no está instalado. Instálelo en la sección IA local.")
+            raise VONF_PaqueteError("El paquete de IA no está instalado. Instálelo en la sección IA local.")
         if not modelo_instalado(modelo_id):
-            raise PaqueteError(f"El modelo {MODELOS.get(modelo_id, {}).get('nombre', modelo_id)} no está "
+            raise VONF_PaqueteError(f"El modelo {MODELOS.get(modelo_id, {}).get('nombre', modelo_id)} no está "
                                "descargado. Descárguelo en la sección IA local.")
         self.puerto = _puerto_libre()
         self.clave = secrets.token_hex(16)  # solo este programa puede usar el servidor
@@ -434,7 +434,7 @@ class Servidor:
                 args, cwd=str(exe.parent), stdin=subprocess.DEVNULL, stdout=salida, stderr=subprocess.STDOUT,
                 **extra)
         except OSError as e:
-            raise PaqueteError(f"No se pudo iniciar el motor de IA: {e}") from e
+            raise VONF_PaqueteError(f"No se pudo iniciar el motor de IA: {e}") from e
         finally:
             salida.close()
         self.modelo = modelo_id
@@ -489,4 +489,4 @@ def _atar_al_programa(pid: int):
         return None
 
 
-servidor = Servidor()
+servidor = VONF_Servidor()

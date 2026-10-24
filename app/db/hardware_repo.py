@@ -10,7 +10,7 @@ import sqlite3
 from app.hardware.inventory import FUERTES, identifiers_from_scan
 
 from .database import transaccional, ultimo_id
-from .repo import Repository
+from .repo import QAKM_Repository
 
 ORIGENES = {"local_scan": "Escaneo local", "imported_file": "Archivo importado", "legacy": "Migrado"}
 
@@ -20,9 +20,9 @@ def _resumen(scan: dict) -> dict:
     return r if isinstance(r, dict) else {}
 
 
-class HardwareRepository:
+class QAKM_HardwareRepository:
     # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
-    def __init__(self, repo: Repository):
+    def __init__(self, repo: QAKM_Repository):
         self.repo = repo
         self.c = repo.c
 

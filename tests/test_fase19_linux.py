@@ -308,7 +308,7 @@ def test_instalar_motor_sin_build_para_el_equipo(monkeypatch, tmp_path):
     monkeypatch.setenv(VAR_DATOS, str(tmp_path))
     monkeypatch.setattr(paquete, "MOTOR", {"version": "", "url": "", "sha256": "", "tamano": 0})
     assert not paquete.motor_instalado()
-    with pytest.raises(paquete.PaqueteError, match="no está disponible"):
+    with pytest.raises(paquete.VONF_PaqueteError, match="no está disponible"):
         paquete.instalar_motor()
 
 

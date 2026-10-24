@@ -13,11 +13,11 @@ from PySide6.QtWidgets import QApplication
 
 import app.ai.config as ia_config
 from app.ai import paquete
-from app.ai.llama_client import PaqueteStream
-from app.ai.ollama_client import AiError, ChatStream, OllamaError
+from app.ai.llama_client import VONF_PaqueteStream
+from app.ai.ollama_client import OllamaError, VONF_AiError, VONF_ChatStream
 from app.ai.worker import crear_stream
-from app.db.database import Database
-from app.db.repo import Repository
+from app.db.database import QAKM_Database
+from app.db.repo import QAKM_Repository
 from app.paths import VAR_DATOS
 
 
@@ -41,8 +41,8 @@ def entorno(monkeypatch, tmp_path):
 
 @pytest.fixture
 def repo(tmp_path):
-    db = Database(tmp_path / "test.db")
-    yield Repository(db)
+    db = QAKM_Database(tmp_path / "test.db")
+    yield QAKM_Repository(db)
     db.close()
 
 
@@ -111,7 +111,7 @@ def test_descarga_danada_se_descarta(web, tmp_path):
     datos = b"x" * 10000
     Archivos.archivos["/a.bin"] = datos
     destino = tmp_path / "a.bin"
-    with pytest.raises(paquete.PaqueteError, match="dañado"):
+    with pytest.raises(paquete.VONF_PaqueteError, match="dañado"):
         paquete.descargar(f"{web}/a.bin", destino, _sha(b"otra cosa"), len(datos))
     assert not destino.exists() and not destino.with_name("a.bin.part").exists()
 
@@ -132,7 +132,7 @@ def test_descarga_cancelada_conserva_lo_bajado(web, tmp_path):
     Archivos.lento = True
     destino = tmp_path / "a.bin"
     vistos = []
-    with pytest.raises(paquete.Cancelado):
+    with pytest.raises(paquete.VONF_Cancelado):
         paquete.descargar(f"{web}/a.bin", destino, _sha(datos), len(datos),
                           lambda h, t: vistos.append(h), cancelado=lambda: len(vistos) >= 2)
     parcial = destino.with_name("a.bin.part")
@@ -141,7 +141,7 @@ def test_descarga_cancelada_conserva_lo_bajado(web, tmp_path):
 
 
 def test_descarga_sin_conexion_da_mensaje_claro(tmp_path):
-    with pytest.raises(paquete.PaqueteError, match="conexión a Internet"):
+    with pytest.raises(paquete.VONF_PaqueteError, match="conexión a Internet"):
         paquete.descargar("http://127.0.0.1:9/nada", tmp_path / "a.bin", "0" * 64, 10)
 
 
@@ -197,7 +197,7 @@ def test_motor_de_otra_version_se_reinstala(web, monkeypatch):
 
 
 def test_servidor_sin_paquete_explica_que_falta():
-    with pytest.raises(paquete.PaqueteError, match="no está instalado"):
+    with pytest.raises(paquete.VONF_PaqueteError, match="no está instalado"):
         paquete.servidor.asegurar("qwen3-4b")
 
 
@@ -215,9 +215,9 @@ def test_check_ai_con_paquete(repo, monkeypatch):
 
 
 def test_crear_stream_elige_el_motor():
-    assert isinstance(crear_stream("qwen3-4b", []), PaqueteStream)
+    assert isinstance(crear_stream("qwen3-4b", []), VONF_PaqueteStream)
     s = crear_stream("llama3.2:3b", [])
-    assert isinstance(s, ChatStream) and not isinstance(s, PaqueteStream)
+    assert isinstance(s, VONF_ChatStream) and not isinstance(s, VONF_PaqueteStream)
 
 
 # ---------- Cliente del motor (eventos «data:») ----------
@@ -266,27 +266,27 @@ def motor_falso(monkeypatch):
 
 
 def test_paquete_stream(motor_falso):
-    assert "".join(PaqueteStream("qwen3-4b", [{"role": "user", "content": "hola"}]).chunks()) == "Hola"
+    assert "".join(VONF_PaqueteStream("qwen3-4b", [{"role": "user", "content": "hola"}]).chunks()) == "Hola"
     assert Llama.auth == ["Bearer secreta"]
 
 
 def test_paquete_stream_error(motor_falso):
-    with pytest.raises(AiError, match="contexto excedido"):
-        list(PaqueteStream("qwen3-4b", [{"role": "user", "content": "falla"}]).chunks())
+    with pytest.raises(VONF_AiError, match="contexto excedido"):
+        list(VONF_PaqueteStream("qwen3-4b", [{"role": "user", "content": "falla"}]).chunks())
 
 
 def test_paquete_stream_cancelado_mientras_carga(monkeypatch):
     monkeypatch.setattr(paquete.servidor, "asegurar", lambda m, c=None: False)
-    flujo = PaqueteStream("qwen3-4b", [])
+    flujo = VONF_PaqueteStream("qwen3-4b", [])
     flujo.cancel()
     assert list(flujo.chunks()) == []
 
 
 # ---------- Página IA local ----------
 def test_pagina_descarga_e_instala(qapp, repo, web, monkeypatch):
-    from app.ui.pages.ia_local import IaLocalPage
+    from app.ui.pages.ia_local import MVCD_IaLocalPage
     _catalogo_falso(monkeypatch, web)
-    pagina = IaLocalPage(repo)
+    pagina = MVCD_IaLocalPage(repo)
     fila = next(f for f in pagina.filas if f.modelo_id == "qwen2.5-1.5b")
     assert fila.boton.text() == "Descargar" and "No instalado" in fila.estado.text()
     assert "no instalado" in pagina.estado.text()

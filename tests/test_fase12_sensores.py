@@ -4,7 +4,7 @@ import pytest
 from app.diagnosis.engine import diagnose
 from app.hardware import lhm
 from app.hardware.inventory import NO_AUTORIZADO, OK, inventory_rows
-from app.hardware.scanner import LectorTemperatura, read_cpu_temperature, run_scan
+from app.hardware.scanner import MMAE_LectorTemperatura, read_cpu_temperature, run_scan
 from app.health import ATENCION, BUENO, REVISAR, componente, evaluate, load_references
 from tests.test_fase10b_hardware import _env
 
@@ -121,7 +121,7 @@ def test_biblioteca_que_falla_no_rompe_el_escaneo():
 def test_lector_de_temperatura_con_entorno_dado():
     env = _env_lhm()
     assert read_cpu_temperature(env) == (68.0, lhm.FUENTE)
-    with LectorTemperatura(env) as lt:
+    with MMAE_LectorTemperatura(env) as lt:
         assert lt.leer() == (68.0, lhm.FUENTE)
 
 

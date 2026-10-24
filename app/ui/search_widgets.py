@@ -5,8 +5,8 @@ from pathlib import Path
 from PySide6.QtCore import QDate, QObject, QRunnable, QThreadPool, Signal
 from PySide6.QtWidgets import QCheckBox, QDateEdit, QHBoxLayout, QLabel, QPushButton, QWidget
 
-from app.db.repo import Repository
-from app.db.search_repo import SearchQueries
+from app.db.repo import QAKM_Repository
+from app.db.search_repo import QAKM_SearchQueries
 
 
 def _db_file(conn):
@@ -16,13 +16,13 @@ def _db_file(conn):
     return None
 
 
-class _Senales(QObject):
+class MVCD__Senales(QObject):
     # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     listo = Signal(int, object)
     fallo = Signal(int, str)
 
 
-class _Tarea(QRunnable):
+class MVCD__Tarea(QRunnable):
     # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """Ejecuta una consulta en un hilo del pool, con su propia conexión de SOLO LECTURA."""
 
@@ -37,7 +37,7 @@ class _Tarea(QRunnable):
             con = sqlite3.connect(uri, uri=True, timeout=5)
             try:
                 con.row_factory = sqlite3.Row
-                res = getattr(SearchQueries(con), self.metodo)(**self.kwargs)
+                res = getattr(QAKM_SearchQueries(con), self.metodo)(**self.kwargs)
             finally:
                 con.close()
             self.senales.listo.emit(self.run_id, res)
@@ -45,19 +45,19 @@ class _Tarea(QRunnable):
             self.senales.fallo.emit(self.run_id, str(e))
 
 
-class AsyncSearch(QObject):
+class MVCD_AsyncSearch(QObject):
     # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """Lanza consultas de búsqueda sin bloquear la interfaz. Solo se entrega el
     resultado de la última consulta: las anteriores se descartan."""
     resultado = Signal(object)
     error = Signal(str)
 
-    def __init__(self, repo: Repository, parent=None):
+    def __init__(self, repo: QAKM_Repository, parent=None):
         super().__init__(parent)
         self.repo = repo
         self._archivo = _db_file(repo.c)
         self._run = 0
-        self._senales = _Senales()
+        self._senales = MVCD__Senales()
         self._senales.listo.connect(self._on_listo)
         self._senales.fallo.connect(self._on_fallo)
 
@@ -67,7 +67,7 @@ class AsyncSearch(QObject):
             self._sync(self._run, metodo, kwargs)
             return
         QThreadPool.globalInstance().start(
-            _Tarea(self._archivo, metodo, kwargs, self._run, self._senales))
+            MVCD__Tarea(self._archivo, metodo, kwargs, self._run, self._senales))
 
     def run_sync(self, metodo: str, **kwargs):
         self._run += 1
@@ -75,7 +75,7 @@ class AsyncSearch(QObject):
 
     def _sync(self, rid, metodo, kwargs):
         try:
-            res = getattr(SearchQueries(self.repo.c), metodo)(**kwargs)
+            res = getattr(QAKM_SearchQueries(self.repo.c), metodo)(**kwargs)
         except Exception as e:
             self._on_fallo(rid, str(e))
             return
@@ -90,7 +90,7 @@ class AsyncSearch(QObject):
             self.error.emit(mensaje)
 
 
-class DateRangeFilter(QWidget):
+class MVCD_DateRangeFilter(QWidget):
     # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """Filtro opcional por rango de fechas."""
     changed = Signal()
@@ -147,7 +147,7 @@ class DateRangeFilter(QWidget):
         self.hasta.blockSignals(False)
 
 
-class PagerBar(QWidget):
+class MVCD_PagerBar(QWidget):
     # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """Navegación por páginas."""
     cambiar = Signal(int)

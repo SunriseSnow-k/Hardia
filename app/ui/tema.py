@@ -1,7 +1,7 @@
-"""Paleta de colores de la interfaz: el único lugar del programa donde se escriben colores.
+"""MVCD_Paleta de colores de la interfaz: el único lugar del programa donde se escriben colores.
 
 Las pantallas usan nombres con significado (T.peligro, T.texto_suave…), nunca códigos hexadecimales.
-Para el modo oscuro bastará con definir otra Paleta con los mismos nombres y activarla con usar()
+Para el modo oscuro bastará con definir otra MVCD_Paleta con los mismos nombres y activarla con usar()
 antes de crear las ventanas (los estilos se arman al importar los módulos y al llamar a qss()).
 """
 from dataclasses import asdict, dataclass
@@ -9,7 +9,7 @@ from string import Template
 
 
 @dataclass(frozen=True)
-class Paleta:
+class MVCD_Paleta:
     # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     # Texto
     texto: str
@@ -43,7 +43,7 @@ class Paleta:
     sobre_acento: str
 
 
-CLARO = Paleta(
+CLARO = MVCD_Paleta(
     texto="#1b2430", texto_suave="#5f6b77", deshabilitado="#a0a9b3",
     fondo_app="#eef1f4", superficie="white", fondo_cabecera="#f6f8fa", borde="#d9dfe5", pista="#e6eaee",
     acento="#1f6f8b", acento_hover="#185a72", acento_deshabilitado="#a9c7d2", acento_suave="#e1f0f5",
@@ -55,23 +55,23 @@ CLARO = Paleta(
 )
 
 
-class _Activa:
+class MVCD__Activa:
     # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """Acceso a la paleta activa: `T.acento`. Se usa siempre a través de este objeto."""
 
-    _paleta: Paleta = CLARO
+    _paleta: MVCD_Paleta = CLARO
 
     def __getattr__(self, nombre: str) -> str:
         return getattr(self._paleta, nombre)
 
 
-T = _Activa()
+T = MVCD__Activa()
 
 
-def usar(paleta: Paleta) -> None:
-    _Activa._paleta = paleta
+def usar(paleta: MVCD_Paleta) -> None:
+    MVCD__Activa._paleta = paleta
 
 
 def rellenar(plantilla: str) -> str:
     """Sustituye $nombre por el color de la paleta activa (para hojas de estilo con llaves)."""
-    return Template(plantilla).substitute(asdict(_Activa._paleta))
+    return Template(plantilla).substitute(asdict(MVCD__Activa._paleta))

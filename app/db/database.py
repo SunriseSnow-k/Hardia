@@ -6,7 +6,7 @@ from .migraciones import VERSION_ACTUAL as VERSION_ESQUEMA  # noqa: F401 (se ree
 from .migraciones import migrar
 
 
-class Conexion(sqlite3.Connection):
+class QAKM_Conexion(sqlite3.Connection):
     # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """Conexión con transacciones anidables.
 
@@ -59,12 +59,12 @@ def transaccional(metodo):
     return envoltura
 
 
-class Database:
+class QAKM_Database:
     # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     def __init__(self, path, carpeta_copias=None):
         """Abre la base y aplica las migraciones pendientes. Si se indica `carpeta_copias`,
         una base con datos se respalda allí antes de actualizar su esquema."""
-        self.conn = sqlite3.connect(str(path), factory=Conexion)
+        self.conn = sqlite3.connect(str(path), factory=QAKM_Conexion)
         self.conn.row_factory = sqlite3.Row
         self.conn.execute("PRAGMA foreign_keys = ON")
         try:

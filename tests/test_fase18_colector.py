@@ -178,8 +178,8 @@ def pagina(monkeypatch):
     pytest.importorskip("PySide6")
     from PySide6.QtWidgets import QApplication
     QApplication.instance() or QApplication([])
-    from app.ui.pages.escaneo import EscaneoPage
-    return EscaneoPage()
+    from app.ui.pages.escaneo import MVCD_EscaneoPage
+    return MVCD_EscaneoPage()
 
 
 def test_boton_preparar_usb(pagina, fuente, tmp_path, monkeypatch):
@@ -318,24 +318,24 @@ def test_diag_rechaza_prueba_danada(tmp_path):
 
 # ---------------- Importación en el taller ----------------
 def test_importar_diag_con_prueba_la_vincula_a_la_captura(tmp_path, monkeypatch):
-    from app.db.database import Database
-    from app.db.hardware_repo import HardwareRepository
-    from app.db.health_repo import HealthRepository
-    from app.db.repo import Repository
+    from app.db.database import QAKM_Database
+    from app.db.hardware_repo import QAKM_HardwareRepository
+    from app.db.health_repo import QAKM_HealthRepository
+    from app.db.repo import QAKM_Repository
     monkeypatch.setenv(VAR_DATOS, str(tmp_path / "appdata"))
-    db = Database(tmp_path / "t.db")
+    db = QAKM_Database(tmp_path / "t.db")
     try:
-        repo = Repository(db)
+        repo = QAKM_Repository(db)
         code = repo.register_intake("Ana", "", "ABC123", "Laptop", "Lenta")
         prueba = {"version": 1, "fecha": "2026-10-15T10:05:00", "cpu": {"ops_s": 1500.0}, "discos": []}
-        res = HardwareRepository(repo).save_capture(code, {**ESCANEO, "benchmark": prueba})
+        res = QAKM_HardwareRepository(repo).save_capture(code, {**ESCANEO, "benchmark": prueba})
         assert res["benchmark_id"] is not None
-        cap = HardwareRepository(repo).get_capture(res["capture_id"])
+        cap = QAKM_HardwareRepository(repo).get_capture(res["capture_id"])
         assert "benchmark" not in cap["payload"]  # la prueba se guarda aparte, una sola vez
-        bid, guardada = HealthRepository(repo).latest_benchmark(code, res["capture_id"])
+        bid, guardada = QAKM_HealthRepository(repo).latest_benchmark(code, res["capture_id"])
         assert bid == res["benchmark_id"] and guardada == prueba
-        assert HealthRepository(repo).evaluate_case(code)["benchmark_id"] == bid
-        sin = HardwareRepository(repo).save_capture(code, dict(ESCANEO))
+        assert QAKM_HealthRepository(repo).evaluate_case(code)["benchmark_id"] == bid
+        sin = QAKM_HardwareRepository(repo).save_capture(code, dict(ESCANEO))
         assert sin["benchmark_id"] is None
     finally:
         db.close()

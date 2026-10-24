@@ -7,24 +7,24 @@ import pytest
 
 from app import backup
 from app.db import migraciones
-from app.db.database import Database
-from app.db.migraciones import VERSION_ACTUAL, BaseMasNueva
-from app.db.orders_repo import OrdersRepository
-from app.db.repo import Repository
+from app.db.database import QAKM_Database
+from app.db.migraciones import VERSION_ACTUAL, QAKM_BaseMasNueva
+from app.db.orders_repo import QAKM_OrdersRepository
+from app.db.repo import QAKM_Repository
 from app.servicios import recepcion
-from app.servicios.recepcion import DatosRecepcion
+from app.servicios.recepcion import VONF_DatosRecepcion
 
 
 @pytest.fixture
 def db(tmp_path):
-    d = Database(tmp_path / "t.db")
+    d = QAKM_Database(tmp_path / "t.db")
     yield d
     d.close()
 
 
 @pytest.fixture
 def repo(db):
-    return Repository(db)
+    return QAKM_Repository(db)
 
 
 def _contar(repo, tabla) -> int:
@@ -111,20 +111,20 @@ def _base_version_2(ruta):
 def test_migra_base_antigua_sin_perder_datos_y_con_copia(tmp_path):
     ruta, copias = tmp_path / "vieja.db", tmp_path / "copias"
     _base_version_2(ruta)
-    d = Database(ruta, carpeta_copias=copias)
+    d = QAKM_Database(ruta, carpeta_copias=copias)
     try:
         assert d.migraciones_aplicadas == [3, 4, 5]
-        repo = Repository(d)
+        repo = QAKM_Repository(d)
         caso = repo.get_case("C-001")
         assert (caso["cliente"], caso["serial"]) == ("Peña", "SN-1")
         assert d.conn.execute("SELECT doc_id FROM clients").fetchone()[0] == ""
-        OrdersRepository(repo).save("C-001", ["Cargador"])  # las tablas nuevas ya existen
+        QAKM_OrdersRepository(repo).save("C-001", ["Cargador"])  # las tablas nuevas ya existen
     finally:
         d.close()
     respaldo = list(copias.glob(f"{migraciones.SAFETY_PREFIX}*.db"))
     assert len(respaldo) == 1
     assert _leer_desde_otra_conexion(respaldo[0], "PRAGMA user_version") == 2  # copia tal como estaba
-    d2 = Database(ruta, carpeta_copias=copias)  # al reabrir no hay nada pendiente
+    d2 = QAKM_Database(ruta, carpeta_copias=copias)  # al reabrir no hay nada pendiente
     try:
         assert d2.migraciones_aplicadas == []
     finally:
@@ -133,7 +133,7 @@ def test_migra_base_antigua_sin_perder_datos_y_con_copia(tmp_path):
 
 
 def test_base_nueva_no_crea_copia(tmp_path):
-    Database(tmp_path / "nueva.db", carpeta_copias=tmp_path / "copias").close()
+    QAKM_Database(tmp_path / "nueva.db", carpeta_copias=tmp_path / "copias").close()
     assert not (tmp_path / "copias").exists() or not list((tmp_path / "copias").glob("*.db"))
 
 
@@ -147,7 +147,7 @@ def test_migracion_fallida_no_deja_cambios(tmp_path, monkeypatch):
     monkeypatch.setattr(migraciones, "MIGRACIONES", [*migraciones.MIGRACIONES, (VERSION_ACTUAL + 1, "rota", rota)])
     monkeypatch.setattr(migraciones, "VERSION_ACTUAL", VERSION_ACTUAL + 1)
     with pytest.raises(sqlite3.OperationalError):
-        Database(ruta)
+        QAKM_Database(ruta)
     assert _leer_desde_otra_conexion(ruta, "PRAGMA user_version") == VERSION_ACTUAL  # las anteriores sí quedaron
     assert _leer_desde_otra_conexion(
         ruta, "SELECT COUNT(*) FROM sqlite_master WHERE name='a_medias'") == 0
@@ -158,8 +158,8 @@ def test_no_abre_base_de_version_mas_nueva(tmp_path):
     con = sqlite3.connect(ruta)
     con.execute(f"PRAGMA user_version = {VERSION_ACTUAL + 1}")
     con.close()
-    with pytest.raises(BaseMasNueva, match="más nueva"):
-        Database(ruta)
+    with pytest.raises(QAKM_BaseMasNueva, match="más nueva"):
+        QAKM_Database(ruta)
 
 
 def test_no_restaura_copia_de_version_mas_nueva(repo, tmp_path):
@@ -173,14 +173,14 @@ def test_no_restaura_copia_de_version_mas_nueva(repo, tmp_path):
 
 # ---------------- Servicio de recepción ----------------
 def _datos(**extra):
-    return DatosRecepcion(**{"cliente": "Ana Díaz", "equipo": "Laptop HP", "serie": "SN-1",
+    return VONF_DatosRecepcion(**{"cliente": "Ana Díaz", "equipo": "Laptop HP", "serie": "SN-1",
                              "problema": "Lento", "telefono": "987", **extra})
 
 
 def test_registrar_completo(repo):
     res = recepcion.registrar(repo, _datos(documento="12345678", accesorios=["Cargador"], tecnico="TEC"))
     assert res.code == "C-001" and res.avisos == [] and res.orden_guardada
-    assert OrdersRepository(repo).get("C-001")["accessories"] == "Cargador"
+    assert QAKM_OrdersRepository(repo).get("C-001")["accessories"] == "Cargador"
     assert repo.c.execute("SELECT doc_id FROM clients").fetchone()[0] == "12345678"
 
 
@@ -199,19 +199,19 @@ def test_registrar_valida_antes_de_escribir(repo, extra, mensaje):
 def test_paso_opcional_fallido_no_pierde_la_recepcion(repo, monkeypatch):
     def falla(*a, **k):
         raise sqlite3.OperationalError("tabla bloqueada")
-    monkeypatch.setattr(OrdersRepository, "save", falla)
+    monkeypatch.setattr(QAKM_OrdersRepository, "save", falla)
     res = recepcion.registrar(repo, _datos())
     assert repo.get_case(res.code) is not None
     assert not res.orden_guardada and "orden de servicio" in res.avisos[0]
 
 
 def test_captura_fallida_se_deshace_completa(repo, monkeypatch):
-    from app.db.hardware_repo import HardwareRepository
+    from app.db.hardware_repo import QAKM_HardwareRepository
 
     def a_medias(self, case_code, scan):
         self.c.execute("INSERT INTO case_scans(case_code, scan) VALUES (?, '{}')", (case_code,))
         raise RuntimeError("falla al guardar identificadores")
-    monkeypatch.setattr(HardwareRepository, "save_capture", a_medias)
+    monkeypatch.setattr(QAKM_HardwareRepository, "save_capture", a_medias)
     res = recepcion.registrar(repo, _datos(), hw={"summary": {"cpu": "Intel"}})
     assert "captura de hardware" in res.avisos[0]
     assert _contar(repo, "case_scans") == 0  # el paso fallido no deja datos a medias

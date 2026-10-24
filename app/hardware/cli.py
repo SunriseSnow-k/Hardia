@@ -20,7 +20,7 @@ import sys
 from pathlib import Path
 
 from app.hardware import diag_file, lhm
-from app.hardware.scanner import LectorTemperatura, run_scan
+from app.hardware.scanner import MMAE_LectorTemperatura, run_scan
 from app.health import benchmark as bm
 from app.health import evaluate, load_references
 from app.health.evaluate import GRAVEDAD
@@ -138,7 +138,7 @@ def quiere_prueba(argv: list[str], discos: list[dict]) -> bool:
     return input("¿Ejecutar la prueba de rendimiento? [s/N]: ").strip().lower() in ("s", "si", "sí")
 
 
-def ejecutar_prueba(discos: list[dict], lector=LectorTemperatura, **kw) -> dict | None:
+def ejecutar_prueba(discos: list[dict], lector=MMAE_LectorTemperatura, **kw) -> dict | None:
     """Ejecuta la prueba mostrando el avance. Devuelve None si se canceló (Ctrl+C)."""
     ultimo = [-10.0]
 

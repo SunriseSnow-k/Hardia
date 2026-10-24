@@ -4,13 +4,13 @@ import sqlite3
 import pytest
 from reportlab.pdfgen import canvas as rl_canvas
 
-from app.db.clients_repo import ClientsRepository, normalize_doc
-from app.db.database import Database
-from app.db.hardware_repo import HardwareRepository
-from app.db.notes_repo import NotesRepository
-from app.db.repo import Repository
-from app.db.reports_repo import ReportsRepository
-from app.db.search_repo import SearchQueries
+from app.db.clients_repo import QAKM_ClientsRepository, normalize_doc
+from app.db.database import QAKM_Database
+from app.db.hardware_repo import QAKM_HardwareRepository
+from app.db.notes_repo import QAKM_NotesRepository
+from app.db.repo import QAKM_Repository
+from app.db.reports_repo import QAKM_ReportsRepository
+from app.db.search_repo import QAKM_SearchQueries
 from app.diagnosis.engine import diagnose
 from app.hardware.inventory import inventory_rows
 from app.hardware.scanner import run_scan
@@ -23,8 +23,8 @@ from tests.test_fase10b_hardware import _env, _psutil
 
 @pytest.fixture
 def repo(tmp_path):
-    db = Database(tmp_path / "t.db")
-    r = Repository(db)
+    db = QAKM_Database(tmp_path / "t.db")
+    r = QAKM_Repository(db)
     yield r
     db.close()
 
@@ -42,7 +42,7 @@ def _codigos(res):
 
 # ---------------- notas ----------------
 def test_notas_del_caso(repo):
-    n = NotesRepository(repo)
+    n = QAKM_NotesRepository(repo)
     code = repo.register_intake("Luis", "1", "SN-1", "Laptop", "Lento")
     n.add(code, "observacion", "  Disipador obstruido  ", "tec-001")
     n.add(code, "trabajo", "Limpieza interna", "TEC-001")
@@ -55,14 +55,14 @@ def test_notas_del_caso(repo):
 
 
 def test_notas_invalidas(repo):
-    n = NotesRepository(repo)
+    n = QAKM_NotesRepository(repo)
     code = repo.register_intake("Luis", "1", "SN-1", "Laptop", "Lento")
     for tipo, texto, caso in (("otro", "x", code), ("trabajo", "   ", code),
                               ("trabajo", "x" * 2001, code), ("trabajo", "x", "C-999")):
         with pytest.raises(ValueError):
             n.add(caso, tipo, texto)
     assert n.for_case(code) == []
-    NotesRepository(repo)  # crear la tabla otra vez no falla
+    QAKM_NotesRepository(repo)  # crear la tabla otra vez no falla
 
 
 # ---------------- documento del cliente ----------------
@@ -84,7 +84,7 @@ def test_migracion_de_la_columna_documento(tmp_path):
     con.execute("INSERT INTO clients(name, phone) VALUES ('Peña', '987')")
     con.commit()
     con.close()
-    db = Database(ruta)
+    db = QAKM_Database(ruta)
     try:
         fila = db.conn.execute("SELECT name, phone, doc_id FROM clients").fetchone()
         assert tuple(fila) == ("Peña", "987", "")
@@ -93,7 +93,7 @@ def test_migracion_de_la_columna_documento(tmp_path):
 
 
 def test_documento_por_caso(repo):
-    cr = ClientsRepository(repo)
+    cr = QAKM_ClientsRepository(repo)
     code = repo.register_intake("Luis", "987", "SN-1", "Laptop", "Lento")
     assert cr.doc_for_case(code) == ""
     cr.set_doc_for_case(code, "4567 8912")
@@ -108,26 +108,26 @@ def test_documento_por_caso(repo):
 
 # ---------------- búsqueda ----------------
 def test_buscar_por_documento(repo):
-    cr = ClientsRepository(repo)
+    cr = QAKM_ClientsRepository(repo)
     a = repo.register_intake("Luis", "1", "SN-1", "Laptop", "Lento")
     b = repo.register_intake("Ana", "2", "SN-2", "PC", "Lento")
     cr.set_doc_for_case(a, "45678912")
     cr.set_doc_for_case(b, "20123456789")
-    q = SearchQueries(repo.c)
+    q = QAKM_SearchQueries(repo.c)
     assert _codigos(q.search_cases(text="45678912")) == [a]
     assert _codigos(q.search_cases(text="20123456")) == [b]
-    rr = ReportsRepository(repo)
+    rr = QAKM_ReportsRepository(repo)
     rr.add(b, "cliente", "x.pdf")
     assert q.search_reports(text="20123456789")["total"] == 1
 
 
 def test_buscar_por_marca_y_modelo_de_las_capturas(repo):
-    hw = HardwareRepository(repo)
+    hw = QAKM_HardwareRepository(repo)
     a = repo.register_intake("Luis", "1", "SN-1", "Portátil de Luis", "Lento")
     b = repo.register_intake("Ana", "2", "SN-2", "PC de escritorio", "Lento")
     hw.save_capture(a, _scan())  # HP Laptop 15-dw
     c = repo.register_intake("Luis", "1", "SN-1", "Portátil de Luis", "Se calienta")  # sin captura propia
-    q = SearchQueries(repo.c)
+    q = QAKM_SearchQueries(repo.c)
     assert sorted(_codigos(q.search_cases(text="15-dw"))) == sorted([a, c])  # cualquier captura del equipo
     assert sorted(_codigos(q.search_cases(text="HP 15-dw Luis"))) == sorted([a, c])
     assert b not in _codigos(q.search_cases(text="HP"))
@@ -136,11 +136,11 @@ def test_buscar_por_marca_y_modelo_de_las_capturas(repo):
 
 
 def test_busqueda_en_base_con_datos(tmp_path):
-    db = Database(tmp_path / "t.db")
+    db = QAKM_Database(tmp_path / "t.db")
     try:
-        repo = Repository(db)
+        repo = QAKM_Repository(db)
         repo.register_intake("Luis", "1", "SN-1", "Laptop", "Lento")
-        assert SearchQueries(repo.c).search_cases(text="Luis")["total"] == 1
+        assert QAKM_SearchQueries(repo.c).search_cases(text="Luis")["total"] == 1
     finally:
         db.close()
 
@@ -156,7 +156,7 @@ def test_textos_del_inventario():
 
 # ---------------- datos y contenido de los reportes ----------------
 def _caso_con_historial(repo):
-    hw = HardwareRepository(repo)
+    hw = QAKM_HardwareRepository(repo)
     c1 = repo.register_intake("Luis Peña", "987", "SN-1", "Laptop HP", "Lento")
     viejo = _scan("2026-09-25T10:00:00")
     viejo["inventory"]["memory"]["total_gb"] = 7.8
@@ -164,9 +164,9 @@ def _caso_con_historial(repo):
     c2 = repo.register_intake("Luis Peña", "987", "SN-1", "Laptop HP", "Se calienta, se apaga solo")
     hw.save_capture(c2, _scan("2026-10-06T09:00:00", psutil=_psutil(bateria=False)))
     hw.save_capture(c2, _scan("2026-10-06T09:30:00"))  # la más reciente es la que se usa
-    ClientsRepository(repo).set_doc_for_case(c2, "45678912")
+    QAKM_ClientsRepository(repo).set_doc_for_case(c2, "45678912")
     repo.save_diagnosis(c2, diagnose(repo.get_case(c2)["problem"], repo.get_scan(c2)))
-    n = NotesRepository(repo)
+    n = QAKM_NotesRepository(repo)
     n.add(c2, "observacion", "NOTA-INTERNA disipador obstruido", "TEC-001")
     n.add(c2, "trabajo", "NOTA-TRABAJO limpieza interna", "TEC-001")
     n.add(c2, "cliente", "NOTA-CLIENTE use una mesa", "TEC-001")
@@ -271,7 +271,7 @@ def test_pagina_x_de_n(monkeypatch, repo, tmp_path):
         return original(self, x, y, texto, *a, **k)
 
     monkeypatch.setattr(rl_canvas.Canvas, "drawRightString", registrar)
-    ruta = generate_report(repo, ReportsRepository(repo), c2, "tecnico", "TEC-001", out_dir=tmp_path)
+    ruta = generate_report(repo, QAKM_ReportsRepository(repo), c2, "tecnico", "TEC-001", out_dir=tmp_path)
     paginas = [e for e in escritos if e.startswith("Página ")]
     n = len(paginas)
     assert n >= 2 and paginas == [f"Página {i} de {n}" for i in range(1, n + 1)]
@@ -281,7 +281,7 @@ def test_pagina_x_de_n(monkeypatch, repo, tmp_path):
 
 def test_ambos_reportes_se_generan(repo, tmp_path):
     _c1, c2 = _caso_con_historial(repo)
-    rr = ReportsRepository(repo)
+    rr = QAKM_ReportsRepository(repo)
     for tipo in ("tecnico", "cliente"):
         ruta = generate_report(repo, rr, c2, tipo, "TEC-001", out_dir=tmp_path)
         assert ruta.exists() and ruta.stat().st_size > 3000

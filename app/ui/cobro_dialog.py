@@ -21,13 +21,13 @@ from PySide6.QtWidgets import (
 )
 
 from app.db.billing_repo import METODOS_PAGO, TIPOS_LINEA
-from app.db.repo import Repository
-from app.db.reports_repo import ReportsRepository
-from app.db.users_repo import UsersRepository
+from app.db.repo import QAKM_Repository
+from app.db.reports_repo import QAKM_ReportsRepository
+from app.db.users_repo import QAKM_UsersRepository
 from app.reports.service import generate_report
 from app.servicios import cobro
 from app.ui.tema import T
-from app.ui.widgets import AreaDesplazable, ChipEstado, fecha_corta, muted, panel
+from app.ui.widgets import MVCD_AreaDesplazable, MVCD_ChipEstado, fecha_corta, muted, panel
 
 COL_LINEAS = ["Descripción", "Tipo", "Cant.", "P. unitario", "Importe"]
 COL_PAGOS = ["Fecha", "Forma de pago", "Importe", "Recibió", "Estado"]
@@ -57,16 +57,16 @@ def _item(texto: str, dato=None, derecha: bool = False) -> QTableWidgetItem:
     return it
 
 
-class CobroDialog(QDialog):
+class MVCD_CobroDialog(QDialog):
     # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
-    def __init__(self, repo: Repository, code: str, parent=None):
+    def __init__(self, repo: QAKM_Repository, code: str, parent=None):
         super().__init__(parent)
         self.repo = repo
         self.code = code
         self.changed = False
         self.tech_id = getattr(repo, "session_tech", "") or ""
         self.s = cobro.simbolo(repo)
-        self.es_admin = UsersRepository(repo).role(self.tech_id) == "admin"
+        self.es_admin = QAKM_UsersRepository(repo).role(self.tech_id) == "admin"
 
         self.setWindowTitle(f"Presupuesto y cobro — {code}")
         self.setMinimumWidth(760)
@@ -75,7 +75,7 @@ class CobroDialog(QDialog):
         exterior.setContentsMargins(0, 0, 0, 12)
         contenido = QWidget()
         contenido.setObjectName("ScrollBody")
-        exterior.addWidget(AreaDesplazable(contenido), 1)
+        exterior.addWidget(MVCD_AreaDesplazable(contenido), 1)
         lay = QVBoxLayout(contenido)
         lay.setContentsMargins(24, 20, 24, 8)
         lay.setSpacing(12)
@@ -84,7 +84,7 @@ class CobroDialog(QDialog):
         fila_t = QHBoxLayout()
         titulo = QLabel(f"Presupuesto y cobro — {code}")
         titulo.setObjectName("PageTitle")
-        self.chip = ChipEstado("")
+        self.chip = MVCD_ChipEstado("")
         fila_t.addWidget(titulo)
         fila_t.addWidget(self.chip)
         fila_t.addStretch()
@@ -371,7 +371,7 @@ class CobroDialog(QDialog):
     # ---------- PDF ----------
     def _pdf(self, tipo: str):
         try:
-            ruta = generate_report(self.repo, ReportsRepository(self.repo), self.code, tipo, self.tech_id)
+            ruta = generate_report(self.repo, QAKM_ReportsRepository(self.repo), self.code, tipo, self.tech_id)
         except Exception as e:
             self._aviso(f"No se pudo generar el PDF: {e}", ok=False)
             return

@@ -52,7 +52,7 @@ _MARCA_DISCO = (("WDC", "Western Digital"), ("WD", "Western Digital"), ("ST", "S
 _TIPO_RAM = ("LPDDR5", "LPDDR4", "LPDDR3", "LPDDR2", "LPDDR", "DDR5", "DDR4", "DDR3", "DDR2", "DDR")
 
 
-class EntornoLinux:
+class MMAE_EntornoLinux:
     # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """Acceso al sistema en Linux. Las pruebas lo sustituyen por uno simulado con los mismos métodos."""
 
@@ -286,7 +286,7 @@ def _lecturas(env) -> list[dict]:
 
 def requisitos_sensores(env=None) -> list[str]:
     """Lo que falta en este equipo para leer todos los sensores (vacío si no falta nada)."""
-    env = env or EntornoLinux()
+    env = env or MMAE_EntornoLinux()
     falta = []
     if not env.tiene("smartctl"):
         falta.append("instalar smartmontools (sudo apt install smartmontools) para el estado SMART de los discos")
@@ -822,7 +822,7 @@ _FS_MONTABLES = {"vfat", "exfat", "ntfs", "ntfs3", "ext4", "ext3", "ext2", "btrf
 def extraibles_sin_montar(env=None) -> list[str]:
     """Particiones de memorias USB conectadas pero sin montar. En Windows cada memoria recibe una
     letra al conectarla; en Linux, si nadie la abrió en el explorador de archivos, no tiene carpeta."""
-    env = env or EntornoLinux()
+    env = env or MMAE_EntornoLinux()
     try:
         arbol = json.loads(env.ejecutar("lsblk", "-J", "-p", "-o", "PATH,TYPE,RM,HOTPLUG,TRAN,FSTYPE,MOUNTPOINTS")
                            or "{}")
@@ -847,7 +847,7 @@ def extraibles_sin_montar(env=None) -> list[str]:
 def montar_extraibles(env=None) -> list[str]:
     """Monta las memorias USB conectadas sin montar, como al abrirlas en el explorador de archivos
     (udisksctl: no pide contraseña al usuario del escritorio). Devuelve las carpetas montadas."""
-    env = env or EntornoLinux()
+    env = env or MMAE_EntornoLinux()
     if not env.tiene("udisksctl"):
         return []
     montadas = []
@@ -864,7 +864,7 @@ def montar_extraibles(env=None) -> list[str]:
 
 def unidades_extraibles(env=None) -> list[str]:
     """Puntos de montaje de memorias USB y tarjetas (dispositivo extraíble o conectado por USB)."""
-    env = env or EntornoLinux()
+    env = env or MMAE_EntornoLinux()
     salida = []
     for p in env.psutil.disk_partitions(all=False):
         if not p.device.startswith("/dev/"):

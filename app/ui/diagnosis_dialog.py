@@ -6,13 +6,13 @@ from PySide6.QtWidgets import QDialog, QFrame, QGridLayout, QHBoxLayout, QLabel,
 
 from app.ai import config as ia_config
 from app.ai import prompts
-from app.db.health_repo import HealthRepository
-from app.db.repo import Repository
+from app.db.health_repo import QAKM_HealthRepository
+from app.db.repo import QAKM_Repository
 from app.diagnosis.engine import diagnose
-from app.ui.ai_widgets import AiStreamPanel
+from app.ui.ai_widgets import MVCD_AiStreamPanel
 from app.ui.styles import ACCENT
 from app.ui.tema import T
-from app.ui.widgets import AreaDesplazable, BarraPorcentaje, ChipEstado, chip_html, fecha_corta, muted, panel
+from app.ui.widgets import MVCD_AreaDesplazable, MVCD_BarraPorcentaje, MVCD_ChipEstado, chip_html, fecha_corta, muted, panel
 
 ESTADO_COLORES = {
     "ATENCIÓN REQUERIDA": (T.peligro_suave, T.peligro),
@@ -47,19 +47,19 @@ def dividir_respuesta_ia(texto: str) -> dict | None:
     return {s: "\n".join(partes[s]).strip() for s in SECCIONES_IA}
 
 
-class DiagnosisDialog(QDialog):
+class MVCD_DiagnosisDialog(QDialog):
     # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """Ejecuta el motor de reglas sobre un caso y muestra posibles causas.
     El análisis de IA local es opcional y no bloquea el resultado."""
 
-    def __init__(self, repo: Repository, code: str, parent=None):
+    def __init__(self, repo: QAKM_Repository, code: str, parent=None):
         super().__init__(parent)
         self.repo, self.code, self.saved = repo, code, False
         self.caso = repo.get_case(code)
         self.scan = repo.get_scan(code)
         self.result = diagnose(self.caso["problem"], self.scan)
         # Hallazgos de la pantalla Salud que el técnico decidió incluir (no cambian las causas)
-        self.salud_items = HealthRepository(repo).included_for_case(code)
+        self.salud_items = QAKM_HealthRepository(repo).included_for_case(code)
         self.ai_text = ""
         self._model = ia_config.DEFAULT_MODEL
         self.panel = None
@@ -80,7 +80,7 @@ class DiagnosisDialog(QDialog):
 
         fila_est = QHBoxLayout()
         bg, fg = ESTADO_COLORES.get(r["status"], (T.pista, T.texto_suave))
-        self.chip_estado = ChipEstado(r["status"], bg, fg, grande=True)
+        self.chip_estado = MVCD_ChipEstado(r["status"], bg, fg, grande=True)
         fila_est.addWidget(self.chip_estado)
         fila_est.addStretch()
         lay.addLayout(fila_est)
@@ -129,7 +129,7 @@ class DiagnosisDialog(QDialog):
         self.modelo_lbl = muted("")
         vi.addWidget(self.modelo_lbl)
         if r["causes"]:
-            self.panel = AiStreamPanel(
+            self.panel = MVCD_AiStreamPanel(
                 vacio="El análisis de la IA aparecerá aquí.",
                 msg_cancel="Análisis de IA cancelado. El resultado por reglas sigue siendo válido.")
             self.panel.text_ready.connect(self._on_ai_ready)
@@ -157,7 +157,7 @@ class DiagnosisDialog(QDialog):
         cl.addWidget(p_ia)
         cl.addStretch()
 
-        scroll = AreaDesplazable(inner)
+        scroll = MVCD_AreaDesplazable(inner)
         lay.addWidget(scroll, 1)
 
         aviso = QFrame()
@@ -226,12 +226,12 @@ class DiagnosisDialog(QDialog):
         pct = round(c["confidence"] * 100)
         conf = QLabel(f'Confianza {c["confidence_label"]} · {pct} %')
         conf.setObjectName("Muted")
-        barra = BarraPorcentaje(pct, color=ACCENT, alto=6, mostrar_numero=False)
+        barra = MVCD_BarraPorcentaje(pct, color=ACCENT, alto=6, mostrar_numero=False)
         barra.setFixedWidth(150)
 
         g.addWidget(num, 0, 0, 2, 1, Qt.AlignTop)
         g.addWidget(causa, 0, 1)
-        g.addWidget(ChipEstado(c["priority"]), 0, 2, Qt.AlignRight | Qt.AlignTop)
+        g.addWidget(MVCD_ChipEstado(c["priority"]), 0, 2, Qt.AlignRight | Qt.AlignTop)
         g.addWidget(evid, 1, 1)
         derecha = QVBoxLayout()
         derecha.setSpacing(2)

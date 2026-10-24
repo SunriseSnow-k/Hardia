@@ -1,16 +1,16 @@
 import sqlite3
 
-from .repo import Repository
+from .repo import QAKM_Repository
 from .search_repo import _CAPTURA, _ESC, MAX_PALABRAS, _like
 
 
-class EquipmentRepository:
+class QAKM_EquipmentRepository:
     # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """Consultas de la pantalla Equipos (solo lectura)."""
 
     _CAMPOS = ("e.serial", "e.description", "cl.name", "cl.phone", "cl.doc_id", _CAPTURA)
 
-    def __init__(self, repo: Repository):
+    def __init__(self, repo: QAKM_Repository):
         self.c = repo.c
 
     def list_equipment(self, text: str = "") -> list[sqlite3.Row]:

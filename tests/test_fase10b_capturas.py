@@ -1,8 +1,8 @@
 import pytest
 
-from app.db.database import Database
-from app.db.hardware_repo import HardwareRepository
-from app.db.repo import Repository
+from app.db.database import QAKM_Database
+from app.db.hardware_repo import QAKM_HardwareRepository
+from app.db.repo import QAKM_Repository
 from app.hardware.inventory import compare_captures
 from app.hardware.scanner import run_scan
 from tests.test_fase10b_hardware import _env
@@ -10,9 +10,9 @@ from tests.test_fase10b_hardware import _env
 
 @pytest.fixture
 def ctx(tmp_path):
-    db = Database(tmp_path / "t.db")
-    repo = Repository(db)
-    yield repo, HardwareRepository(repo)
+    db = QAKM_Database(tmp_path / "t.db")
+    repo = QAKM_Repository(db)
+    yield repo, QAKM_HardwareRepository(repo)
     db.close()
 
 
@@ -125,10 +125,10 @@ def test_migracion_ignora_datos_danados(ctx):
 
 
 def test_las_tablas_nuevas_no_tocan_los_datos_existentes(tmp_path):
-    db = Database(tmp_path / "t.db")
-    repo = Repository(db)
+    db = QAKM_Database(tmp_path / "t.db")
+    repo = QAKM_Repository(db)
     code = repo.register_intake("Luis", "1", "SN-1", "Laptop", "Lento")
-    HardwareRepository(repo)
-    HardwareRepository(repo)  # crear dos veces no falla ni borra nada
+    QAKM_HardwareRepository(repo)
+    QAKM_HardwareRepository(repo)  # crear dos veces no falla ni borra nada
     assert repo.get_case(code)["problem"] == "Lento"
     db.close()

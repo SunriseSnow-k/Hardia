@@ -1,7 +1,7 @@
 import pytest
 
-from app.db.database import Database
-from app.db.repo import Repository
+from app.db.database import QAKM_Database
+from app.db.repo import QAKM_Repository
 from app.diagnosis.engine import OPERADORES, diagnose, load_rules, normalizar
 
 SCAN_CALOR = {
@@ -13,8 +13,8 @@ SCAN_CALOR = {
 
 @pytest.fixture
 def repo(tmp_path):
-    db = Database(tmp_path / "test.db")
-    yield Repository(db)
+    db = QAKM_Database(tmp_path / "test.db")
+    yield QAKM_Repository(db)
     db.close()
 
 

@@ -16,10 +16,10 @@ from app.diagnosis.engine import load_rules, normalizar
 from app.reports.cliente import implication
 from app.ui.styles import ACCENT
 from app.ui.tema import T
-from app.ui.widgets import AreaDesplazable, ChipEstado, cabecera, chip_html, colores_de, limpiar_layout, muted, panel
+from app.ui.widgets import MVCD_AreaDesplazable, MVCD_ChipEstado, cabecera, chip_html, colores_de, limpiar_layout, muted, panel
 
 
-class ConocimientoPage(QWidget):
+class MVCD_ConocimientoPage(QWidget):
     # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """Consulta de solo lectura de la base de conocimiento local."""
 
@@ -76,7 +76,7 @@ class ConocimientoPage(QWidget):
         self.detalle = QVBoxLayout(det_w)
         self.detalle.setContentsMargins(0, 0, 6, 0)
         self.detalle.setSpacing(10)
-        sc = AreaDesplazable(det_w)
+        sc = MVCD_AreaDesplazable(det_w)
         vd.addWidget(sc, 1)
         cuerpo.addWidget(p_det, 3)
         root.addLayout(cuerpo, 1)
@@ -140,9 +140,9 @@ class ConocimientoPage(QWidget):
         titulo.setWordWrap(True)
         self.detalle.addWidget(titulo)
         chips = QHBoxLayout()
-        chips.addWidget(ChipEstado(f'Regla {r["id"]}', T.acento_suave, ACCENT))
-        chips.addWidget(ChipEstado(r["category"], T.fondo_app, T.texto))
-        chips.addWidget(ChipEstado(f'Prioridad {r["priority"]}', *colores_de(r["priority"])))
+        chips.addWidget(MVCD_ChipEstado(f'Regla {r["id"]}', T.acento_suave, ACCENT))
+        chips.addWidget(MVCD_ChipEstado(r["category"], T.fondo_app, T.texto))
+        chips.addWidget(MVCD_ChipEstado(f'Prioridad {r["priority"]}', *colores_de(r["priority"])))
         chips.addStretch()
         self.detalle.addLayout(chips)
 

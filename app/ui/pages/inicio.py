@@ -3,9 +3,9 @@ from datetime import datetime
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QPushButton, QScrollArea, QVBoxLayout, QWidget
 
-from app.db.repo import ESTADOS, Repository
+from app.db.repo import ESTADOS, QAKM_Repository
 from app.ui.tema import T
-from app.ui.widgets import ChipEstado, cabecera, fecha_larga, limpiar_layout, tiempo_transcurrido
+from app.ui.widgets import MVCD_ChipEstado, cabecera, fecha_larga, limpiar_layout, tiempo_transcurrido
 
 ACTIVOS = ("Recibido", "En diagnóstico", "Listo")
 
@@ -24,7 +24,7 @@ def _texto_tiempo(row) -> str:
     return f"Ingresó {hace}" if hace else ""
 
 
-class CaseCard(QFrame):
+class MVCD_CaseCard(QFrame):
     # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     clicked = Signal(str)
 
@@ -43,7 +43,7 @@ class CaseCard(QFrame):
         codigo.setObjectName("Code")
         arriba.addWidget(codigo)
         arriba.addStretch()
-        arriba.addWidget(ChipEstado(row["priority"]))
+        arriba.addWidget(MVCD_ChipEstado(row["priority"]))
 
         titulo = QLabel(row["equipo"])
         titulo.setStyleSheet("font-weight:600;")
@@ -64,12 +64,12 @@ class CaseCard(QFrame):
             self.clicked.emit(self.code)
 
 
-class InicioPage(QWidget):
+class MVCD_InicioPage(QWidget):
     # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     open_case = Signal(str)
     new_intake = Signal()
 
-    def __init__(self, repo: Repository):
+    def __init__(self, repo: QAKM_Repository):
         super().__init__()
         self.repo = repo
         root = QVBoxLayout(self)
@@ -126,7 +126,7 @@ class InicioPage(QWidget):
             cab.addStretch()
             v.addLayout(cab)
             for r in casos[:limite]:
-                card = CaseCard(r)
+                card = MVCD_CaseCard(r)
                 card.clicked.connect(self.open_case.emit)
                 v.addWidget(card)
             if not casos:

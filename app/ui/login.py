@@ -2,7 +2,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QDialog, QFrame, QHBoxLayout, QLabel, QLineEdit, QPushButton, QVBoxLayout, QWidget
 
-from app.db.repo import Repository
+from app.db.repo import QAKM_Repository
 from app.paths import recurso
 from app.servicios import cuentas
 from app.ui.tema import T
@@ -15,14 +15,14 @@ BENEFICIOS = (
 )
 
 
-class LoginDialog(QDialog):
+class MVCD_LoginDialog(QDialog):
     # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
-    def __init__(self, repo: Repository):
+    def __init__(self, repo: QAKM_Repository):
         super().__init__()
         self.repo = repo
         self.first_run = repo.count_users() == 0
         self.user_id = ""
-        self.sesion: cuentas.Sesion | None = None
+        self.sesion: cuentas.VONF_Sesion | None = None
         self.setWindowTitle("Hardia — Iniciar sesión")
         self.setFixedSize(900, 560)
 
@@ -112,7 +112,7 @@ class LoginDialog(QDialog):
                 sesion = cuentas.crear_cuenta_inicial(self.repo, self.id_input.text(), self.pw_input.text())
             else:
                 sesion = cuentas.iniciar_sesion(self.repo, self.id_input.text(), self.pw_input.text())
-        except (ValueError, cuentas.SinPermiso) as e:
+        except (ValueError, cuentas.VONF_SinPermiso) as e:
             self.error.setText(str(e))
             if not self.first_run:
                 self.pw_input.clear()

@@ -9,17 +9,17 @@ import logging
 from dataclasses import dataclass, field
 from datetime import date
 
-from app.db.clients_repo import ClientsRepository, normalize_doc
-from app.db.hardware_repo import HardwareRepository
-from app.db.health_repo import HealthRepository
-from app.db.orders_repo import OrdersRepository
-from app.db.repo import Repository
+from app.db.clients_repo import QAKM_ClientsRepository, normalize_doc
+from app.db.hardware_repo import QAKM_HardwareRepository
+from app.db.health_repo import QAKM_HealthRepository
+from app.db.orders_repo import QAKM_OrdersRepository
+from app.db.repo import QAKM_Repository
 
 log = logging.getLogger(__name__)
 
 
 @dataclass
-class DatosRecepcion:
+class VONF_DatosRecepcion:
     # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     cliente: str
     equipo: str
@@ -36,14 +36,14 @@ class DatosRecepcion:
 
 
 @dataclass
-class ResultadoRecepcion:
+class VONF_ResultadoRecepcion:
     # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     code: str
     avisos: list[str] = field(default_factory=list)
     orden_guardada: bool = False
 
 
-def validar(d: DatosRecepcion) -> str:
+def validar(d: VONF_DatosRecepcion) -> str:
     """Comprueba los datos antes de escribir nada. Devuelve el documento normalizado."""
     if not all(v.strip() for v in (d.cliente, d.equipo, d.serie, d.problema)):
         raise ValueError("Complete cliente, equipo, serie y problema.")
@@ -58,7 +58,7 @@ def validar(d: DatosRecepcion) -> str:
     return documento
 
 
-def registrar(repo: Repository, d: DatosRecepcion, hw: dict | None = None) -> ResultadoRecepcion:
+def registrar(repo: QAKM_Repository, d: VONF_DatosRecepcion, hw: dict | None = None) -> VONF_ResultadoRecepcion:
     documento = validar(d)
     avisos: list[str] = []
 
@@ -74,25 +74,25 @@ def registrar(repo: Repository, d: DatosRecepcion, hw: dict | None = None) -> Re
     with repo.transaccion():
         code = repo.register_intake(d.cliente, d.telefono, d.serie, d.equipo, d.problema.strip(), d.prioridad)
         if documento:
-            opcional("guardar el documento", lambda: ClientsRepository(repo).set_doc_for_case(code, documento))
+            opcional("guardar el documento", lambda: QAKM_ClientsRepository(repo).set_doc_for_case(code, documento))
         if hw:
             def captura():
                 r: dict = hw["summary"] if isinstance(hw.get("summary"), dict) else {}
                 cid = repo.add_client(d.cliente.strip(), d.telefono.strip())
                 repo.upsert_equipment(d.serie, d.equipo.strip(), cid, cpu=r.get("cpu", ""), ram=r.get("ram", ""),
                                       storage=r.get("storage", ""), os_name=r.get("os", ""))
-                return HardwareRepository(repo).save_capture(code, hw)
+                return QAKM_HardwareRepository(repo).save_capture(code, hw)
 
             res = opcional("guardar la captura de hardware", captura)
             if res and res["conflicts"]:
                 avisos.append(f"{len(res['conflicts'])} identificador(es) del escaneo ya pertenecen a otro equipo "
                               "y no se reasignaron; revise que la serie sea la correcta.")
             if res:  # deja guardado el índice de salud para Equipos, Caso y futuros reingresos
-                opcional("evaluar la salud del equipo", lambda: HealthRepository(repo).evaluate_case(code))
+                opcional("evaluar la salud del equipo", lambda: QAKM_HealthRepository(repo).evaluate_case(code))
         def orden_de_servicio() -> bool:
-            OrdersRepository(repo).save(code, d.accesorios, d.estado_fisico, d.observaciones,
+            QAKM_OrdersRepository(repo).save(code, d.accesorios, d.estado_fisico, d.observaciones,
                                         d.fecha_estimada, d.tecnico)
             return True
 
         orden = opcional("guardar la orden de servicio", orden_de_servicio)
-    return ResultadoRecepcion(code, avisos, orden_guardada=bool(orden))
+    return VONF_ResultadoRecepcion(code, avisos, orden_guardada=bool(orden))

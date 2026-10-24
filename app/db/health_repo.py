@@ -8,20 +8,20 @@ import sqlite3
 from app.health import evaluate, load_references
 
 from .database import ultimo_id
-from .hardware_repo import HardwareRepository
-from .repo import Repository
+from .hardware_repo import QAKM_HardwareRepository
+from .repo import QAKM_Repository
 
 
 def _json(d) -> str:
     return json.dumps(d, ensure_ascii=False, sort_keys=True)
 
 
-class HealthRepository:
+class QAKM_HealthRepository:
     # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
-    def __init__(self, repo: Repository):
+    def __init__(self, repo: QAKM_Repository):
         self.repo = repo
         self.c = repo.c
-        self.hw = HardwareRepository(repo)
+        self.hw = QAKM_HardwareRepository(repo)
 
     # ---------- resultados ----------
     def save_result(self, case_code: str, capture_id, result: dict, benchmark_id=None) -> int:

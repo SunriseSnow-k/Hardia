@@ -3,8 +3,8 @@ La medición corre en un QThread (app/health/benchmark.py); la interfaz nunca se
 from PySide6.QtCore import Qt, QThread, Signal
 from PySide6.QtWidgets import QCheckBox, QDialog, QFrame, QHBoxLayout, QLabel, QProgressBar, QPushButton, QVBoxLayout
 
-from app.db.health_repo import HealthRepository
-from app.hardware.scanner import LectorTemperatura
+from app.db.health_repo import QAKM_HealthRepository
+from app.hardware.scanner import MMAE_LectorTemperatura
 from app.health import benchmark as bm
 from app.plataforma import ES_LINUX
 from app.ui.pages.escaneo import fila_html
@@ -14,7 +14,7 @@ from app.ui.widgets import lista_dato_valor, muted, panel
 discos_de_captura = bm.discos_de  # nombre usado por las pruebas y la pantalla de salud
 
 
-class BenchmarkWorker(QThread):
+class MVCD_BenchmarkWorker(QThread):
     # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     paso = Signal(int, str)
     muestra = Signal(float, float, object, object)  # t, ops/s, temp, fuente
@@ -63,16 +63,16 @@ class BenchmarkWorker(QThread):
                 sesion.cerrar()
 
 
-class BenchmarkDialog(QDialog):
+class MVCD_BenchmarkDialog(QDialog):
     # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     def __init__(self, repo, code: str, captura: dict, parent=None, duracion_cpu: float = bm.DURACION_CPU,
                  duracion_disco: float = bm.DURACION_DISCO, procesos: int | None = None,
-                 lector=LectorTemperatura, condiciones=None):
+                 lector=MMAE_LectorTemperatura, condiciones=None):
         super().__init__(parent)
         self.repo, self.code, self.captura = repo, code, captura
         self.saved = False
         self.resultado: dict | None = None
-        self.worker: BenchmarkWorker | None = None
+        self.worker: MVCD_BenchmarkWorker | None = None
         self._lector = lector
         self._duraciones = (duracion_cpu, duracion_disco, procesos)
         self.discos = discos_de_captura(captura["payload"])
@@ -187,7 +187,7 @@ class BenchmarkDialog(QDialog):
         self.b_cancelar.setEnabled(True)
         self.b_cerrar.setEnabled(False)
         self.estado.setText("Midiendo… no use el equipo mientras tanto.")
-        self.worker = BenchmarkWorker(self.discos, dc, dd, pr, self.cond, self._lector)
+        self.worker = MVCD_BenchmarkWorker(self.discos, dc, dd, pr, self.cond, self._lector)
         self.worker.paso.connect(self._on_paso)
         self.worker.muestra.connect(self._on_muestra)
         self.worker.avance_disco.connect(self._on_disco)
@@ -242,7 +242,7 @@ class BenchmarkDialog(QDialog):
         if res.get("cancelado"):
             self.estado.setText("Prueba cancelada: no se guardó ningún resultado.")
             return
-        HealthRepository(self.repo).save_benchmark(self.code, self.captura["id"], res)
+        QAKM_HealthRepository(self.repo).save_benchmark(self.code, self.captura["id"], res)
         self.saved = True
         self.estado.setText("Prueba terminada y guardada. La salud del equipo se actualizó con estos datos.")
 

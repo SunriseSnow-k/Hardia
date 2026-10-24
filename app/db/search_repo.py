@@ -100,7 +100,7 @@ def _rango(campo: str, desde, hasta):
     return conds, params
 
 
-class SearchQueries:
+class QAKM_SearchQueries:
     # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """Consultas de búsqueda. Solo ejecuta SELECT; funciona con una conexión de solo lectura."""
 

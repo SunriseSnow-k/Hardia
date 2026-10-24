@@ -6,9 +6,9 @@ from PySide6.QtCore import QThreadPool
 from PySide6.QtWidgets import QApplication
 
 from app.ai.ollama_client import OllamaError
-from app.db.database import Database
-from app.db.repo import Repository
-from app.db.reports_repo import ReportsRepository
+from app.db.database import QAKM_Database
+from app.db.repo import QAKM_Repository
+from app.db.reports_repo import QAKM_ReportsRepository
 from app.paths import VAR_DATOS
 
 
@@ -30,8 +30,8 @@ def entorno(monkeypatch, tmp_path):
 
 @pytest.fixture
 def repo(tmp_path, qapp):
-    db = Database(tmp_path / "ui.db")
-    r = Repository(db)
+    db = QAKM_Database(tmp_path / "ui.db")
+    r = QAKM_Repository(db)
     r.set_setting("auto_backup", "0")
     yield r
     db.close()
@@ -49,11 +49,11 @@ def _poblar(repo, n):
 
 
 def test_historial_busca_y_filtra(repo):
-    from app.ui.pages.historial import HistorialPage
+    from app.ui.pages.historial import MVCD_HistorialPage
     repo.register_intake("Luis Paredes", "1", "SN-1", "Laptop HP", "Se calienta")
     repo.register_intake("Ana Torres", "2", "SN-2", "PC Dell", "Lento")
     repo.register_intake("Marta Díaz", "3", "SN-3", "PC armada", "RAM")
-    page = HistorialPage(repo)
+    page = MVCD_HistorialPage(repo)
     assert page.tabla.rowCount() == 3
     page.buscar.setText("Ana")
     page.buscar_ahora(sync=True)
@@ -67,9 +67,9 @@ def test_historial_busca_y_filtra(repo):
 
 
 def test_historial_asincrono_y_paginacion(repo):
-    from app.ui.pages.historial import HistorialPage
+    from app.ui.pages.historial import MVCD_HistorialPage
     _poblar(repo, 60)
-    page = HistorialPage(repo)
+    page = MVCD_HistorialPage(repo)
     assert page.tabla.rowCount() == 50 and "Página 1 de 2" in page.pager.lbl.text()
     page._ir_pagina(1)
     _esperar()
@@ -81,11 +81,11 @@ def test_historial_asincrono_y_paginacion(repo):
 
 
 def test_historial_filtros_se_combinan_con_texto(repo):
-    from app.ui.pages.historial import HistorialPage
+    from app.ui.pages.historial import MVCD_HistorialPage
     _poblar(repo, 6)
     repo.update_case_status("C-001", "Listo")
     repo.update_case_status("C-002", "Listo")
-    page = HistorialPage(repo)
+    page = MVCD_HistorialPage(repo)
     page.f_estado.setCurrentText("Listo")
     page.buscar.setText("SN-0001")
     page.buscar_ahora(sync=True)
@@ -93,13 +93,13 @@ def test_historial_filtros_se_combinan_con_texto(repo):
 
 
 def test_historial_error_se_muestra(repo, monkeypatch):
-    from app.ui.pages.historial import HistorialPage
+    from app.ui.pages.historial import MVCD_HistorialPage
 
     def boom(self, **kw):
         raise RuntimeError("fallo simulado")
 
-    page = HistorialPage(repo)
-    monkeypatch.setattr("app.db.search_repo.SearchQueries.search_cases", boom)
+    page = MVCD_HistorialPage(repo)
+    monkeypatch.setattr("app.db.search_repo.QAKM_SearchQueries.search_cases", boom)
     page.refresh(sync=True)
     assert "No se pudo completar la búsqueda: fallo simulado" in page.estado.text()
     page.refresh()  # también en segundo plano
@@ -108,13 +108,13 @@ def test_historial_error_se_muestra(repo, monkeypatch):
 
 
 def test_reportes_filtra_y_selector(repo):
-    from app.ui.pages.reportes import ReportesPage
+    from app.ui.pages.reportes import MVCD_ReportesPage
     c1 = repo.register_intake("Luis", "1", "SN-1", "Laptop", "a")
     c2 = repo.register_intake("Ana", "2", "SN-2", "PC", "b")
-    rr = ReportsRepository(repo)
+    rr = QAKM_ReportsRepository(repo)
     rr.add(c1, "tecnico", "C:/x/a.pdf")
     rr.add(c2, "cliente", "C:/x/b.pdf")
-    page = ReportesPage(repo, "TEC-001")
+    page = MVCD_ReportesPage(repo, "TEC-001")
     assert page.tabla.rowCount() == 2 and page.combo.count() == 2
     page.f_tipo.setCurrentIndex(1)
     page.buscar_ahora(sync=True)
@@ -128,12 +128,12 @@ def test_reportes_filtra_y_selector(repo):
 
 
 def test_detalle_del_caso_muestra_sus_reportes(repo):
-    from app.ui.case_dialog import CaseDialog
+    from app.ui.case_dialog import MVCD_CaseDialog
     c1 = repo.register_intake("Luis", "1", "SN-1", "Laptop", "a")
     c2 = repo.register_intake("Ana", "2", "SN-2", "PC", "b")
-    rr = ReportsRepository(repo)
+    rr = QAKM_ReportsRepository(repo)
     rr.add(c1, "tecnico", "C:/x/a.pdf")
     rr.add(c2, "cliente", "C:/x/b.pdf")
-    dlg = CaseDialog(repo, c1)
+    dlg = MVCD_CaseDialog(repo, c1)
     assert dlg.lista_reportes.count() == 1
     assert "Técnico" in dlg.lista_reportes.item(0).text()

@@ -4,10 +4,10 @@ from pathlib import Path
 
 import pytest
 
-from app.db.database import Database
-from app.db.orders_repo import TERMINOS_PREDETERMINADOS, OrdersRepository
-from app.db.repo import Repository
-from app.db.reports_repo import ReportsRepository
+from app.db.database import QAKM_Database
+from app.db.orders_repo import TERMINOS_PREDETERMINADOS, QAKM_OrdersRepository
+from app.db.repo import QAKM_Repository
+from app.db.reports_repo import QAKM_ReportsRepository
 from app.paths import VAR_DATOS
 from app.reports.orden import load_order_data
 from app.reports.service import KINDS, generate_report
@@ -16,8 +16,8 @@ from app.reports.service import KINDS, generate_report
 @pytest.fixture
 def repo(tmp_path, monkeypatch):
     monkeypatch.setenv(VAR_DATOS, str(tmp_path / "appdata"))
-    db = Database(tmp_path / "orden.db")
-    yield Repository(db)
+    db = QAKM_Database(tmp_path / "orden.db")
+    yield QAKM_Repository(db)
     db.close()
 
 
@@ -27,7 +27,7 @@ def caso(repo):
 
 
 def test_guardar_y_corregir_orden(repo, caso):
-    orders = OrdersRepository(repo)
+    orders = QAKM_OrdersRepository(repo)
     orders.save(caso, ["Cargador", " ", "Mouse"], "Rayón en la tapa", "", "2026-12-01", "kq")
     o = orders.get(caso)
     assert o["accessories"] == "Cargador, Mouse"
@@ -41,7 +41,7 @@ def test_guardar_y_corregir_orden(repo, caso):
 
 
 def test_validaciones(repo, caso):
-    orders = OrdersRepository(repo)
+    orders = QAKM_OrdersRepository(repo)
     with pytest.raises(ValueError, match="No existe"):
         orders.save("C-999")
     with pytest.raises(ValueError, match="fecha"):
@@ -54,17 +54,17 @@ def test_validaciones(repo, caso):
 
 
 def test_terminos_editables(repo):
-    orders = OrdersRepository(repo)
+    orders = QAKM_OrdersRepository(repo)
     assert len(orders.terms()) == len(TERMINOS_PREDETERMINADOS.splitlines())
     repo.set_setting("service_terms", "Garantía de 30 días.\n\n  Pago al retirar.  ")
     assert orders.terms() == ["Garantía de 30 días.", "Pago al retirar."]
 
 
 def test_pdf_de_la_orden(repo, caso, tmp_path):
-    OrdersRepository(repo).save(caso, ["Cargador"], "Rayón", "Cliente indica caída", "2026-12-01", "KQ")
+    QAKM_OrdersRepository(repo).save(caso, ["Cargador"], "Rayón", "Cliente indica caída", "2026-12-01", "KQ")
     data = load_order_data(repo, caso)
     assert data["order"]["accessories"] == "Cargador" and data["caso"]["cliente"] == "Ana Díaz"
-    rr = ReportsRepository(repo)
+    rr = QAKM_ReportsRepository(repo)
     ruta = generate_report(repo, rr, caso, "orden", "KQ", out_dir=tmp_path)
     assert ruta.read_bytes().startswith(b"%PDF") and "_orden_" in ruta.name
     assert rr.for_case(caso)[0]["kind"] == "orden" and KINDS["orden"] == "Orden de servicio"
@@ -72,7 +72,7 @@ def test_pdf_de_la_orden(repo, caso, tmp_path):
 
 def test_pdf_sin_orden_registrada(repo, caso, tmp_path):
     """Casos antiguos (sin orden) también pueden imprimirla, con valores por defecto."""
-    ruta = generate_report(repo, ReportsRepository(repo), caso, "orden", out_dir=tmp_path)
+    ruta = generate_report(repo, QAKM_ReportsRepository(repo), caso, "orden", out_dir=tmp_path)
     assert ruta.exists()
 
 
@@ -93,8 +93,8 @@ def _llenar(page):
 
 
 def test_recepcion_guarda_orden_y_la_abre(ui_repo, _sin_abrir_archivos):
-    from app.ui.pages.recepcion import RecepcionPage
-    page = RecepcionPage(ui_repo, "TEC-1")
+    from app.ui.pages.recepcion import MVCD_RecepcionPage
+    page = MVCD_RecepcionPage(ui_repo, "TEC-1")
     _llenar(page)
     page.accesorios[0].setChecked(True)  # Cargador
     page.otros_acc.setText("Lápiz óptico")
@@ -102,7 +102,7 @@ def test_recepcion_guarda_orden_y_la_abre(ui_repo, _sin_abrir_archivos):
     page.chk_fecha.setChecked(True)
     page._guardar()
     assert page.ok.text().startswith("Caso C-001") and "Aviso" not in page.ok.text()
-    o = OrdersRepository(ui_repo).get("C-001")
+    o = QAKM_OrdersRepository(ui_repo).get("C-001")
     assert o["accessories"] == "Cargador, Lápiz óptico" and o["condition"] == "Bisagra floja"
     assert o["estimated_date"] == (date.today() + timedelta(days=3)).isoformat()
     assert o["received_by"] == "TEC-1"
@@ -113,21 +113,21 @@ def test_recepcion_guarda_orden_y_la_abre(ui_repo, _sin_abrir_archivos):
 
 
 def test_recepcion_sin_imprimir_y_preferencia_recordada(ui_repo, _sin_abrir_archivos):
-    from app.ui.pages.recepcion import RecepcionPage
-    page = RecepcionPage(ui_repo)
+    from app.ui.pages.recepcion import MVCD_RecepcionPage
+    page = MVCD_RecepcionPage(ui_repo)
     page.chk_orden.setChecked(False)
     _llenar(page)
     page._guardar()
-    assert OrdersRepository(ui_repo).get("C-001") is not None
+    assert QAKM_OrdersRepository(ui_repo).get("C-001") is not None
     assert _sin_abrir_archivos == []
-    assert not RecepcionPage(ui_repo).chk_orden.isChecked()
+    assert not MVCD_RecepcionPage(ui_repo).chk_orden.isChecked()
 
 
 def test_recepcion_rechaza_fecha_pasada(ui_repo):
     from PySide6.QtCore import QDate
 
-    from app.ui.pages.recepcion import RecepcionPage
-    page = RecepcionPage(ui_repo)
+    from app.ui.pages.recepcion import MVCD_RecepcionPage
+    page = MVCD_RecepcionPage(ui_repo)
     _llenar(page)
     page.chk_fecha.setChecked(True)
     page.fecha.setDate(QDate.currentDate().addDays(-1))
@@ -137,12 +137,12 @@ def test_recepcion_rechaza_fecha_pasada(ui_repo):
 
 
 def test_recepcion_no_abre_orden_si_no_se_guardo(ui_repo, _sin_abrir_archivos, monkeypatch):
-    from app.ui.pages.recepcion import RecepcionPage
+    from app.ui.pages.recepcion import MVCD_RecepcionPage
 
     def falla(*a, **k):
         raise RuntimeError("bloqueada")
-    monkeypatch.setattr(OrdersRepository, "save", falla)
-    page = RecepcionPage(ui_repo)
+    monkeypatch.setattr(QAKM_OrdersRepository, "save", falla)
+    page = MVCD_RecepcionPage(ui_repo)
     _llenar(page)
     page._guardar()
     assert page.ok.text().startswith("Caso C-001") and "orden de servicio" in page.ok.text()

@@ -17,22 +17,22 @@ from PySide6.QtWidgets import (
 )
 
 from app.ai import prompts
-from app.db.clients_repo import ClientsRepository
-from app.db.health_repo import HealthRepository
-from app.db.notes_repo import MAX_TEXTO, TIPOS, NotesRepository
-from app.db.repo import ESTADOS, Repository
-from app.db.reports_repo import ReportsRepository
+from app.db.clients_repo import QAKM_ClientsRepository
+from app.db.health_repo import QAKM_HealthRepository
+from app.db.notes_repo import MAX_TEXTO, TIPOS, QAKM_NotesRepository
+from app.db.repo import ESTADOS, QAKM_Repository
+from app.db.reports_repo import QAKM_ReportsRepository
 from app.diagnosis.engine import diagnose
 from app.reports.service import KINDS, generate_report
 from app.servicios import cobro
-from app.ui.ai_widgets import AiDialog
-from app.ui.diagnosis_dialog import DiagnosisDialog
+from app.ui.ai_widgets import MVCD_AiDialog
+from app.ui.diagnosis_dialog import MVCD_DiagnosisDialog
 from app.ui.tema import T
 from app.ui.widgets import (
-    AreaDesplazable,
-    BarraPorcentaje,
-    ChipEstado,
-    IndicadorEtapas,
+    MVCD_AreaDesplazable,
+    MVCD_BarraPorcentaje,
+    MVCD_ChipEstado,
+    MVCD_IndicadorEtapas,
     color_estado,
     fecha_corta,
     limpiar_layout,
@@ -41,20 +41,20 @@ from app.ui.widgets import (
 )
 
 
-class CaseDialog(QDialog):
+class MVCD_CaseDialog(QDialog):
     # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """Detalle de un caso: datos, estado, diagnóstico, IA, notas, reportes y casos anteriores."""
 
-    def __init__(self, repo: Repository, code: str, parent=None):
+    def __init__(self, repo: QAKM_Repository, code: str, parent=None):
         super().__init__(parent)
         self.repo = repo
         self.code = code
         self.changed = False
         self.tech_id = getattr(repo, "session_tech", "") or ""
-        self.notes = NotesRepository(repo)
-        self.health = HealthRepository(repo)
+        self.notes = QAKM_NotesRepository(repo)
+        self.health = QAKM_HealthRepository(repo)
         caso = repo.get_case(code)
-        documento = ClientsRepository(repo).doc_for_case(code)
+        documento = QAKM_ClientsRepository(repo).doc_for_case(code)
 
         self.setWindowTitle(f"Caso {code}")
         self.setMinimumWidth(860)
@@ -63,7 +63,7 @@ class CaseDialog(QDialog):
         exterior.setContentsMargins(0, 0, 0, 12)
         contenido = QWidget()
         contenido.setObjectName("ScrollBody")
-        scroll = AreaDesplazable(contenido)
+        scroll = MVCD_AreaDesplazable(contenido)
         exterior.addWidget(scroll, 1)
         lay = QVBoxLayout(contenido)
         lay.setContentsMargins(24, 20, 24, 8)
@@ -75,11 +75,11 @@ class CaseDialog(QDialog):
         titulo = QLabel(f'{code} — {caso["equipo"]}')
         titulo.setObjectName("PageTitle")
         titulo.setWordWrap(True)
-        self.prio = ChipEstado(caso["priority"])
+        self.prio = MVCD_ChipEstado(caso["priority"])
         fila_t.addWidget(titulo)
         fila_t.addWidget(self.prio)
         if caso["reingreso"]:
-            reing = ChipEstado("Reingreso", T.acento_suave, T.acento)
+            reing = MVCD_ChipEstado("Reingreso", T.acento_suave, T.acento)
             reing.setToolTip("Este equipo ya tuvo casos anteriores en el taller.")
             fila_t.addWidget(reing)
         fila_t.addStretch()
@@ -96,7 +96,7 @@ class CaseDialog(QDialog):
         p_est, ve = panel(margen=14)
         fila2 = QHBoxLayout()
         fila2.setSpacing(10)
-        self.etapas = IndicadorEtapas(ESTADOS, caso["status"])
+        self.etapas = MVCD_IndicadorEtapas(ESTADOS, caso["status"])
         fila2.addWidget(self.etapas, 1)
         fila2.addWidget(QLabel("Estado:"))
         self.estado = QComboBox()
@@ -176,7 +176,7 @@ class CaseDialog(QDialog):
         # ---------- Derecha: cobro, notas, reportes y otros casos ----------
         p_cobro, vc = panel("Presupuesto y cobro")
         fila_cb = QHBoxLayout()
-        self.chip_cobro = ChipEstado("")
+        self.chip_cobro = MVCD_ChipEstado("")
         self.cobro_lbl = QLabel("")
         self.cobro_lbl.setWordWrap(True)
         fila_cb.addWidget(self.chip_cobro)
@@ -285,8 +285,8 @@ class CaseDialog(QDialog):
         valor = QLabel(f'{ind["valor"]:.0f} %' if ind["valor"] is not None else "—")
         valor.setStyleSheet(f"font-size:22px; font-weight:600; color:{color_estado(ind['estado'])};")
         fila.addWidget(valor)
-        fila.addWidget(ChipEstado(ind["estado"]))
-        fila.addWidget(BarraPorcentaje(ind["valor"], color=color_estado(ind["estado"]),
+        fila.addWidget(MVCD_ChipEstado(ind["estado"]))
+        fila.addWidget(MVCD_BarraPorcentaje(ind["valor"], color=color_estado(ind["estado"]),
                                        texto_alt="Sin componentes con referencia"), 1)
         self.salud_box.addLayout(fila)
         hall = res.get("hallazgo")
@@ -295,8 +295,8 @@ class CaseDialog(QDialog):
                                         "Sin componentes que requieran atención con los datos disponibles.")))
 
     def _ver_salud(self):
-        from app.ui.pages.salud import SaludDialog
-        SaludDialog(self.repo, self.code, self).exec()
+        from app.ui.pages.salud import MVCD_SaludDialog
+        MVCD_SaludDialog(self.repo, self.code, self).exec()
         self._pintar_salud()
         self.changed = True
 
@@ -319,7 +319,7 @@ class CaseDialog(QDialog):
         return texto
 
     def _diagnosticar(self):
-        dlg = DiagnosisDialog(self.repo, self.code, self)
+        dlg = MVCD_DiagnosisDialog(self.repo, self.code, self)
         dlg.exec()
         if dlg.saved:
             self.changed = True
@@ -343,8 +343,8 @@ class CaseDialog(QDialog):
             self.cobro_lbl.setText(f"Total {cobro.formato(r.total, s)} · pagado {cobro.formato(r.pagado, s)} · {saldo}")
 
     def _abrir_cobro(self):
-        from app.ui.cobro_dialog import CobroDialog
-        dlg = CobroDialog(self.repo, self.code, self)
+        from app.ui.cobro_dialog import MVCD_CobroDialog
+        dlg = MVCD_CobroDialog(self.repo, self.code, self)
         dlg.exec()
         self._pintar_cobro()
         if dlg.changed:
@@ -406,7 +406,7 @@ class CaseDialog(QDialog):
     # ---------- reportes del caso ----------
     def _generar_reporte(self, tipo: str):
         try:
-            ruta = generate_report(self.repo, ReportsRepository(self.repo), self.code, tipo, self.tech_id)
+            ruta = generate_report(self.repo, QAKM_ReportsRepository(self.repo), self.code, tipo, self.tech_id)
         except Exception as e:
             self._msg(self.ok, f"No se pudo generar el reporte: {e}", ok=False)
             return
@@ -417,7 +417,7 @@ class CaseDialog(QDialog):
 
     def _cargar_reportes(self):
         self.lista_reportes.clear()
-        reportes = ReportsRepository(self.repo).for_case(self.code)
+        reportes = QAKM_ReportsRepository(self.repo).for_case(self.code)
         if not reportes:
             vacio = QListWidgetItem("Aún no hay reportes de este caso.")
             vacio.setFlags(Qt.NoItemFlags)
@@ -447,7 +447,7 @@ class CaseDialog(QDialog):
             QMessageBox.information(self, "Resumen del historial",
                                     "Este equipo no tiene casos anteriores que resumir.")
             return
-        dlg = AiDialog(self.repo, "Resumen del historial",
+        dlg = MVCD_AiDialog(self.repo, "Resumen del historial",
                        f'{caso["equipo"]} · Serie {caso["serial"]}',
                        prompts.history_messages(caso, historial), self,
                        nota="Revise el texto: es una asistencia de la IA local.")
@@ -461,7 +461,7 @@ class CaseDialog(QDialog):
             QMessageBox.information(self, "Mensaje para el cliente",
                                     "Aún no hay causas identificadas. Ejecute primero el diagnóstico.")
             return
-        dlg = AiDialog(self.repo, "Mensaje para el cliente",
+        dlg = MVCD_AiDialog(self.repo, "Mensaje para el cliente",
                        f'{caso["cliente"] or "Cliente"} · {caso["equipo"]}',
                        prompts.client_messages(caso, resultado), self,
                        nota="Revise y ajuste el texto antes de enviarlo al cliente.")

@@ -5,8 +5,8 @@ pytest.importorskip("PySide6")
 from PySide6.QtWidgets import QApplication
 
 from app.ai.ollama_client import OllamaError
-from app.db.database import Database
-from app.db.repo import Repository
+from app.db.database import QAKM_Database
+from app.db.repo import QAKM_Repository
 from app.paths import VAR_DATOS
 
 
@@ -29,8 +29,8 @@ def entorno(monkeypatch, tmp_path):
 
 @pytest.fixture
 def repo(tmp_path, qapp):
-    db = Database(tmp_path / "ui.db")
-    r = Repository(db)
+    db = QAKM_Database(tmp_path / "ui.db")
+    r = QAKM_Repository(db)
     r.set_setting("auto_backup", "0")
     yield r
     db.close()
@@ -49,17 +49,17 @@ def _caso(repo):
 
 
 def test_navegacion_completa(repo):
-    from app.ui.main_window import SECCIONES, MainWindow
+    from app.ui.main_window import SECCIONES, MVCD_MainWindow
     _caso(repo)
-    win = MainWindow(repo, "TEC-001")
+    win = MVCD_MainWindow(repo, "TEC-001")
     for i in range(len(SECCIONES)):
         win.sidebar.setCurrentRow(i)
         assert win.pages.currentIndex() == i
 
 
 def test_recepcion_guarda_y_avisa_reingreso(repo):
-    from app.ui.pages.recepcion import RecepcionPage
-    page = RecepcionPage(repo)
+    from app.ui.pages.recepcion import MVCD_RecepcionPage
+    page = MVCD_RecepcionPage(repo)
     page.cliente.setText("Ana Torres")
     page.telefono.setText("111")
     page.equipo.setText("PC Dell")
@@ -77,11 +77,11 @@ def test_recepcion_guarda_y_avisa_reingreso(repo):
 
 
 def test_dialogos_de_caso_y_diagnostico(repo):
-    from app.ui.case_dialog import CaseDialog
-    from app.ui.diagnosis_dialog import DiagnosisDialog
+    from app.ui.case_dialog import MVCD_CaseDialog
+    from app.ui.diagnosis_dialog import MVCD_DiagnosisDialog
     code = _caso(repo)
-    CaseDialog(repo, code)
-    dlg = DiagnosisDialog(repo, code)
+    MVCD_CaseDialog(repo, code)
+    dlg = MVCD_DiagnosisDialog(repo, code)
     assert dlg.result["causes"] and dlg.result["causes"][0]["priority"] == "Alta"
     dlg._guardar()
     assert dlg.saved and repo.get_diagnosis(code) is not None
@@ -89,19 +89,19 @@ def test_dialogos_de_caso_y_diagnostico(repo):
 
 
 def test_listados(repo):
-    from app.ui.pages.equipos import EquiposPage
-    from app.ui.pages.historial import HistorialPage
-    from app.ui.pages.reportes import ReportesPage
+    from app.ui.pages.equipos import MVCD_EquiposPage
+    from app.ui.pages.historial import MVCD_HistorialPage
+    from app.ui.pages.reportes import MVCD_ReportesPage
     _caso(repo)
-    assert HistorialPage(repo).tabla.rowCount() == 1
-    assert EquiposPage(repo).tabla.rowCount() == 1
-    assert ReportesPage(repo, "TEC-001").combo.count() == 1
+    assert MVCD_HistorialPage(repo).tabla.rowCount() == 1
+    assert MVCD_EquiposPage(repo).tabla.rowCount() == 1
+    assert MVCD_ReportesPage(repo, "TEC-001").combo.count() == 1
 
 
 def test_configuracion_negocio(repo):
-    from app.ui.pages.configuracion import ConfiguracionPage
+    from app.ui.pages.configuracion import MVCD_ConfiguracionPage
     repo.create_user("TEC-001", "secreto1")  # la primera cuenta es administrador
-    page = ConfiguracionPage(repo, "TEC-001")
+    page = MVCD_ConfiguracionPage(repo, "TEC-001")
     page.nombre.setText("Taller X")
     page._guardar_negocio()
     assert repo.get_setting("business_name") == "Taller X"
@@ -112,8 +112,8 @@ def test_configuracion_negocio(repo):
 
 
 def test_asistente_bienvenida(repo):
-    from app.ui.welcome import WelcomeDialog
-    dlg = WelcomeDialog(repo)
+    from app.ui.welcome import MVCD_WelcomeDialog
+    dlg = MVCD_WelcomeDialog(repo)
     dlg.nombre.setText("Taller X")
     dlg._ir(1)
     dlg._guardar()

@@ -1,22 +1,22 @@
 """Fase 17: presupuesto y cobro (líneas, estados, pagos, anulaciones, auditoría y PDF)."""
 import pytest
 
-from app.db.audit_repo import AuditRepository
-from app.db.billing_repo import BillingRepository
-from app.db.database import Database
-from app.db.repo import Repository
-from app.db.reports_repo import ReportsRepository
+from app.db.audit_repo import QAKM_AuditRepository
+from app.db.billing_repo import QAKM_BillingRepository
+from app.db.database import QAKM_Database
+from app.db.repo import QAKM_Repository
+from app.db.reports_repo import QAKM_ReportsRepository
 from app.paths import VAR_DATOS
 from app.reports.service import generate_report
 from app.servicios import cobro
-from app.servicios.cuentas import SinPermiso
+from app.servicios.cuentas import VONF_SinPermiso
 
 
 @pytest.fixture
 def repo(tmp_path, monkeypatch):
     monkeypatch.setenv(VAR_DATOS, str(tmp_path / "appdata"))
-    db = Database(tmp_path / "cobro.db")
-    r = Repository(db)
+    db = QAKM_Database(tmp_path / "cobro.db")
+    r = QAKM_Repository(db)
     r.create_user("ADM", "secreto1")             # primera cuenta: administrador
     r.create_user("TEC", "secreto1", role="tecnico")
     yield r
@@ -29,7 +29,7 @@ def caso(repo):
 
 
 def _acciones(repo):
-    return [a["action"] for a in AuditRepository(repo).recientes()]
+    return [a["action"] for a in QAKM_AuditRepository(repo).recientes()]
 
 
 @pytest.mark.parametrize("texto, centimos", [
@@ -89,7 +89,7 @@ def test_estados_y_bloqueo_tras_aprobar(repo, caso):
     assert r.estado == "Aprobado" and r.decidido_por == "TEC" and r.decidido_el and not r.editable
     with pytest.raises(ValueError, match="Reábralo"):
         cobro.agregar_linea(repo, caso, "servicio", "Extra", 1, 100)
-    with pytest.raises(SinPermiso):
+    with pytest.raises(VONF_SinPermiso):
         cobro.cambiar_estado(repo, "TEC", caso, "Borrador")  # reabrir uno aprobado: solo administrador
     cobro.cambiar_estado(repo, "ADM", caso, "Borrador")
     assert cobro.resumen(repo, caso).decidido_por == ""
@@ -120,7 +120,7 @@ def test_pagos_adelanto_saldo_y_anulacion(repo, caso):
         cobro.registrar_pago(repo, "TEC", caso, 15001, "Tarjeta")
     cobro.registrar_pago(repo, "TEC", caso, 15000, "Tarjeta")
     assert cobro.saldo_pendiente(repo, caso) == 0
-    with pytest.raises(SinPermiso):
+    with pytest.raises(VONF_SinPermiso):
         cobro.anular_pago(repo, "TEC", pid, "Error de digitación")
     with pytest.raises(ValueError, match="motivo"):
         cobro.anular_pago(repo, "ADM", pid, " ")
@@ -129,7 +129,7 @@ def test_pagos_adelanto_saldo_y_anulacion(repo, caso):
         cobro.anular_pago(repo, "ADM", pid, "otra vez")
     r = cobro.resumen(repo, caso)
     assert r.pagado == 15000 and r.saldo == 5000 and len(r.pagos) == 2
-    anulado = BillingRepository(repo).payment(pid)
+    anulado = QAKM_BillingRepository(repo).payment(pid)
     assert anulado["voided_by"] == "ADM" and anulado["void_reason"] == "Error de digitación"
     assert _acciones(repo)[0] == "pago_anulado"
     assert sum(a == "pago_registrado" for a in _acciones(repo)) == 2
@@ -145,7 +145,7 @@ def test_validaciones_de_pago(repo, caso, kw, error):
 
 
 def test_pago_requiere_tecnico_activo_y_presupuesto_no_rechazado(repo, caso):
-    with pytest.raises(SinPermiso):
+    with pytest.raises(VONF_SinPermiso):
         cobro.registrar_pago(repo, "NADIE", caso, 100, "Efectivo")
     cobro.agregar_linea(repo, caso, "servicio", "Revisión", 1, 2000)
     cobro.cambiar_estado(repo, "TEC", caso, "Rechazado")
@@ -167,13 +167,13 @@ def test_pdfs(repo, caso, tmp_path, kind):
     cobro.fijar_descuento(repo, caso, 500, "Incluye limpieza")
     cobro.cambiar_estado(repo, "TEC", caso, "Aprobado")
     cobro.registrar_pago(repo, "TEC", caso, 3000, "Efectivo")
-    ruta = generate_report(repo, ReportsRepository(repo), caso, kind, "TEC", out_dir=tmp_path)
+    ruta = generate_report(repo, QAKM_ReportsRepository(repo), caso, kind, "TEC", out_dir=tmp_path)
     assert ruta.read_bytes().startswith(b"%PDF") and f"_{kind}_" in ruta.name
 
 
 @pytest.mark.parametrize("kind", ["presupuesto", "cuenta"])
 def test_pdfs_sin_datos(repo, caso, tmp_path, kind):
-    ruta = generate_report(repo, ReportsRepository(repo), caso, kind, out_dir=tmp_path)
+    ruta = generate_report(repo, QAKM_ReportsRepository(repo), caso, kind, out_dir=tmp_path)
     assert ruta.exists()
 
 
@@ -188,8 +188,8 @@ def ui(repo):
 
 
 def test_dialogo_presupuesto_y_pago(ui, caso, _sin_abrir_archivos):
-    from app.ui.cobro_dialog import CobroDialog
-    dlg = CobroDialog(ui, caso)
+    from app.ui.cobro_dialog import MVCD_CobroDialog
+    dlg = MVCD_CobroDialog(ui, caso)
     assert not dlg.b_anular.isVisible() and not dlg.b_enviar.isEnabled()
     dlg.descripcion.setText("Cambio de teclado")
     dlg.precio.setText("abc")
@@ -220,11 +220,11 @@ def test_dialogo_presupuesto_y_pago(ui, caso, _sin_abrir_archivos):
 def test_dialogo_quitar_linea_y_anular_como_admin(ui, caso, monkeypatch):
     from PySide6.QtWidgets import QInputDialog
 
-    from app.ui.cobro_dialog import CobroDialog
+    from app.ui.cobro_dialog import MVCD_CobroDialog
     ui.session_tech = "ADM"
     cobro.agregar_linea(ui, caso, "repuesto", "Batería", 1, 9000)
     cobro.registrar_pago(ui, "ADM", caso, 4000, "Efectivo")
-    dlg = CobroDialog(ui, caso)
+    dlg = MVCD_CobroDialog(ui, caso)
     dlg._quitar()
     assert "Seleccione" in dlg.msg.text()
     dlg.tabla.selectRow(0)
@@ -240,9 +240,9 @@ def test_dialogo_quitar_linea_y_anular_como_admin(ui, caso, monkeypatch):
 def test_caso_avisa_saldo_al_entregar(ui, caso, monkeypatch):
     from PySide6.QtWidgets import QMessageBox
 
-    from app.ui.case_dialog import CaseDialog
+    from app.ui.case_dialog import MVCD_CaseDialog
     cobro.agregar_linea(ui, caso, "servicio", "Formateo", 1, 6000)
-    dlg = CaseDialog(ui, caso)
+    dlg = MVCD_CaseDialog(ui, caso)
     assert "saldo S/ 60.00" in dlg.cobro_lbl.text()
     preguntas = []
     monkeypatch.setattr(QMessageBox, "question",
@@ -256,8 +256,8 @@ def test_caso_avisa_saldo_al_entregar(ui, caso, monkeypatch):
 
 
 def test_configuracion_guarda_moneda(ui):
-    from app.ui.pages.configuracion import ConfiguracionPage
-    page = ConfiguracionPage(ui, "ADM")
+    from app.ui.pages.configuracion import MVCD_ConfiguracionPage
+    page = MVCD_ConfiguracionPage(ui, "ADM")
     assert page.moneda.text() == "S/"
     page.nombre.setText("Taller Central")
     page.moneda.setText("$")

@@ -149,7 +149,7 @@ def _aviso(texto: str, st) -> Table:
 def _canvas_numerado(pie: str):
     """Canvas que escribe 'Página X de N' (necesita conocer el total al final)."""
 
-    class _Canvas(rl_canvas.Canvas):
+    class MMAE__Canvas(rl_canvas.Canvas):
         # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
         def __init__(self, *args, **kwargs):
             super().__init__(*args, **kwargs)
@@ -177,7 +177,7 @@ def _canvas_numerado(pie: str):
             self.drawRightString(A4[0] - 20 * mm, 10 * mm, f"Página {self._pageNumber} de {total}")
             self.restoreState()
 
-    return _Canvas
+    return MMAE__Canvas
 
 
 def _construir(story: list, path, titulo: str, autor: str, code: str) -> None:

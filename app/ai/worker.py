@@ -1,16 +1,16 @@
 from PySide6.QtCore import QThread, Signal
 
 from . import paquete
-from .llama_client import PaqueteStream
-from .ollama_client import AiError, ChatStream
+from .llama_client import VONF_PaqueteStream
+from .ollama_client import VONF_AiError, VONF_ChatStream
 
 
-def crear_stream(model: str, messages: list[dict]) -> ChatStream:
+def crear_stream(model: str, messages: list[dict]) -> VONF_ChatStream:
     """Los modelos del paquete de IA van al motor integrado; cualquier otro nombre, a Ollama."""
-    return (PaqueteStream if model in paquete.MODELOS else ChatStream)(model, messages)
+    return (VONF_PaqueteStream if model in paquete.MODELOS else VONF_ChatStream)(model, messages)
 
 
-class AiWorker(QThread):
+class VONF_AiWorker(QThread):
     # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     chunk = Signal(int, str)       # (run_id, texto)
     completed = Signal(int)
@@ -30,7 +30,7 @@ class AiWorker(QThread):
                 self.chunk.emit(self.run_id, texto)
             if not self._stream.cancelled:
                 self.completed.emit(self.run_id)
-        except AiError as e:
+        except VONF_AiError as e:
             if not self._stream.cancelled:
                 self.failed.emit(self.run_id, str(e))
         except Exception as e:  # imprevisto: no debe cerrar el programa

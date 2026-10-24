@@ -215,10 +215,10 @@ def _num(v):
         return None
 
 
-class Lector:
+class MMAE_Lector:
     # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """Computer de LHM abierto. Abrirlo cuesta 1-3 s: para lecturas repetidas se reutiliza.
-    Uso: with Lector() as l: lecturas = l.leer()"""
+    Uso: with MMAE_Lector() as l: lecturas = l.leer()"""
 
     def __init__(self):
         self._pc = None
@@ -241,7 +241,7 @@ class Lector:
             hw.Update()
             for sub in hw.SubHardware:
                 rec(sub)
-        assert self._pc is not None, "Lector usado fuera de su bloque with"
+        assert self._pc is not None, "MMAE_Lector usado fuera de su bloque with"
         for hw in self._pc.Hardware:
             try:
                 rec(hw)
@@ -263,7 +263,7 @@ class Lector:
                                    "name": str(s.Name), "value": valor})
             for sub in hw.SubHardware:
                 rec(sub, cat)
-        assert self._pc is not None, "Lector usado fuera de su bloque with"
+        assert self._pc is not None, "MMAE_Lector usado fuera de su bloque with"
         for hw in self._pc.Hardware:
             try:
                 rec(hw, categoria(str(hw.HardwareType)))
@@ -283,5 +283,5 @@ class Lector:
 
 def leer_sensores() -> list[dict]:
     """Una lectura completa. Lanza RuntimeError con el motivo si la biblioteca no está disponible."""
-    with Lector() as l:
+    with MMAE_Lector() as l:
         return l.leer(actualizar=False)

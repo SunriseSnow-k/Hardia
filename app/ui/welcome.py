@@ -4,16 +4,16 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QDialog, QHBoxLayout, QLabel, QLineEdit, QPushButton, QStackedWidget, QVBoxLayout, QWidget
 
 from app.ai.config import check_ai, nombre_modelo
-from app.db.repo import Repository
+from app.db.repo import QAKM_Repository
 from app.paths import data_dir
 from app.ui.tema import T
 
 
-class WelcomeDialog(QDialog):
+class MVCD_WelcomeDialog(QDialog):
     # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """Asistente de configuración inicial (2 pasos)."""
 
-    def __init__(self, repo: Repository, parent=None):
+    def __init__(self, repo: QAKM_Repository, parent=None):
         super().__init__(parent)
         self.repo = repo
         self.setWindowTitle("Configuración inicial")

@@ -21,7 +21,7 @@ ARG_AYUDANTE = "--ayudante-root"  # main.py lo atiende en el programa empaquetad
 _MOTIVOS = {126: "se canceló el pedido de contraseña", 127: "no se pudo verificar la contraseña"}
 
 
-class PermisoDenegado(Exception):
+class MMAE_PermisoDenegado(Exception):
     # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """No se obtuvieron los permisos (se canceló, la contraseña no fue válida o no hay pkexec)."""
 
@@ -38,34 +38,34 @@ def orden_ayudante() -> list[str]:
     return [sys.executable, "-I", str(Path(__file__).resolve().with_name("ayudante_root.py"))]
 
 
-class SesionAdmin:
+class MMAE_SesionAdmin:
     # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
-    """Ayudante abierto con permisos. Usar con `with SesionAdmin.abrir() as s:`."""
+    """Ayudante abierto con permisos. Usar con `with MMAE_SesionAdmin.abrir() as s:`."""
 
     def __init__(self, proc: subprocess.Popen):
         self._proc: subprocess.Popen | None = proc
 
     @classmethod
-    def abrir(cls, orden: list[str] | None = None) -> "SesionAdmin":
+    def abrir(cls, orden: list[str] | None = None) -> "MMAE_SesionAdmin":
         pkexec = shutil.which("pkexec")
         if orden is None:
             if pkexec is None:
-                raise PermisoDenegado("este equipo no tiene pkexec (polkit) para pedir la contraseña")
+                raise MMAE_PermisoDenegado("este equipo no tiene pkexec (polkit) para pedir la contraseña")
             orden = [pkexec, *orden_ayudante()]
         try:
             proc = subprocess.Popen(orden, stdin=subprocess.PIPE, stdout=subprocess.PIPE,  # noqa: S603 (programa propio)
                                     stderr=subprocess.DEVNULL, text=True, bufsize=1, cwd="/")
         except OSError as e:
-            raise PermisoDenegado(f"no se pudo pedir la contraseña ({e.strerror or e})") from e
+            raise MMAE_PermisoDenegado(f"no se pudo pedir la contraseña ({e.strerror or e})") from e
         sesion = cls(proc)
         try:
             listo = sesion._recibir()  # espera a que el técnico escriba la contraseña
-        except PermisoDenegado:
+        except MMAE_PermisoDenegado:
             codigo = proc.wait()
-            raise PermisoDenegado(_MOTIVOS.get(codigo, f"el ayudante terminó con el código {codigo}")) from None
+            raise MMAE_PermisoDenegado(_MOTIVOS.get(codigo, f"el ayudante terminó con el código {codigo}")) from None
         if listo.get("tipo") != "listo":
             sesion.cerrar()
-            raise PermisoDenegado("respuesta inesperada del ayudante")
+            raise MMAE_PermisoDenegado("respuesta inesperada del ayudante")
         log.info("Sesión con permisos de administrador abierta")
         return sesion
 
@@ -76,11 +76,11 @@ class SesionAdmin:
             self._proc.stdin.write(json.dumps(orden) + "\n")
             self._proc.stdin.flush()
         except (OSError, ValueError) as e:
-            raise PermisoDenegado("el ayudante con permisos se cerró") from e
+            raise MMAE_PermisoDenegado("el ayudante con permisos se cerró") from e
 
     def _recibir(self) -> dict:
         if self._proc is None or self._proc.stdout is None:
-            raise PermisoDenegado("la sesión con permisos ya se cerró")
+            raise MMAE_PermisoDenegado("la sesión con permisos ya se cerró")
         for linea in iter(self._proc.stdout.readline, ""):
             try:
                 mensaje = json.loads(linea)
@@ -88,7 +88,7 @@ class SesionAdmin:
                 continue  # texto ajeno (p. ej., avisos de bibliotecas al iniciar)
             if isinstance(mensaje, dict):
                 return mensaje
-        raise PermisoDenegado("el ayudante con permisos se cerró")
+        raise MMAE_PermisoDenegado("el ayudante con permisos se cerró")
 
     def datos(self) -> dict:
         """{"archivos": {ruta: texto}, "comandos": [[args, salida]]} para EntornoLinux.usar_privilegiados."""
@@ -109,7 +109,7 @@ class SesionAdmin:
                 if not cancelar_enviado and cancelado():
                     self._enviar({"orden": "cancelar"})
                     cancelar_enviado = True
-        except PermisoDenegado as e:
+        except MMAE_PermisoDenegado as e:
             return {"lectura_mb_s": None, "bytes": 0, "duracion_s": 0.0, "estado": "fallo", "motivo": str(e)}
 
     def cerrar(self) -> None:
@@ -135,17 +135,17 @@ class SesionAdmin:
 def datos_protegidos() -> tuple[dict | None, str | None]:
     """(datos, None) o (None, motivo) — para un escaneo con permisos de una sola vez."""
     try:
-        with SesionAdmin.abrir() as s:
+        with MMAE_SesionAdmin.abrir() as s:
             return s.datos(), None
-    except PermisoDenegado as e:
+    except MMAE_PermisoDenegado as e:
         return None, str(e)
 
 
-def sesion_si_hace_falta(rutas: list[str]) -> tuple["SesionAdmin | None", str | None]:
+def sesion_si_hace_falta(rutas: list[str]) -> tuple["MMAE_SesionAdmin | None", str | None]:
     """Sesión para leer discos que este usuario no puede abrir (ninguna si no hace falta)."""
     if not disponible() or all(os.access(r, os.R_OK) for r in rutas if r):
         return None, None
     try:
-        return SesionAdmin.abrir(), None
-    except PermisoDenegado as e:
+        return MMAE_SesionAdmin.abrir(), None
+    except MMAE_PermisoDenegado as e:
         return None, str(e)

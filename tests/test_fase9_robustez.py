@@ -1,17 +1,17 @@
 import pytest
 
 from app import backup
-from app.db.database import Database
-from app.db.repo import Repository
-from app.db.reports_repo import ReportsRepository
+from app.db.database import QAKM_Database
+from app.db.repo import QAKM_Repository
+from app.db.reports_repo import QAKM_ReportsRepository
 from app.hardware import diag_file
 from app.reports.service import generate_report
 
 
 @pytest.fixture
 def repo(tmp_path):
-    db = Database(tmp_path / "test.db")
-    yield Repository(db)
+    db = QAKM_Database(tmp_path / "test.db")
+    yield QAKM_Repository(db)
     db.close()
 
 
@@ -45,7 +45,7 @@ def test_texto_muy_largo(repo):
 def test_scan_corrupto_en_caso_y_reportes(repo, tmp_path):
     code = repo.register_intake("Ana", "1", "SN-C", "PC", "Se calienta, ventilador")
     repo.save_scan(code, {"summary": None, "metrics": {"cpu_temp": "caliente"}, "components": []})
-    rr = ReportsRepository(repo)
+    rr = QAKM_ReportsRepository(repo)
     for tipo in ("tecnico", "cliente"):
         ruta = generate_report(repo, rr, code, tipo, "TEC-001", out_dir=tmp_path)
         assert ruta.exists() and ruta.read_bytes()[:5] == b"%PDF-"

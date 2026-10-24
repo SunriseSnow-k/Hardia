@@ -26,9 +26,9 @@ from app.hardware import colector_usb, diag_file, lhm
 from app.hardware.inventory import CATEGORIAS, ESTADO_TEXTO, FALLO, NO_AUTORIZADO, NO_COMPATIBLE, NO_DISPONIBLE, OK
 from app.hardware.scanner import COLECTORES_NOMBRES, COMPONENT_NAMES, run_scan
 from app.plataforma import SISTEMA
-from app.ui.inventory_dialog import InventoryDialog
+from app.ui.inventory_dialog import MVCD_InventoryDialog
 from app.ui.tema import T
-from app.ui.widgets import AreaDesplazable, ChipEstado, cabecera, fecha_corta, muted, panel
+from app.ui.widgets import MVCD_AreaDesplazable, MVCD_ChipEstado, cabecera, fecha_corta, muted, panel
 
 ICONOS = {
     "ok": ("✓", T.exito), "warn": ("⚠", T.aviso), "error": ("✕", T.peligro),
@@ -90,7 +90,7 @@ def no_leido(scan: dict) -> list[tuple[str, str, str]]:
     return filas
 
 
-class _FilaCategoria(QFrame):
+class MVCD__FilaCategoria(QFrame):
     # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """Icono de estado, nombre, detalle y estado escrito de una categoría."""
 
@@ -102,7 +102,7 @@ class _FilaCategoria(QFrame):
         self.lbl = QLabel()
         self.lbl.setTextFormat(Qt.RichText)
         self.lbl.setWordWrap(True)
-        self.chip = ChipEstado("Pendiente")
+        self.chip = MVCD_ChipEstado("Pendiente")
         lay.addWidget(self.lbl, 1)
         lay.addWidget(self.chip, alignment=Qt.AlignVCenter)
         self.set(nombre, "Pendiente", "pending")
@@ -117,7 +117,7 @@ class _FilaCategoria(QFrame):
         return self.lbl.text()
 
 
-class ScanWorker(QThread):
+class MVCD_ScanWorker(QThread):
     # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     step = Signal(int, str, str, str)
     finished_scan = Signal(dict)
@@ -142,7 +142,7 @@ class ScanWorker(QThread):
             self.failed.emit(str(e))
 
 
-class EscaneoPage(QWidget):
+class MVCD_EscaneoPage(QWidget):
     # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     use_data = Signal(dict)
     ver_salud = Signal(dict)
@@ -151,7 +151,7 @@ class EscaneoPage(QWidget):
         super().__init__()
         self.data = None
         self.worker = None
-        self.filas: list[_FilaCategoria] = []
+        self.filas: list[MVCD__FilaCategoria] = []
 
         root = QVBoxLayout(self)
         root.setContentsMargins(26, 22, 26, 22)
@@ -167,7 +167,7 @@ class EscaneoPage(QWidget):
         cont = QVBoxLayout(inner)
         cont.setContentsMargins(0, 0, 0, 0)
         cont.setSpacing(12)
-        root.addWidget(AreaDesplazable(inner), 1)
+        root.addWidget(MVCD_AreaDesplazable(inner), 1)
 
         # Selector de modo
         sel = QHBoxLayout()
@@ -255,7 +255,7 @@ class EscaneoPage(QWidget):
         self.filas_lay = QVBoxLayout(filas_w)
         self.filas_lay.setContentsMargins(0, 0, 0, 0)
         self.filas_lay.setSpacing(0)
-        sc = AreaDesplazable(filas_w)
+        sc = MVCD_AreaDesplazable(filas_w)
         pv.addWidget(sc, 1)
         cuerpo.addWidget(p_cat, 3)
 
@@ -394,7 +394,7 @@ class EscaneoPage(QWidget):
                 item.widget().deleteLater()
         self.filas = []
         for n in nombres:
-            f = _FilaCategoria(n)
+            f = MVCD__FilaCategoria(n)
             self.filas_lay.addWidget(f)
             self.filas.append(f)
         self.filas_lay.addStretch()
@@ -465,7 +465,7 @@ class EscaneoPage(QWidget):
         if self.b_scan_admin is not None:
             self.b_scan_admin.setEnabled(False)
         self.estado.setText("Esperando la contraseña de administrador…" if con_permisos else "Leyendo componentes…")
-        self.worker = ScanWorker(con_permisos)
+        self.worker = MVCD_ScanWorker(con_permisos)
         self.worker.aviso.connect(lambda t: self._msg(t, ok=False))
         self.worker.step.connect(self._paso)
         self.worker.finished_scan.connect(self._fin)
@@ -622,7 +622,7 @@ class EscaneoPage(QWidget):
 
     def _ver_inventario(self):
         if self._tiene_inventario():
-            InventoryDialog(self.data, self).exec()
+            MVCD_InventoryDialog(self.data, self).exec()
 
     def _ver_salud(self):
         if self._tiene_inventario():

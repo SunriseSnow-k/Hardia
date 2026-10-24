@@ -49,7 +49,7 @@ COLECTORES_NOMBRES = [
 COMPONENT_NAMES = [n for n, _ in COLECTORES_NOMBRES]
 
 
-class _Entorno:
+class MMAE__Entorno:
     # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """Acceso al sistema. Las pruebas lo sustituyen por uno simulado."""
 
@@ -88,7 +88,7 @@ class _Entorno:
 
 def _crear_entorno():
     if not ES_WINDOWS:
-        return _linux.EntornoLinux()
+        return _linux.MMAE_EntornoLinux()
     c: Any = None
     ns: Callable[[str], Any] | None = None
     if wmi:
@@ -99,7 +99,7 @@ def _crear_entorno():
                 return wmi.WMI(namespace=nombre)
         except Exception:
             c = ns = None
-    return _Entorno(c, ns)
+    return MMAE__Entorno(c, ns)
 
 
 def _es_linux(env) -> bool:
@@ -180,10 +180,10 @@ def read_cpu_temperature(env=None) -> tuple[float | None, str | None]:
             pythoncom.CoUninitialize()
 
 
-class LectorTemperatura:
+class MMAE_LectorTemperatura:
     # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """Lecturas repetidas de temperatura desde un hilo: abre WMI y LibreHardwareMonitor una sola vez.
-    Uso: with LectorTemperatura() as lt: temp, fuente = lt.leer()"""
+    Uso: with MMAE_LectorTemperatura() as lt: temp, fuente = lt.leer()"""
 
     def __init__(self, env=None):
         self._env_dado = env
@@ -197,7 +197,7 @@ class LectorTemperatura:
             if _es_linux(self.env):
                 return self  # hwmon se lee en cada llamada: no hay nada que mantener abierto
             try:
-                self.env.lector = lhm.Lector().__enter__()
+                self.env.lector = lhm.MMAE_Lector().__enter__()
             except Exception:
                 self.env.lector = None  # sin biblioteca: WMI de LHM o ACPI
         return self
@@ -255,7 +255,7 @@ def run_scan(progress=None, env=None, privilegiados: dict | None = None) -> dict
         pythoncom.CoInitialize()
     try:
         entorno = _crear_entorno()
-        if privilegiados and isinstance(entorno, _linux.EntornoLinux):
+        if privilegiados and isinstance(entorno, _linux.MMAE_EntornoLinux):
             entorno.usar_privilegiados(privilegiados)
         return _escanear(progress, entorno)
     finally:

@@ -6,16 +6,16 @@ Todos los importes son enteros en céntimos.
 import sqlite3
 
 from .database import ultimo_id
-from .repo import Repository
+from .repo import QAKM_Repository
 
 ESTADOS_PRESUPUESTO = ("Borrador", "Enviado", "Aprobado", "Rechazado")
 TIPOS_LINEA = {"servicio": "Servicio", "repuesto": "Repuesto"}
 METODOS_PAGO = ("Efectivo", "Tarjeta", "Transferencia", "Billetera digital")
 
 
-class BillingRepository:
+class QAKM_BillingRepository:
     # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
-    def __init__(self, repo: Repository):
+    def __init__(self, repo: QAKM_Repository):
         self.repo = repo
         self.c = repo.c
 

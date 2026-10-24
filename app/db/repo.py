@@ -1,16 +1,16 @@
 import json
 import sqlite3
 
-from .database import Database, transaccional, ultimo_id
+from .database import QAKM_Database, transaccional, ultimo_id
 from .security import hash_password, verify_password
 
 ESTADOS = ("Recibido", "En diagnóstico", "Listo", "Entregado")
 PRIORIDADES = ("Alta", "Media", "Baja")
 
 
-class Repository:
+class QAKM_Repository:
     # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
-    def __init__(self, db: Database):
+    def __init__(self, db: QAKM_Database):
         self.db = db
         self.c = db.conn
 

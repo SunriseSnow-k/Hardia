@@ -12,12 +12,12 @@ KEEP_ALIVE = "10m"  # mantiene el modelo cargado entre consultas
 TIMEOUT_RESPUESTA = 300  # segundos máximos de espera sin datos de Ollama
 
 
-class AiError(Exception):
+class VONF_AiError(Exception):
     # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """Error al hablar con el motor de IA (el mensaje se muestra al usuario)."""
 
 
-OllamaError = AiError  # nombre anterior, lo siguen usando las pruebas y la página de IA
+OllamaError = VONF_AiError  # nombre anterior, lo siguen usando las pruebas y la página de IA
 
 
 def list_models(timeout: float = 1.5) -> list[str]:
@@ -57,7 +57,7 @@ def _mensaje_error(texto: str, status: int, model: str) -> str:
     return texto or f"Ollama respondió con el código {status}."
 
 
-class ChatStream:
+class VONF_ChatStream:
     # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """Respuesta de chat por streaming, cancelable desde cualquier hilo.
 
@@ -112,10 +112,10 @@ class ChatStream:
             conn = self._conexion()
             if conn is not None:
                 self._leer_respuesta(conn)
-        except AiError as e:
+        except VONF_AiError as e:
             self._q.put(("error", e))
         except Exception as e:  # imprevisto: se informa, no se cierra el programa
-            self._q.put(("error", AiError(f"Error inesperado: {e}")))
+            self._q.put(("error", VONF_AiError(f"Error inesperado: {e}")))
         finally:
             try:
                 if conn is not None:

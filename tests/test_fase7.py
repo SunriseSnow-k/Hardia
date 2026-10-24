@@ -1,8 +1,8 @@
 import pytest
 
-from app.db.database import Database
-from app.db.repo import Repository
-from app.db.reports_repo import ReportsRepository
+from app.db.database import QAKM_Database
+from app.db.repo import QAKM_Repository
+from app.db.reports_repo import QAKM_ReportsRepository
 from app.diagnosis.engine import diagnose
 from app.reports.cliente import client_summary
 from app.reports.datos import load_report_data
@@ -22,9 +22,9 @@ SCAN = {
 
 @pytest.fixture
 def ctx(tmp_path):
-    db = Database(tmp_path / "test.db")
-    repo = Repository(db)
-    yield repo, ReportsRepository(repo), tmp_path
+    db = QAKM_Database(tmp_path / "test.db")
+    repo = QAKM_Repository(db)
+    yield repo, QAKM_ReportsRepository(repo), tmp_path
     db.close()
 
 

@@ -24,31 +24,31 @@ from PySide6.QtWidgets import (
 )
 
 from app import backup
-from app.db.audit_repo import ACCIONES, AuditRepository
+from app.db.audit_repo import ACCIONES, QAKM_AuditRepository
 from app.db.orders_repo import TERMINOS_PREDETERMINADOS
-from app.db.repo import Repository
-from app.db.users_repo import ROLES, UsersRepository
+from app.db.repo import QAKM_Repository
+from app.db.users_repo import ROLES, QAKM_UsersRepository
 from app.hardware.diag_file import removable_drives
 from app.health.references import PAQUETE, load_references, ruta_activa, ruta_taller
 from app.paths import backups_dir, data_dir, reports_dir
 from app.servicios import cobro, cuentas
 from app.ui.tema import T
-from app.ui.widgets import AreaDesplazable, cabecera, limpiar_layout, lista_dato_valor, muted, panel, ruta_cortable
+from app.ui.widgets import MVCD_AreaDesplazable, cabecera, limpiar_layout, lista_dato_valor, muted, panel, ruta_cortable
 
 
 def _abrir(ruta):
     QDesktopServices.openUrl(QUrl.fromLocalFile(str(ruta)))
 
 
-class ConfiguracionPage(QWidget):
+class MVCD_ConfiguracionPage(QWidget):
     # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     restored = Signal()
 
-    def __init__(self, repo: Repository, user_id: str):
+    def __init__(self, repo: QAKM_Repository, user_id: str):
         super().__init__()
         self.repo = repo
         self.user_id = user_id
-        self.ur = UsersRepository(repo)
+        self.ur = QAKM_UsersRepository(repo)
 
         outer = QVBoxLayout(self)
         outer.setContentsMargins(26, 22, 26, 22)
@@ -62,7 +62,7 @@ class ConfiguracionPage(QWidget):
         lay.setContentsMargins(0, 8, 0, 0)
         lay.setHorizontalSpacing(12)
         lay.setVerticalSpacing(12)
-        scroll = AreaDesplazable(inner)
+        scroll = MVCD_AreaDesplazable(inner)
         outer.addWidget(scroll, 1)
 
         # --- Taller ---
@@ -311,7 +311,7 @@ class ConfiguracionPage(QWidget):
         self.lista_audit.clear()
         if not self.es_admin:
             return
-        for a in AuditRepository(self.repo).recientes(100):
+        for a in QAKM_AuditRepository(self.repo).recientes(100):
             detalle = f' — {a["detail"]}' if a["detail"] else ""
             self.lista_audit.addItem(f'{a["at"]} · {a["tech_id"] or "—"} · '
                                      f'{ACCIONES.get(a["action"], a["action"])}{detalle}')
@@ -320,7 +320,7 @@ class ConfiguracionPage(QWidget):
     def _guardar_negocio(self):
         try:
             cuentas.requerir_admin(self.repo, self.user_id)
-        except cuentas.SinPermiso as e:
+        except cuentas.VONF_SinPermiso as e:
             self._set(self.msg_neg, str(e), ok=False)
             return
         nombre = self.nombre.text().strip()
@@ -372,7 +372,7 @@ class ConfiguracionPage(QWidget):
     def _restaurar(self):
         try:
             cuentas.requerir_admin(self.repo, self.user_id)
-        except cuentas.SinPermiso as e:
+        except cuentas.VONF_SinPermiso as e:
             self._set(self.msg_bk, str(e), ok=False)
             return
         ruta, _ = QFileDialog.getOpenFileName(self, "Seleccionar copia de seguridad",
@@ -459,7 +459,7 @@ class ConfiguracionPage(QWidget):
     def _accion_cuenta(self, fn, mensaje: str) -> bool:
         try:
             fn()
-        except (ValueError, cuentas.SinPermiso) as e:
+        except (ValueError, cuentas.VONF_SinPermiso) as e:
             self._set(self.msg_us, str(e), ok=False)
             return False
         self._set(self.msg_us, mensaje)

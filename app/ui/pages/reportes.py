@@ -17,15 +17,15 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from app.db.repo import ESTADOS, Repository
-from app.db.reports_repo import ReportsRepository
-from app.db.search_repo import PAGE_SIZE, SearchQueries, pages
+from app.db.repo import ESTADOS, QAKM_Repository
+from app.db.reports_repo import QAKM_ReportsRepository
+from app.db.search_repo import PAGE_SIZE, QAKM_SearchQueries, pages
 from app.paths import reports_dir
 from app.reports.service import KINDS, generate_report
-from app.ui.case_dialog import CaseDialog
-from app.ui.search_widgets import AsyncSearch, DateRangeFilter, PagerBar
+from app.ui.case_dialog import MVCD_CaseDialog
+from app.ui.search_widgets import MVCD_AsyncSearch, MVCD_DateRangeFilter, MVCD_PagerBar
 from app.ui.tema import T
-from app.ui.widgets import AreaDesplazable, cabecera, fecha_corta, muted, panel
+from app.ui.widgets import MVCD_AreaDesplazable, cabecera, fecha_corta, muted, panel
 
 COLUMNAS = ["Código", "Cliente", "Equipo", "Serie", "Tipo", "Fecha", "Archivo"]
 MAX_CASOS_COMBO = 50
@@ -66,17 +66,17 @@ def _tarjeta(titulo: str, puntos, boton: QPushButton) -> QFrame:
     return f
 
 
-class ReportesPage(QWidget):
+class MVCD_ReportesPage(QWidget):
     # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """Generación de reportes PDF y búsqueda de los ya generados."""
 
-    def __init__(self, repo: Repository, user_id: str):
+    def __init__(self, repo: QAKM_Repository, user_id: str):
         super().__init__()
         self.repo = repo
         self.user_id = user_id
-        self.rr = ReportsRepository(repo)
+        self.rr = QAKM_ReportsRepository(repo)
         self._pagina = 0
-        self.busqueda = AsyncSearch(repo, self)
+        self.busqueda = MVCD_AsyncSearch(repo, self)
         self.busqueda.resultado.connect(self._on_resultado)
         self.busqueda.error.connect(self._on_error)
         self._timer = QTimer(self)
@@ -102,7 +102,7 @@ class ReportesPage(QWidget):
         root = QVBoxLayout(inner)
         root.setContentsMargins(0, 4, 0, 0)
         root.setSpacing(12)
-        outer.addWidget(AreaDesplazable(inner), 1)
+        outer.addWidget(MVCD_AreaDesplazable(inner), 1)
 
         # --- Generar ---
         gen, gv = panel("Generar reporte")
@@ -144,7 +144,7 @@ class ReportesPage(QWidget):
         ff.setSpacing(8)
         self.f_tipo = self._combo(["Todos los tipos", *KINDS.values()])
         self.f_estado = self._combo(["Todos los estados del caso", *ESTADOS])
-        self.fechas = DateRangeFilter()
+        self.fechas = MVCD_DateRangeFilter()
         self.fechas.changed.connect(self._nueva_busqueda)
         b_limpiar = QPushButton("Limpiar filtros")
         b_limpiar.setObjectName("Secondary")
@@ -176,7 +176,7 @@ class ReportesPage(QWidget):
         self.tabla.cellDoubleClicked.connect(lambda fila, _c: self._abrir_fila(fila))
         pv.addWidget(self.tabla, 1)
 
-        self.pager = PagerBar()
+        self.pager = MVCD_PagerBar()
         self.pager.cambiar.connect(self._ir_pagina)
         pv.addWidget(self.pager)
 
@@ -210,7 +210,7 @@ class ReportesPage(QWidget):
     def _cargar_casos(self):
         self._timer_caso.stop()
         try:
-            res = SearchQueries(self.repo.c).search_cases(
+            res = QAKM_SearchQueries(self.repo.c).search_cases(
                 text=self.buscar_caso.text().strip(), limit=MAX_CASOS_COMBO)
         except Exception as e:
             self._set_msg(f"No se pudieron cargar los casos: {e}", ok=False)
@@ -346,5 +346,5 @@ class ReportesPage(QWidget):
         if not datos:
             self._set_msg("Seleccione un reporte de la lista.", ok=False)
             return
-        CaseDialog(self.repo, datos[0], self).exec()
+        MVCD_CaseDialog(self.repo, datos[0], self).exec()
         self.refresh()

@@ -5,7 +5,7 @@ Las notas no se editan ni se borran desde el programa: quedan como registro del 
 import sqlite3
 
 from .database import ultimo_id
-from .repo import Repository
+from .repo import QAKM_Repository
 
 TIPOS = {
     "observacion": "Observación técnica",
@@ -16,9 +16,9 @@ TIPOS_CLIENTE = ("trabajo", "cliente")  # las observaciones técnicas son intern
 MAX_TEXTO = 2000
 
 
-class NotesRepository:
+class QAKM_NotesRepository:
     # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
-    def __init__(self, repo: Repository):
+    def __init__(self, repo: QAKM_Repository):
         self.c = repo.c
 
     def add(self, case_code: str, kind: str, text: str, author: str = "") -> int:

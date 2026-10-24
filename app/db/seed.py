@@ -1,7 +1,7 @@
 from app.paths import db_path
 
-from .database import Database
-from .repo import Repository
+from .database import QAKM_Database
+from .repo import QAKM_Repository
 
 DEMO = [
     ("Luis Paredes", "987000111", "HP15-48213", "Laptop HP 15", "Arranque lento", "Media", "Entregado", "Reglas + IA local"),
@@ -11,7 +11,7 @@ DEMO = [
 ]
 
 
-def cargar_demo(repo: Repository) -> int:
+def cargar_demo(repo: QAKM_Repository) -> int:
     if repo.list_cases():
         return 0
     for cliente, tel, serie, equipo, problema, prio, estado, metodo in DEMO:
@@ -22,7 +22,7 @@ def cargar_demo(repo: Repository) -> int:
 
 
 if __name__ == "__main__":
-    db = Database(db_path())
-    n = cargar_demo(Repository(db))
+    db = QAKM_Database(db_path())
+    n = cargar_demo(QAKM_Repository(db))
     print(f"Casos de ejemplo cargados: {n}")
     db.close()

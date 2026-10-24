@@ -6,16 +6,16 @@ from pathlib import Path
 import pytest
 
 from app import backup
-from app.db.database import Database
-from app.db.equipment_repo import EquipmentRepository
-from app.db.repo import Repository
-from app.db.users_repo import UsersRepository
+from app.db.database import QAKM_Database
+from app.db.equipment_repo import QAKM_EquipmentRepository
+from app.db.repo import QAKM_Repository
+from app.db.users_repo import QAKM_UsersRepository
 
 
 @pytest.fixture
 def ctx(tmp_path):
-    db = Database(tmp_path / "test.db")
-    yield Repository(db), tmp_path / "copias"
+    db = QAKM_Database(tmp_path / "test.db")
+    yield QAKM_Repository(db), tmp_path / "copias"
     db.close()
 
 
@@ -88,7 +88,7 @@ def test_usuarios(ctx):
     repo, _ = ctx
     repo.create_user("tec-001", "clave123")
     repo.create_user("tec-002", "otra456")
-    ur = UsersRepository(repo)
+    ur = QAKM_UsersRepository(repo)
     assert [u["tech_id"] for u in ur.list_users()] == ["TEC-001", "TEC-002"]
     with pytest.raises(ValueError, match="actual"):
         ur.change_password("TEC-001", "mala", "nueva123")
@@ -107,7 +107,7 @@ def test_listado_de_equipos(ctx):
     repo.register_intake("Ana", "111", "SN-1", "PC Dell", "Lento")
     repo.register_intake("Ana", "111", "SN-1", "PC Dell", "Se apaga")
     repo.register_intake("Luis", "222", "SN-2", "Laptop HP", "Se calienta")
-    er = EquipmentRepository(repo)
+    er = QAKM_EquipmentRepository(repo)
     todos = er.list_equipment()
     assert len(todos) == 2
     sn1 = [r for r in todos if r["serial"] == "SN-1"][0]

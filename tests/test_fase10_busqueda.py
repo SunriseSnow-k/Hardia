@@ -3,16 +3,16 @@ import time
 
 import pytest
 
-from app.db.database import Database
-from app.db.repo import Repository
-from app.db.reports_repo import ReportsRepository
-from app.db.search_repo import SearchQueries, pages
+from app.db.database import QAKM_Database
+from app.db.repo import QAKM_Repository
+from app.db.reports_repo import QAKM_ReportsRepository
+from app.db.search_repo import QAKM_SearchQueries, pages
 
 
 @pytest.fixture
 def repo(tmp_path):
-    db = Database(tmp_path / "t.db")
-    r = Repository(db)
+    db = QAKM_Database(tmp_path / "t.db")
+    r = QAKM_Repository(db)
     yield r
     db.close()
 
@@ -30,7 +30,7 @@ def _codigos(res):
 
 def test_paginacion(repo):
     _poblar(repo, 120)
-    q = SearchQueries(repo.c)
+    q = QAKM_SearchQueries(repo.c)
     p1 = q.search_cases(limit=50, offset=0)
     p2 = q.search_cases(limit=50, offset=50)
     p3 = q.search_cases(limit=50, offset=100)
@@ -43,7 +43,7 @@ def test_paginacion(repo):
 
 def test_busqueda_por_campos(repo):
     _poblar(repo, 30)
-    q = SearchQueries(repo.c)
+    q = QAKM_SearchQueries(repo.c)
     assert _codigos(q.search_cases(text="SN-0007")) == ["C-008"]
     assert _codigos(q.search_cases(text="900000012")) == ["C-013"]
     assert _codigos(q.search_cases(text="C-010")) == ["C-010"]
@@ -54,7 +54,7 @@ def test_busqueda_por_campos(repo):
 
 def test_varias_palabras_se_combinan(repo):
     _poblar(repo, 30)
-    q = SearchQueries(repo.c)
+    q = QAKM_SearchQueries(repo.c)
     assert q.search_cases(text="Marca1")["total"] == 8
     assert q.search_cases(text="Marca1 Cliente")["total"] == 8
     assert q.search_cases(text="Marca1 Modelo2")["total"] == 3
@@ -67,7 +67,7 @@ def test_busqueda_y_filtros_por_fecha(repo):
                         ("C-003", "2026-09-25 10:00:00"), ("C-004", "2025-01-15 08:00:00")):
         repo.c.execute("UPDATE cases SET created_at=? WHERE code=?", (fecha, code))
     repo.c.commit()
-    q = SearchQueries(repo.c)
+    q = QAKM_SearchQueries(repo.c)
     for texto in ("2026-10-06", "06/10/2026", "2026-10", "10/2026"):
         assert sorted(_codigos(q.search_cases(text=texto))) == ["C-001", "C-002"], texto
     r = q.search_cases(date_from="2026-09-01", date_to="2026-10-06")
@@ -82,7 +82,7 @@ def test_filtros_combinados(repo):
     _poblar(repo, 30)
     repo.update_case_status("C-001", "Listo")
     repo.update_case_status("C-004", "Listo")
-    q = SearchQueries(repo.c)
+    q = QAKM_SearchQueries(repo.c)
     assert q.search_cases(status="Listo", priority="Alta")["total"] == 2
     assert q.search_cases(status="Listo", priority="Media")["total"] == 0
     assert _codigos(q.search_cases(status="Listo", text="Marca0")) == ["C-001"]
@@ -92,7 +92,7 @@ def test_filtros_combinados(repo):
 def test_filtro_de_diagnostico_y_metodo(repo):
     _poblar(repo, 5)
     repo.save_diagnosis("C-002", {"causes": []}, "Reglas + IA local")
-    q = SearchQueries(repo.c)
+    q = QAKM_SearchQueries(repo.c)
     assert _codigos(q.search_cases(diagnosis="con")) == ["C-002"]
     assert q.search_cases(diagnosis="sin")["total"] == 4
     assert _codigos(q.search_cases(method="Reglas + IA local")) == ["C-002"]
@@ -103,14 +103,14 @@ def test_comodines_sql_se_tratan_como_texto(repo):
     repo.register_intake("100%_real", "1", "SN-A", "PC", "x")
     repo.register_intake("Ana", "2", "SN-B", "PC", "y")
     repo.register_intake("Ana", "2", "SN-C", "PC", "z")
-    q = SearchQueries(repo.c)
+    q = QAKM_SearchQueries(repo.c)
     assert q.search_cases(text="%")["total"] == 1
     assert q.search_cases(text="_")["total"] == 1
 
 
 def test_texto_malicioso_no_afecta(repo):
     _poblar(repo, 3)
-    q = SearchQueries(repo.c)
+    q = QAKM_SearchQueries(repo.c)
     assert q.search_cases(text="'; DROP TABLE cases;--")["total"] == 0
     assert q.search_cases()["total"] == 3
 
@@ -119,13 +119,13 @@ def test_busqueda_de_reportes(repo):
     c1 = repo.register_intake("Luis", "1", "SN-1", "Laptop HP", "a")
     c2 = repo.register_intake("Ana", "2", "SN-2", "PC Dell", "b")
     c3 = repo.register_intake("Luis", "1", "SN-3", "Laptop HP", "c")
-    rr = ReportsRepository(repo)
+    rr = QAKM_ReportsRepository(repo)
     for code, kind in ((c1, "tecnico"), (c1, "cliente"), (c2, "tecnico"), (c3, "cliente")):
         rr.add(code, kind, f"C:/x/{code}_{kind}.pdf")
     repo.c.execute("UPDATE reports SET created_at='2026-10-06 10:00:00'")
     repo.c.execute("UPDATE reports SET created_at='2026-09-01 10:00:00' WHERE id=1")
     repo.update_case_status(c2, "Listo")
-    q = SearchQueries(repo.c)
+    q = QAKM_SearchQueries(repo.c)
     assert q.search_reports(text="Luis")["total"] == 3
     assert q.search_reports(kind="tecnico")["total"] == 2
     assert q.search_reports(kind="cliente", text="Luis")["total"] == 2
@@ -139,7 +139,7 @@ def test_busqueda_de_reportes(repo):
 def test_reportes_de_un_caso(repo):
     c1 = repo.register_intake("Luis", "1", "SN-1", "Laptop", "a")
     c2 = repo.register_intake("Ana", "2", "SN-2", "PC", "b")
-    rr = ReportsRepository(repo)
+    rr = QAKM_ReportsRepository(repo)
     rr.add(c1, "tecnico", "a.pdf")
     rr.add(c1, "cliente", "b.pdf")
     rr.add(c2, "tecnico", "c.pdf")
@@ -168,7 +168,7 @@ def test_rendimiento_con_20000_casos(repo):
     c.executemany("INSERT INTO cases(code, equipment_id, problem) VALUES (?,?,?)",
                   [(f"C-{i + 1:05d}", i + 1, f"Problema {i}") for i in range(n)])
     c.commit()
-    q = SearchQueries(c)
+    q = QAKM_SearchQueries(c)
     inicio = time.time()
     pagina = q.search_cases(limit=50, offset=10_000)
     busqueda = q.search_cases(text="Cliente 01234")

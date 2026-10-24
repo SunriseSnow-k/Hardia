@@ -6,7 +6,7 @@ Una orden por caso; se puede corregir mientras el caso no se haya entregado.
 import sqlite3
 from datetime import date
 
-from .repo import Repository
+from .repo import QAKM_Repository
 
 ACCESORIOS = ("Cargador", "Batería", "Cable de poder", "Mouse", "Funda o maletín", "Disco externo")
 MAX_TEXTO = 500
@@ -27,9 +27,9 @@ def _limpio(texto, campo: str) -> str:
     return texto
 
 
-class OrdersRepository:
+class QAKM_OrdersRepository:
     # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
-    def __init__(self, repo: Repository):
+    def __init__(self, repo: QAKM_Repository):
         self.repo = repo
         self.c = repo.c
 

@@ -27,20 +27,20 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from app.db.hardware_repo import HardwareRepository
-from app.db.health_repo import HealthRepository
-from app.db.notes_repo import NotesRepository
-from app.db.repo import Repository
-from app.db.search_repo import SearchQueries
+from app.db.hardware_repo import QAKM_HardwareRepository
+from app.db.health_repo import QAKM_HealthRepository
+from app.db.notes_repo import QAKM_NotesRepository
+from app.db.repo import QAKM_Repository
+from app.db.search_repo import QAKM_SearchQueries
 from app.hardware.inventory import FUERTES_LOCAL, identifiers_from_scan
 from app.hardware.scanner import COMPONENT_NAMES, local_identifiers
 from app.health import ATENCION, BUENO, REVISAR, SIN_REF, componente, evaluate, load_references
-from app.ui.inventory_dialog import InventoryDialog
+from app.ui.inventory_dialog import MVCD_InventoryDialog
 from app.ui.tema import T
 from app.ui.widgets import (
-    AreaDesplazable,
-    BarraPorcentaje,
-    ChipEstado,
+    MVCD_AreaDesplazable,
+    MVCD_BarraPorcentaje,
+    MVCD_ChipEstado,
     ajustar_alto_tabla,
     cabecera,
     celda,
@@ -75,15 +75,15 @@ def misma_maquina(scan: dict, locales) -> bool | None:
 
 
 # ---------------- detalle de un componente ----------------
-class DetalleComponenteDialog(QDialog):
+class MVCD_DetalleComponenteDialog(QDialog):
     # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """% grande, cálculo, barras medido/referencia, datos de Windows, evolución entre
     inspecciones, qué significa y qué hacer."""
 
-    def __init__(self, repo: Repository, code: str | None, comp: dict, historial: list[dict], parent=None):
+    def __init__(self, repo: QAKM_Repository, code: str | None, comp: dict, historial: list[dict], parent=None):
         super().__init__(parent)
         self.repo, self.code, self.comp = repo, code, comp
-        self.hr = HealthRepository(repo)
+        self.hr = QAKM_HealthRepository(repo)
         self.tech_id = getattr(repo, "session_tech", "") or ""
         self.setWindowTitle(f'Salud — {comp["nombre"]}')
         self.resize(760, 760)
@@ -94,13 +94,13 @@ class DetalleComponenteDialog(QDialog):
         lay = QVBoxLayout(cuerpo)
         lay.setContentsMargins(24, 20, 24, 8)
         lay.setSpacing(12)
-        exterior.addWidget(AreaDesplazable(cuerpo), 1)
+        exterior.addWidget(MVCD_AreaDesplazable(cuerpo), 1)
 
         fila_t = QHBoxLayout()
         t = QLabel(comp["nombre"])
         t.setObjectName("PageTitle")
         fila_t.addWidget(t)
-        fila_t.addWidget(ChipEstado(comp["estado"]))
+        fila_t.addWidget(MVCD_ChipEstado(comp["estado"]))
         fila_t.addStretch()
         lay.addLayout(fila_t)
         if comp.get("modelo"):
@@ -120,9 +120,9 @@ class DetalleComponenteDialog(QDialog):
             g = QGridLayout()
             g.setHorizontalSpacing(10)
             g.addWidget(QLabel(f'Medido: {comp["medido"]["valor"]}'), 0, 0)
-            g.addWidget(BarraPorcentaje(comp["pct"], color=color_estado(comp["estado"])), 0, 1)
+            g.addWidget(MVCD_BarraPorcentaje(comp["pct"], color=color_estado(comp["estado"])), 0, 1)
             g.addWidget(QLabel(f'De fábrica: {comp["fabrica"]["valor"]}'), 1, 0)
-            g.addWidget(BarraPorcentaje(100, color=T.lateral_texto), 1, 1)
+            g.addWidget(MVCD_BarraPorcentaje(100, color=T.lateral_texto), 1, 1)
             g.setColumnStretch(1, 1)
             v1.addLayout(g)
         v1.addWidget(muted(f'Fuente: {comp.get("fuente") or "—"}'))
@@ -162,7 +162,7 @@ class DetalleComponenteDialog(QDialog):
             etiqueta.setMinimumWidth(170)
             fila.addWidget(etiqueta)
             if c.get("pct") is not None:
-                fila.addWidget(BarraPorcentaje(c["pct"], color=color_estado(c["estado"])), 1)
+                fila.addWidget(MVCD_BarraPorcentaje(c["pct"], color=color_estado(c["estado"])), 1)
             else:
                 fila.addWidget(muted(f'{c["medido"]["valor"]} · {c.get("alt") or c["estado"]}'), 1)
             v3.addLayout(fila)
@@ -256,7 +256,7 @@ class DetalleComponenteDialog(QDialog):
             if not ok:
                 return
         try:
-            NotesRepository(self.repo).add(self.code, "observacion", texto, self.tech_id)
+            QAKM_NotesRepository(self.repo).add(self.code, "observacion", texto, self.tech_id)
         except ValueError as e:
             self._set_msg(str(e), ok=False)
             return
@@ -264,15 +264,15 @@ class DetalleComponenteDialog(QDialog):
 
 
 # ---------------- pantalla ----------------
-class SaludPage(QWidget):
+class MVCD_SaludPage(QWidget):
     # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """Si `embebida` es True (dentro del detalle del caso) no muestra el selector de casos."""
     changed = Signal()
 
-    def __init__(self, repo: Repository, embebida: bool = False):
+    def __init__(self, repo: QAKM_Repository, embebida: bool = False):
         super().__init__()
         self.repo = repo
-        self.hr = HealthRepository(repo)
+        self.hr = QAKM_HealthRepository(repo)
         self.embebida = embebida
         self.code: str | None = None
         self.scan: dict | None = None
@@ -329,7 +329,7 @@ class SaludPage(QWidget):
         self.cuerpo = QVBoxLayout(cuerpo)
         self.cuerpo.setContentsMargins(0, 0, 0, 0)
         self.cuerpo.setSpacing(12)
-        root.addWidget(AreaDesplazable(cuerpo), 1)
+        root.addWidget(MVCD_AreaDesplazable(cuerpo), 1)
 
         # Resumen
         self.p_resumen, vr = panel()
@@ -341,13 +341,13 @@ class SaludPage(QWidget):
         num = QHBoxLayout()
         self.indice_lbl = QLabel("—")
         self.indice_lbl.setObjectName("BigNumber")
-        self.indice_chip = ChipEstado(SIN_REF)
+        self.indice_chip = MVCD_ChipEstado(SIN_REF)
         num.addWidget(self.indice_lbl)
         num.addWidget(self.indice_chip, alignment=Qt.AlignVCenter)
         num.addStretch()
         izq.addLayout(num)
         izq.addWidget(muted("índice orientativo"))
-        self.indice_barra = BarraPorcentaje(None, texto_alt="Sin componentes con referencia")
+        self.indice_barra = MVCD_BarraPorcentaje(None, texto_alt="Sin componentes con referencia")
         izq.addWidget(self.indice_barra)
         marca = muted("Fábrica = 100 %")
         marca.setAlignment(Qt.AlignRight)
@@ -460,7 +460,7 @@ class SaludPage(QWidget):
     def _cargar_casos(self):
         self._timer_caso.stop()
         try:
-            res = SearchQueries(self.repo.c).search_cases(text=self.buscar_caso.text().strip(), limit=MAX_CASOS_COMBO)
+            res = QAKM_SearchQueries(self.repo.c).search_cases(text=self.buscar_caso.text().strip(), limit=MAX_CASOS_COMBO)
         except Exception:
             return
         actual = self.code or self.combo.currentData()
@@ -591,14 +591,14 @@ class SaludPage(QWidget):
             chip = QWidget()
             hc = QHBoxLayout(chip)
             hc.setContentsMargins(8, 0, 8, 0)
-            hc.addWidget(ChipEstado(c["estado"]))
+            hc.addWidget(MVCD_ChipEstado(c["estado"]))
             hc.addStretch()
             self.tabla.setCellWidget(i, 1, chip)
             respecto = QWidget()
             hr = QHBoxLayout(respecto)
             hr.setContentsMargins(8, 0, 8, 0)
             if c.get("pct") is not None:
-                hr.addWidget(BarraPorcentaje(c["pct"], color=color_estado(c["estado"])))
+                hr.addWidget(MVCD_BarraPorcentaje(c["pct"], color=color_estado(c["estado"])))
             else:
                 alt = muted(c.get("alt") or "Sin referencia")
                 alt.setToolTip(c.get("alt") or "")
@@ -627,7 +627,7 @@ class SaludPage(QWidget):
         comp = componente(self.resultado, clave)
         if comp is None:
             return None
-        dlg = DetalleComponenteDialog(self.repo, self.code, comp, self.historial, self)
+        dlg = MVCD_DetalleComponenteDialog(self.repo, self.code, comp, self.historial, self)
         if ejecutar:
             dlg.exec()
         return dlg
@@ -642,7 +642,7 @@ class SaludPage(QWidget):
             return None
         cap = (self.datos or {}).get("captura")
         scan = cap["payload"] if cap else self.scan
-        dlg = InventoryDialog(scan, self)
+        dlg = MVCD_InventoryDialog(scan, self)
         if ejecutar:
             dlg.exec()
         return dlg
@@ -660,7 +660,7 @@ class SaludPage(QWidget):
             return None, f"No se pudo identificar este equipo: {e}"
         if not locales:
             return None, "El sistema no informó el UUID ni el número de serie de este equipo."
-        res = HardwareRepository(self.repo).identify(locales, fuertes=FUERTES_LOCAL)
+        res = QAKM_HardwareRepository(self.repo).identify(locales, fuertes=FUERTES_LOCAL)
         if res["status"] == "encontrado" and res["equipment_id"] == equipo:
             return True, ""
         return False, ""
@@ -702,7 +702,7 @@ class SaludPage(QWidget):
             return False
         data.setdefault("provenance", {"how": "local_scan", "file": None})
         try:
-            res = HardwareRepository(self.repo).save_capture(self.code, data)
+            res = QAKM_HardwareRepository(self.repo).save_capture(self.code, data)
         except Exception as e:
             self._informar(accion, f"No se pudo guardar la captura: {e}")
             return False
@@ -714,7 +714,7 @@ class SaludPage(QWidget):
 
     def _escanear_con_progreso(self) -> dict | None:
         """Escaneo real de este equipo en un hilo, con barra de progreso (no bloquea la interfaz)."""
-        from app.ui.pages.escaneo import ScanWorker
+        from app.ui.pages.escaneo import MVCD_ScanWorker
         dlg = QProgressDialog("Escaneando este equipo…", None, 0, len(COMPONENT_NAMES), self)
         dlg.setWindowTitle("Escanear este equipo")
         dlg.setWindowModality(Qt.WindowModal)
@@ -722,7 +722,7 @@ class SaludPage(QWidget):
         dlg.setAutoClose(False)
         dlg.setValue(0)
         resultado, error = {}, {}
-        w = ScanWorker()
+        w = MVCD_ScanWorker()
         w.step.connect(lambda i, n, _d, _s: (dlg.setValue(i + 1), dlg.setLabelText(f"Leyendo: {n}…")))
         w.finished_scan.connect(lambda d: resultado.update(d))
         w.failed.connect(lambda m: error.update(m=m))
@@ -754,7 +754,7 @@ class SaludPage(QWidget):
         return True, ""
 
     def _prueba(self):
-        from app.ui.benchmark_dialog import BenchmarkDialog
+        from app.ui.benchmark_dialog import MVCD_BenchmarkDialog
         if not self.asegurar_captura("Ejecutar prueba de rendimiento"):
             return
         QApplication.setOverrideCursor(Qt.WaitCursor)
@@ -767,23 +767,23 @@ class SaludPage(QWidget):
             self.motivo_bench.setStyleSheet(f"color:{T.peligro};")
             self.motivo_bench.show()
             return
-        dlg = BenchmarkDialog(self.repo, self.code, self.datos["captura"], self)
+        dlg = MVCD_BenchmarkDialog(self.repo, self.code, self.datos["captura"], self)
         dlg.exec()
         if dlg.saved:
             self._evaluar()
 
 
-class SaludDialog(QDialog):
+class MVCD_SaludDialog(QDialog):
     # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     """La misma pantalla dentro de un diálogo (desde el detalle del caso)."""
 
-    def __init__(self, repo: Repository, code: str, parent=None):
+    def __init__(self, repo: QAKM_Repository, code: str, parent=None):
         super().__init__(parent)
         self.setWindowTitle(f"Salud del equipo — {code}")
         self.resize(1120, 820)
         lay = QVBoxLayout(self)
         lay.setContentsMargins(0, 0, 0, 12)
-        self.page = SaludPage(repo, embebida=True)
+        self.page = MVCD_SaludPage(repo, embebida=True)
         self.page.show_case(code)
         lay.addWidget(self.page, 1)
         cerrar = QPushButton("Cerrar")

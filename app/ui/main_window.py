@@ -17,20 +17,20 @@ from PySide6.QtWidgets import (
 
 from app import backup
 from app.ai.config import check_ai
-from app.db.repo import Repository
-from app.db.search_repo import SearchQueries
-from app.ui.case_dialog import CaseDialog
-from app.ui.pages.acerca import AcercaPage
-from app.ui.pages.configuracion import ConfiguracionPage
-from app.ui.pages.conocimiento import ConocimientoPage
-from app.ui.pages.equipos import EquiposPage
-from app.ui.pages.escaneo import EscaneoPage
-from app.ui.pages.historial import HistorialPage
-from app.ui.pages.ia_local import IaLocalPage
-from app.ui.pages.inicio import InicioPage
-from app.ui.pages.recepcion import RecepcionPage
-from app.ui.pages.reportes import ReportesPage
-from app.ui.pages.salud import SaludPage
+from app.db.repo import QAKM_Repository
+from app.db.search_repo import QAKM_SearchQueries
+from app.ui.case_dialog import MVCD_CaseDialog
+from app.ui.pages.acerca import MVCD_AcercaPage
+from app.ui.pages.configuracion import MVCD_ConfiguracionPage
+from app.ui.pages.conocimiento import MVCD_ConocimientoPage
+from app.ui.pages.equipos import MVCD_EquiposPage
+from app.ui.pages.escaneo import MVCD_EscaneoPage
+from app.ui.pages.historial import MVCD_HistorialPage
+from app.ui.pages.ia_local import MVCD_IaLocalPage
+from app.ui.pages.inicio import MVCD_InicioPage
+from app.ui.pages.recepcion import MVCD_RecepcionPage
+from app.ui.pages.reportes import MVCD_ReportesPage
+from app.ui.pages.salud import MVCD_SaludPage
 from app.ui.tema import T
 
 SECCIONES = [
@@ -44,11 +44,11 @@ MAX_SUGERENCIAS = 20
 log = logging.getLogger(__name__)
 
 
-class MainWindow(QMainWindow):
+class MVCD_MainWindow(QMainWindow):
     # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
     closed = Signal()  # la ventana terminó de cerrarse (para salir o volver al login)
 
-    def __init__(self, repo: Repository, user_id: str):
+    def __init__(self, repo: QAKM_Repository, user_id: str):
         super().__init__()
         self.repo = repo
         self._hits: dict[str, str] = {}
@@ -64,17 +64,17 @@ class MainWindow(QMainWindow):
         outer.addWidget(self._barra_superior(user_id))
 
         # Páginas
-        self.inicio = InicioPage(repo)
-        self.recepcion = RecepcionPage(repo, user_id)
-        self.escaneo = EscaneoPage()
-        self.salud = SaludPage(repo)
-        self.equipos = EquiposPage(repo)
-        self.historial = HistorialPage(repo)
-        self.reportes = ReportesPage(repo, user_id)
-        self.conocimiento = ConocimientoPage()
-        self.ia = IaLocalPage(repo)
-        self.config = ConfiguracionPage(repo, user_id)
-        self.acerca = AcercaPage(repo)
+        self.inicio = MVCD_InicioPage(repo)
+        self.recepcion = MVCD_RecepcionPage(repo, user_id)
+        self.escaneo = MVCD_EscaneoPage()
+        self.salud = MVCD_SaludPage(repo)
+        self.equipos = MVCD_EquiposPage(repo)
+        self.historial = MVCD_HistorialPage(repo)
+        self.reportes = MVCD_ReportesPage(repo, user_id)
+        self.conocimiento = MVCD_ConocimientoPage()
+        self.ia = MVCD_IaLocalPage(repo)
+        self.config = MVCD_ConfiguracionPage(repo, user_id)
+        self.acerca = MVCD_AcercaPage(repo)
         reales = {
             IDX_INICIO: self.inicio, IDX_RECEPCION: self.recepcion,
             IDX_ESCANEO: self.escaneo, IDX_SALUD: self.salud, IDX_EQUIPOS: self.equipos,
@@ -196,7 +196,7 @@ class MainWindow(QMainWindow):
             self.modelo.setStringList([])
             return
         try:  # misma búsqueda que el Historial: incluye documento y marca/modelo de las capturas
-            filas = SearchQueries(self.repo.c).search_cases(text=texto, limit=MAX_SUGERENCIAS)["rows"]
+            filas = QAKM_SearchQueries(self.repo.c).search_cases(text=texto, limit=MAX_SUGERENCIAS)["rows"]
         except Exception:
             filas = []
         for r in filas:
@@ -252,7 +252,7 @@ class MainWindow(QMainWindow):
         self.salud.show_scan(data)
 
     def abrir_caso(self, code: str):
-        dlg = CaseDialog(self.repo, code, self)
+        dlg = MVCD_CaseDialog(self.repo, code, self)
         dlg.exec()
         if dlg.changed:
             self._refrescar_todo()

@@ -77,14 +77,14 @@ def main() -> int:
 
     # Lo pesado se importa con la pantalla de carga ya visible
     from app.ai import paquete
-    from app.db.database import Database
-    from app.db.hardware_repo import HardwareRepository
-    from app.db.migraciones import BaseMasNueva
-    from app.db.repo import Repository
-    from app.ui.login import LoginDialog
-    from app.ui.main_window import MainWindow
+    from app.db.database import QAKM_Database
+    from app.db.hardware_repo import QAKM_HardwareRepository
+    from app.db.migraciones import QAKM_BaseMasNueva
+    from app.db.repo import QAKM_Repository
+    from app.ui.login import MVCD_LoginDialog
+    from app.ui.main_window import MVCD_MainWindow
     from app.ui.styles import QSS
-    from app.ui.welcome import WelcomeDialog
+    from app.ui.welcome import MVCD_WelcomeDialog
 
     app.setStyleSheet(QSS)
     # La aplicación termina cuando se cierra la ventana principal sin pedir "Cerrar sesión";
@@ -92,37 +92,37 @@ def main() -> int:
     app.setQuitOnLastWindowClosed(False)
 
     try:  # actualiza el esquema si hace falta (antes guarda una copia de la base tal como estaba)
-        db = Database(db_path(), carpeta_copias=backups_dir())
-    except BaseMasNueva as e:
+        db = QAKM_Database(db_path(), carpeta_copias=backups_dir())
+    except QAKM_BaseMasNueva as e:
         splash.close()
         QMessageBox.critical(None, APP_NAME, str(e))
         lock.unlock()
         return 1
     if db.migraciones_aplicadas:
         log.info("Esquema actualizado: migraciones %s", db.migraciones_aplicadas)
-    repo = Repository(db)
+    repo = QAKM_Repository(db)
     try:  # convierte los escaneos anteriores en capturas (no borra nada; se repite sin efecto)
-        HardwareRepository(repo).migrate_legacy()
+        QAKM_HardwareRepository(repo).migrate_legacy()
     except Exception:
         log.exception("Falló la migración de escaneos anteriores")  # no impide abrir el programa
 
     codigo = 0
     try:
         while True:
-            login = LoginDialog(repo)
+            login = MVCD_LoginDialog(repo)
             if splash is not None:
                 splash.finish(login)
                 splash = None
-            if login.exec() != LoginDialog.Accepted:
+            if login.exec() != MVCD_LoginDialog.Accepted:
                 break
 
             repo.session_tech = login.user_id  # autor de las notas y de los reportes de esta sesión
             log.info("Inicio de sesión: %s", login.user_id)
 
             if repo.get_setting("setup_done") != "1":
-                WelcomeDialog(repo).exec()
+                MVCD_WelcomeDialog(repo).exec()
 
-            win = MainWindow(repo, login.user_id)
+            win = MVCD_MainWindow(repo, login.user_id)
             win.closed.connect(app.quit)
             win.mostrar()
             codigo = app.exec()

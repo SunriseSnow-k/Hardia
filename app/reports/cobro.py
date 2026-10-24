@@ -6,7 +6,7 @@ from reportlab.lib.units import mm
 from reportlab.platypus import KeepTogether, Spacer, Table
 
 from app.db.billing_repo import TIPOS_LINEA
-from app.db.clients_repo import ClientsRepository
+from app.db.clients_repo import QAKM_ClientsRepository
 from app.servicios import cobro
 
 from . import base
@@ -19,7 +19,7 @@ def load_billing_data(repo, code: str) -> dict:
     if caso is None:
         raise ValueError(f"No existe el caso {code}.")
     return {
-        "caso": caso, "doc_id": ClientsRepository(repo).doc_for_case(code),
+        "caso": caso, "doc_id": QAKM_ClientsRepository(repo).doc_for_case(code),
         "resumen": cobro.resumen(repo, code), "simbolo": cobro.simbolo(repo),
         "business": repo.get_setting("business_name", "Mi taller"),
         "phone": repo.get_setting("business_phone", ""),

@@ -9,11 +9,11 @@ from PySide6.QtWidgets import QApplication, QHBoxLayout, QLabel, QPushButton, QV
 
 from app import registro
 from app.ai.config import check_ai
-from app.db.repo import Repository
+from app.db.repo import QAKM_Repository
 from app.diagnosis.engine import load_rules
 from app.paths import data_dir, db_path, recurso
-from app.ui.welcome import WelcomeDialog
-from app.ui.widgets import AreaDesplazable, cabecera, limpiar_layout, lista_dato_valor, panel, ruta_cortable
+from app.ui.welcome import MVCD_WelcomeDialog
+from app.ui.widgets import MVCD_AreaDesplazable, cabecera, limpiar_layout, lista_dato_valor, panel, ruta_cortable
 from app.version import APP_NAME, VERSION
 
 TECNOLOGIAS = ("Python · PySide6 (Qt) · SQLite · psutil, WMI (Windows) y /sys, dmidecode y smartctl "
@@ -42,9 +42,9 @@ CONTEOS = (("cases", "Casos registrados"), ("equipment", "Equipos"), ("clients",
            ("reports", "Reportes generados"), ("case_notes", "Notas de casos"), ("users", "Técnicos"))
 
 
-class AcercaPage(QWidget):
+class MVCD_AcercaPage(QWidget):
     # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
-    def __init__(self, repo: Repository):
+    def __init__(self, repo: QAKM_Repository):
         super().__init__()
         self.repo = repo
         self._texto = ""
@@ -60,7 +60,7 @@ class AcercaPage(QWidget):
         lay = QVBoxLayout(inner)
         lay.setContentsMargins(0, 8, 0, 0)
         lay.setSpacing(12)
-        scroll = AreaDesplazable(inner)
+        scroll = MVCD_AreaDesplazable(inner)
         outer.addWidget(scroll, 1)
 
         p0, v0 = panel("Qué es")
@@ -125,7 +125,7 @@ class AcercaPage(QWidget):
         p4, v4 = panel("Configuración inicial")
         b = QPushButton("Abrir el asistente de configuración inicial")
         b.setObjectName("Secondary")
-        b.clicked.connect(lambda: WelcomeDialog(self.repo, self).exec())
+        b.clicked.connect(lambda: MVCD_WelcomeDialog(self.repo, self).exec())
         fila_b = QHBoxLayout()
         fila_b.addWidget(b)
         fila_b.addStretch()

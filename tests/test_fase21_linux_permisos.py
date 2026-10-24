@@ -61,7 +61,7 @@ def test_protocolo_del_ayudante(monkeypatch):
 @solo_linux
 def test_sesion_real_con_el_ayudante_sin_pkexec():
     """El mismo ayudante que lanza pkexec, como usuario normal: protocolo completo por tuberías."""
-    with permisos_linux.SesionAdmin.abrir(orden=permisos_linux.orden_ayudante()) as s:
+    with permisos_linux.MMAE_SesionAdmin.abrir(orden=permisos_linux.orden_ayudante()) as s:
         d = s.datos()
         assert d["tipo"] == "datos" and isinstance(d["comandos"], list)
         r = s.leer_disco("/etc/passwd", 1)
@@ -70,12 +70,12 @@ def test_sesion_real_con_el_ayudante_sin_pkexec():
 
 
 def test_pkexec_cancelado_o_ayudante_roto():
-    with pytest.raises(permisos_linux.PermisoDenegado, match="canceló"):
-        permisos_linux.SesionAdmin.abrir(orden=[sys.executable, "-c", "import sys; sys.exit(126)"])
-    with pytest.raises(permisos_linux.PermisoDenegado, match="inesperada"):
-        permisos_linux.SesionAdmin.abrir(orden=[sys.executable, "-c", "print('{\"tipo\": \"otro\"}')"])
-    with pytest.raises(permisos_linux.PermisoDenegado):
-        permisos_linux.SesionAdmin.abrir(orden=["/no/existe/pkexec"])
+    with pytest.raises(permisos_linux.MMAE_PermisoDenegado, match="canceló"):
+        permisos_linux.MMAE_SesionAdmin.abrir(orden=[sys.executable, "-c", "import sys; sys.exit(126)"])
+    with pytest.raises(permisos_linux.MMAE_PermisoDenegado, match="inesperada"):
+        permisos_linux.MMAE_SesionAdmin.abrir(orden=[sys.executable, "-c", "print('{\"tipo\": \"otro\"}')"])
+    with pytest.raises(permisos_linux.MMAE_PermisoDenegado):
+        permisos_linux.MMAE_SesionAdmin.abrir(orden=["/no/existe/pkexec"])
 
 
 def test_orden_del_ayudante_empaquetado(monkeypatch):
@@ -86,7 +86,7 @@ def test_orden_del_ayudante_empaquetado(monkeypatch):
 
 # ---------------- escaneo con los datos del ayudante ----------------
 def test_entorno_linux_usa_los_datos_protegidos(monkeypatch):
-    env = linux.EntornoLinux()
+    env = linux.MMAE_EntornoLinux()
     monkeypatch.setattr(linux.plataforma, "es_administrador", lambda: False)
     assert not env.es_admin()
     env.usar_privilegiados({"archivos": {"/sys/class/dmi/id/product_serial": " PF2ABCDE \n", "x": 3},
@@ -101,7 +101,7 @@ def test_escaneo_con_permisos_desde_la_interfaz(monkeypatch):
     from app.hardware import scanner
     sim = LinuxSimulado(root=False)
 
-    class Entorno(linux.EntornoLinux):  # el Linux simulado, con la capa de datos protegidos real
+    class Entorno(linux.MMAE_EntornoLinux):  # el Linux simulado, con la capa de datos protegidos real
         # Q,A,K;M   M,V,C,D   V,O,N,F   M,M,A,E
         def __init__(self):
             super().__init__()
@@ -154,16 +154,16 @@ def test_identificador_de_la_instalacion_sin_root():
 
 
 def test_misma_maquina_y_caso_con_el_identificador_de_linux(tmp_path):
-    from app.db.database import Database
-    from app.db.hardware_repo import HardwareRepository
-    from app.db.repo import Repository
+    from app.db.database import QAKM_Database
+    from app.db.hardware_repo import QAKM_HardwareRepository
+    from app.db.repo import QAKM_Repository
     from app.ui.pages.salud import misma_maquina
     captura = {"inventory": {"identity": {"machine_id": "AB" * 16}}}
     assert misma_maquina(captura, [("machine_id", "AB" * 16)]) is True
     assert misma_maquina(captura, [("machine_id", "CD" * 16)]) is False
-    db = Database(tmp_path / "t.db")
-    repo = Repository(db)
-    hr = HardwareRepository(repo)
+    db = QAKM_Database(tmp_path / "t.db")
+    repo = QAKM_Repository(db)
+    hr = QAKM_HardwareRepository(repo)
     eq = repo.equipment_id_of_case(repo.register_intake("Luis", "1", "", "Laptop", "Lento"))
     hr.add_identifiers(eq, [("machine_id", "AB" * 16)])
     assert hr.identify([("machine_id", "AB" * 16)])["status"] == "probable"  # no reconoce equipos de clientes
@@ -206,7 +206,7 @@ def test_boton_escanear_con_permisos(monkeypatch):
         usados.append(privilegiados)
         return {"components": [], "metrics": {}, "summary": {}}
     monkeypatch.setattr(escaneo, "run_scan", escaneo_simulado)
-    pagina = escaneo.EscaneoPage()
+    pagina = escaneo.MVCD_EscaneoPage()
     boton = [b for b in pagina.aviso_sensores.findChildren(QPushButton) if b.text() == "Escanear con permisos"]
     assert len(boton) == 1 and pagina.b_scan_admin is boton[0]
     boton[0].click()
@@ -223,7 +223,7 @@ def test_sin_pkexec_no_hay_boton(monkeypatch):
     from app.hardware import lhm
     from app.ui.pages import escaneo
     monkeypatch.setattr(lhm, "puede_pedir_permisos", lambda: False)
-    assert escaneo.EscaneoPage().b_scan_admin is None
+    assert escaneo.MVCD_EscaneoPage().b_scan_admin is None
 
 
 # ---------------- memorias USB sin montar ----------------

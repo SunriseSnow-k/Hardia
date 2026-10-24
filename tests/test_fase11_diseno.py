@@ -9,11 +9,11 @@ pytest.importorskip("PySide6")
 from PySide6.QtWidgets import QApplication
 
 from app.ai.ollama_client import OllamaError
-from app.db.clients_repo import ClientsRepository
-from app.db.database import Database
-from app.db.equipment_repo import EquipmentRepository
-from app.db.hardware_repo import HardwareRepository
-from app.db.repo import Repository
+from app.db.clients_repo import QAKM_ClientsRepository
+from app.db.database import QAKM_Database
+from app.db.equipment_repo import QAKM_EquipmentRepository
+from app.db.hardware_repo import QAKM_HardwareRepository
+from app.db.repo import QAKM_Repository
 from app.hardware.scanner import run_scan
 from app.paths import VAR_DATOS
 from tests.test_fase10b_hardware import _env, _psutil
@@ -37,8 +37,8 @@ def entorno(monkeypatch, tmp_path):
 
 @pytest.fixture
 def repo(tmp_path, qapp):
-    db = Database(tmp_path / "ui.db")
-    r = Repository(db)
+    db = QAKM_Database(tmp_path / "ui.db")
+    r = QAKM_Repository(db)
     r.set_setting("auto_backup", "0")
     yield r
     db.close()
@@ -122,13 +122,13 @@ def test_reingreso_en_la_lista_de_casos(repo):
 
 
 def test_equipos_busca_por_documento_marca_y_varias_palabras(repo):
-    hw = HardwareRepository(repo)
+    hw = QAKM_HardwareRepository(repo)
     c1 = repo.register_intake("Luis Peña", "987", "SN-1", "Laptop", "Lento")
     hw.save_capture(c1, _scan())
     c2 = repo.register_intake("Ana Ríos", "999", "SN-2", "PC armada", "Lento")
-    ClientsRepository(repo).set_doc_for_case(c2, "10456789")
+    QAKM_ClientsRepository(repo).set_doc_for_case(c2, "10456789")
     repo.update_case_status(c2, "Listo")
-    er = EquipmentRepository(repo)
+    er = QAKM_EquipmentRepository(repo)
     assert [r["serial"] for r in er.list_equipment("10456789")] == ["SN-2"]
     assert [r["serial"] for r in er.list_equipment("HP")] == ["SN-1"]  # marca de la captura
     assert [r["serial"] for r in er.list_equipment("luis laptop")] == ["SN-1"]
@@ -139,10 +139,10 @@ def test_equipos_busca_por_documento_marca_y_varias_palabras(repo):
 
 # ---------------- interfaz ----------------
 def test_buscador_global_encuentra_por_documento(repo):
-    from app.ui.main_window import MainWindow
+    from app.ui.main_window import MVCD_MainWindow
     code = repo.register_intake("Ana Ríos", "999", "SN-2", "PC", "Lento")
-    ClientsRepository(repo).set_doc_for_case(code, "10456789")
-    win = MainWindow(repo, "TEC-001")
+    QAKM_ClientsRepository(repo).set_doc_for_case(code, "10456789")
+    win = MVCD_MainWindow(repo, "TEC-001")
     win._al_buscar("10456789")
     assert list(win._hits.values()) == [code]
     win._al_buscar("x")
@@ -152,8 +152,8 @@ def test_buscador_global_encuentra_por_documento(repo):
 
 
 def test_cerrar_sesion_marca_la_salida(repo):
-    from app.ui.main_window import MainWindow
-    win = MainWindow(repo, "TEC-001")
+    from app.ui.main_window import MVCD_MainWindow
+    win = MVCD_MainWindow(repo, "TEC-001")
     cerradas = []
     win.closed.connect(lambda: cerradas.append(True))
     win.show()
@@ -162,19 +162,19 @@ def test_cerrar_sesion_marca_la_salida(repo):
 
 
 def test_inicio_muestra_contadores_y_reingreso(repo):
-    from app.ui.pages.inicio import InicioPage
+    from app.ui.pages.inicio import MVCD_InicioPage
     repo.register_intake("Ana", "1", "SN-1", "PC", "Lento")
     repo.register_intake("Ana", "1", "SN-1", "PC", "No enciende")
-    page = InicioPage(repo)
+    page = MVCD_InicioPage(repo)
     assert "2 caso(s) activo(s)" in page.subtitulo.text()
     textos = [w.text() for w in page.findChildren(type(page.subtitulo))]
     assert any(t.startswith("Reingreso") for t in textos)
 
 
 def test_caso_actualiza_las_etapas(repo):
-    from app.ui.case_dialog import CaseDialog
+    from app.ui.case_dialog import MVCD_CaseDialog
     code = repo.register_intake("Ana", "1", "SN-1", "PC", "Lento")
-    dlg = CaseDialog(repo, code)
+    dlg = MVCD_CaseDialog(repo, code)
     assert dlg.ok.isHidden()
     dlg.estado.setCurrentText("Listo")
     dlg._guardar_estado()
@@ -184,8 +184,8 @@ def test_caso_actualiza_las_etapas(repo):
 
 
 def test_escaneo_muestra_estados_escritos(qapp):
-    from app.ui.pages.escaneo import EscaneoPage
-    page = EscaneoPage()
+    from app.ui.pages.escaneo import MVCD_EscaneoPage
+    page = MVCD_EscaneoPage()
     page.data = _scan(psutil=_psutil(bateria=False))
     page._pintar_resultado()
     estados = [f.chip.text() for f in page.filas]
@@ -195,8 +195,8 @@ def test_escaneo_muestra_estados_escritos(qapp):
 
 def test_conocimiento_muestra_detalle_e_implicacion(qapp):
     from app.reports.cliente import IMPLICACIONES
-    from app.ui.pages.conocimiento import ConocimientoPage
-    page = ConocimientoPage()
+    from app.ui.pages.conocimiento import MVCD_ConocimientoPage
+    page = MVCD_ConocimientoPage()
     assert page.lista.count() == len(page.rules)
     page.lista.setCurrentRow(0)
     textos = " ".join(w.text() for w in page.findChildren(type(page.cuenta)))
@@ -206,8 +206,8 @@ def test_conocimiento_muestra_detalle_e_implicacion(qapp):
 
 
 def test_barra_porcentaje(qapp):
-    from app.ui.widgets import BarraPorcentaje
-    b = BarraPorcentaje(83.4)
+    from app.ui.widgets import MVCD_BarraPorcentaje
+    b = MVCD_BarraPorcentaje(83.4)
     assert b.texto() == "83 %"
     b.set_valor(None, texto_alt="Sin medición")
     assert b.texto() == "Sin medición" and b.valor() is None
